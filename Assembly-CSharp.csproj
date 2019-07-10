@@ -55,6 +55,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+     <Compile Include="Assets\Scripts\Calculator\RandomCalculator.cs" />
      <Compile Include="Assets\Scripts\Club\Club.cs" />
      <Compile Include="Assets\Scripts\Club\FootballPlayer.cs" />
      <Compile Include="Assets\Scripts\Club\Stadium.cs" />
