@@ -5,9 +5,11 @@ using TMPro;
 
 public class Player : MonoBehaviour
 {
-  public TMP_Text cash;
+  public TextMeshProUGUI cash;
 
   void Awake(){
+    cash.GetComponent<TextMeshProUGUI>();
+    
     cash.text = 5000.ToString();
   }
 
