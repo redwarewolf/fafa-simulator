@@ -7,9 +7,11 @@ public class Player : MonoBehaviour
 {
   public TextMeshProUGUI cash;
 
+  private Club club;
+
   void Awake(){
     cash.GetComponent<TextMeshProUGUI>();
-    
+
     cash.text = 5000.ToString();
   }
 

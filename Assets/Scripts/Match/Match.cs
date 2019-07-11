@@ -4,15 +4,16 @@ using UnityEngine;
 
 public class Match : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
+  private Club myClub;
+  private Club enemyClub;
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+  private List<Event> randomEvents;
+
+  public Match(Club amyClub, Club aenemyClub){
+    myClub = amyClub;
+    enemyClub = aenemyClub;
+  }
+
+
+
 }

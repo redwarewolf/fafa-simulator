@@ -4,15 +4,8 @@ using UnityEngine;
 
 public class RandomCalculator : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+  public bool evaluateEvent(float chance){
+    return chance <= Random.Range(0,100);
+  }
 }
