@@ -5,8 +5,8 @@ using System.Linq;
 
 public class Club : MonoBehaviour
 {
-  private string name;
-  private List<FootballPlayer> footballPlayers;
+  public string name { get; set; }
+  public List<FootballPlayer> footballPlayers { get; set; }
 
   public Club(string _name, List<FootballPlayer> _footballPlayers){
     name = _name;
@@ -15,6 +15,6 @@ public class Club : MonoBehaviour
 
 
   public int power(){
-    return footballPlayers.Select( x => x.power()).Sum();
+    return footballPlayers.Select( x => x.ability).Sum();
   }
 }

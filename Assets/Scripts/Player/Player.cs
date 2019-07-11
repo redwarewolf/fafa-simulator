@@ -7,10 +7,14 @@ public class Player : MonoBehaviour
 {
   public TextMeshProUGUI cash;
 
-  private Club club;
+  public Club club { get; set; }
 
   void Start(){
     cash = GameObject.FindWithTag("Cash").GetComponent<TextMeshProUGUI>();
+
+    club = new ClubFactory().newClub("Pedro's Club", 3);
+
+    Debug.Log(this.club.name);
 
     cash.text = 5000.ToString();
   }
