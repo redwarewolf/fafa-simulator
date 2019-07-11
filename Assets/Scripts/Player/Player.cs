@@ -9,8 +9,8 @@ public class Player : MonoBehaviour
 
   private Club club;
 
-  void Awake(){
-    cash.GetComponent<TextMeshProUGUI>();
+  void Start(){
+    cash = GameObject.FindWithTag("Cash").GetComponent<TextMeshProUGUI>();
 
     cash.text = 5000.ToString();
   }

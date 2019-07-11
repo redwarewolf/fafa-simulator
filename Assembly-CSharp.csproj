@@ -59,6 +59,8 @@
      <Compile Include="Assets\Scripts\Club\Club.cs" />
      <Compile Include="Assets\Scripts\Club\FootballPlayer.cs" />
      <Compile Include="Assets\Scripts\Club\Stadium.cs" />
+     <Compile Include="Assets\Scripts\Factories\ClubFactory.cs" />
+     <Compile Include="Assets\Scripts\Factories\FootballPlayerFactory.cs" />
      <Compile Include="Assets\Scripts\GameMaster\GameMaster.cs" />
      <Compile Include="Assets\Scripts\Match\Event.cs" />
      <Compile Include="Assets\Scripts\Match\Match.cs" />

@@ -7,8 +7,17 @@ public class FootballPlayer : MonoBehaviour
   private int ability;
   private string name;
 
-  public FootballPlayer(string _name, int _ability){
-    ability = _ability;
+  /*
+  Possible three variables that a player could possibly contain:
+  
+  private int defAbility;
+  private int midAbility;
+  private int atkAbility;
+
+  */
+
+  public FootballPlayer(string _name = "Some Name", int _powerMultiplier = 1){
+    ability = 10 * _powerMultiplier;
     name = _name;
   }
 
