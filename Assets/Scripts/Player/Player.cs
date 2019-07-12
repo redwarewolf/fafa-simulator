@@ -1,37 +1,60 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
 
 public class Player : MonoBehaviour
 {
-  public TextMeshProUGUI cash;
 
-  public Club club { get; set; }
+  static public int cash;
+  static public string name { get; set; }
+  static public Club club { get; set; }
+
+  public UIupdater uiUpdater;
+
+  public Player(){
+    cash = 5000;
+    name = "Pedro";
+    club = new ClubFactory().newClub("Pedro's Club", 3);
+  }
 
   void Start(){
-    cash = GameObject.FindWithTag("Cash").GetComponent<TextMeshProUGUI>();
-
-    club = new ClubFactory().newClub("Pedro's Club", 3);
-
-    Debug.Log(this.club.name);
-
-    cash.text = 5000.ToString();
+    setUIUpdater();
+    updateUI();
   }
 
   public void buy(int cost){
     if (canAfford(cost)){
-      cash.text = (toInt(cash.text) - cost).ToString();
+      cash -= cost;
       updateUI();
     }
   }
 
   public bool canAfford(int cost){
-    return cost <= toInt(cash.text);
+    return cost <= cash;
   }
 
   public void updateUI(){
+    if (uiUpdater == null){
+      setUIUpdater();
+    }
+    uiUpdater.updateUI();
+  }
 
+  public int getCash(){
+    return cash;
+  }
+
+  public void setCash(int _cash){
+    cash = _cash;
+  }
+
+  public void addCash(int _cash){
+    cash += _cash;
+    updateUI();
+  }
+
+  public void setUIUpdater(){
+    uiUpdater = GameObject.FindWithTag("GameMaster").GetComponent<UIupdater>();
   }
 
   private int toInt(string str){
