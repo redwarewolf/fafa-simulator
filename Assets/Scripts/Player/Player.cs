@@ -12,9 +12,15 @@ public class Player : MonoBehaviour
   public UIupdater uiUpdater;
 
   public Player(){
-    cash = 5000;
-    name = "Pedro";
-    club = new ClubFactory().newClub("Pedro's Club", 3);
+
+    if (name == null){
+      //If any of the variables is null, it means the player's data hasnt been loaded.
+      // This should be replaced with loading from a file.
+
+      cash = 5000;
+      name = "Pedro";
+      club = new ClubFactory().newClub("Pedro's Club", 3);
+    }
   }
 
   void Start(){

@@ -9,9 +9,7 @@ public class GameMaster : MonoBehaviour
   static public Club enemyClub;
 
   void Awake(){
-    Debug.Log("Waking up");
     if (player == null){
-      Debug.Log("Setting the player");
       player = new Player();
     }
   }
