@@ -8,9 +8,15 @@ public class GameMaster : MonoBehaviour
   static public Player player;
   static public Club enemyClub;
 
+  static public Match currentMatch;
+
   void Awake(){
     if (player == null){
       player = new Player();
+    }
+
+    if (enemyClub == null){
+      enemyClub = ClubFactory.newClub("EnemyClub", 8);
     }
   }
 
@@ -22,6 +28,7 @@ public class GameMaster : MonoBehaviour
   }
 
   public void loadNextMatch(){
+    currentMatch = new Match(player.getClub(),enemyClub);
     SceneManager.LoadScene("MatchScene");
   }
 
@@ -35,5 +42,9 @@ public class GameMaster : MonoBehaviour
 
   public Club getEnemyClub(){
     return enemyClub;
+  }
+
+  static public void nextMatchEvent(){
+    currentMatch.nextMatchEvent();
   }
 }

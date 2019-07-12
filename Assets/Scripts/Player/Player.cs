@@ -7,7 +7,7 @@ public class Player : MonoBehaviour
 
   static public int cash;
   static public string name { get; set; }
-  static public Club club { get; set; }
+  static public Club club;
 
   public UIupdater uiUpdater;
 
@@ -19,7 +19,7 @@ public class Player : MonoBehaviour
 
       cash = 5000;
       name = "Pedro";
-      club = new ClubFactory().newClub("Pedro's Club", 3);
+      club = ClubFactory.newClub("Pedro's Club", 3);
     }
   }
 
@@ -52,6 +52,14 @@ public class Player : MonoBehaviour
 
   public void setCash(int _cash){
     cash = _cash;
+  }
+
+  public Club getClub(){
+    return club;
+  }
+
+  public void setClub(Club _club){
+    club = _club;
   }
 
   public void addCash(int _cash){

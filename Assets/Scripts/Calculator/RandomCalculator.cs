@@ -5,7 +5,7 @@ using UnityEngine;
 public class RandomCalculator : MonoBehaviour
 {
 
-  public bool evaluateEvent(float chance){
+  static public bool evaluateChances(float chance){
     return chance <= Random.Range(0,100);
   }
 }
