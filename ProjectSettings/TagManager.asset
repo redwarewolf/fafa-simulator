@@ -8,6 +8,7 @@ TagManager:
   - GameMaster
   - Timer
   - MatchText
+  - Score
   layers:
   - Default
   - TransparentFX

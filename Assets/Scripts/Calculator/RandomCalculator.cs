@@ -6,6 +6,8 @@ public class RandomCalculator : MonoBehaviour
 {
 
   static public bool evaluateChances(float chance){
-    return chance <= Random.Range(0,100);
+    int randomNumber = Random.Range(0, 100);
+
+    return chance <= randomNumber;
   }
 }

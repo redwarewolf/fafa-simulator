@@ -21,9 +21,7 @@ public class GameMaster : MonoBehaviour
   }
 
   public void finishMatch(){
-    Debug.Log(player.getCash());
     player.addCash(500);
-    Debug.Log(player.getCash());
     SceneManager.LoadScene("MainScene");
   }
 
