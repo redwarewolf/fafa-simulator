@@ -6,7 +6,11 @@ public class ClubFactory : MonoBehaviour
 {
 
   static public Club newClub(string _name = "El Rojo", int _powerMultiplier = 1){
-    return new Club(_name, FootballPlayerFactory.multipleNewFootballPlayers(11, _powerMultiplier));
+    return new Club(_name,
+                    FootballPlayerFactory.newFootballPlayer("El Cuqui Sancrim", _powerMultiplier),
+                    FootballPlayerFactory.multipleNewFootballPlayers(3, _powerMultiplier),
+                    FootballPlayerFactory.multipleNewFootballPlayers(3, _powerMultiplier),
+                    FootballPlayerFactory.multipleNewFootballPlayers(3, _powerMultiplier));
   }
 
   static public List<Club> multipleNewClubs(int ammount = 1){
