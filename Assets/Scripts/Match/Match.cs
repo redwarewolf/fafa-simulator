@@ -7,6 +7,8 @@ public class Match : MonoBehaviour
 {
   private Club myClub;
   private int myClubChance;
+  private int myScoreChance;
+  private int myStopChance;
 
   private Club enemyClub;
 
@@ -22,7 +24,9 @@ public class Match : MonoBehaviour
     myClub = amyClub;
     enemyClub = aenemyClub;
 
-    myClubChance =  (amyClub.ability()* 100) / (amyClub.ability() + aenemyClub.ability());
+    myClubChance = (amyClub.midfield()* 100) / (amyClub.midfield() + aenemyClub.midfield());
+    myScoreChance = (amyClub.attacking()* 100) / (amyClub.attacking() + aenemyClub.defending() + aenemyClub.goalkeeping());
+    myStopChance = ((amyClub.defending() + amyClub.goalkeeping()) * 100) / (amyClub.defending() + amyClub.goalkeeping() + aenemyClub.attacking());
 
     Debug.Log(amyClub.getName());
     Debug.Log(aenemyClub.getName());
@@ -50,7 +54,7 @@ public class Match : MonoBehaviour
 
   private bool teamScores(){
     //Si estoy en posición de tiro al arco y meto gol
-    if (currentPosition == 90 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myClubChance / 4))
+    if (currentPosition == 90 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myScoreChance))
     {
         myClubScore++;
 
@@ -62,7 +66,7 @@ public class Match : MonoBehaviour
 
     //Si el equipo contrario está en posición de tiro al arco y mete gol
 
-    if (currentPosition == 10 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances((100 - myClubChance) / 4))
+    if (currentPosition == 10 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myStopChance))
     {
         enemyClubScore++;
 
