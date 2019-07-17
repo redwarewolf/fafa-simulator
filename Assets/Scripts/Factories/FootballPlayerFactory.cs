@@ -20,7 +20,7 @@ public class FootballPlayerFactory : MonoBehaviour
   static public List<FootballPlayer> multipleNewFootballPlayers(int ammount = 1, int _powerMultiplier = 1){
     List<FootballPlayer> players = new List<FootballPlayer>();
     for(int i = 0; i < ammount; i++){
-      players.Add(newFootballPlayer("A Name", _powerMultiplier));
+      players.Add(newFootballPlayer(NameGenerator.getFullName(), _powerMultiplier));
     }
     return players;
   }
