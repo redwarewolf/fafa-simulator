@@ -6,6 +6,8 @@ using TMPro;
 
 public class MatchController : MonoBehaviour
 {
+  private const int slotAmmount = 5;
+
   private float startTime;
   static public TextMeshProUGUI matchTextBox;
   static public TextMeshProUGUI timerTextBox;
@@ -75,7 +77,7 @@ public class MatchController : MonoBehaviour
       i++;
     }
 
-    while (i <= 5){
+    while (i <= slotAmmount){
       var myNewCard = Instantiate(emptyFootBallPlayerCard, new Vector3(transform.position.x, transform.position.y, transform.position.z), Quaternion.identity);
       myNewCard.transform.parent = slots[i].transform;
       i++;
