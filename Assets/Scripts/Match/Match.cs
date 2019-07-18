@@ -6,9 +6,6 @@ using UnityEngine;
 public class Match : MonoBehaviour
 {
   private Club myClub;
-  private int myClubChance;
-  private int myScoreChance;
-  private int myStopChance;
 
   private Club enemyClub;
 
@@ -18,15 +15,13 @@ public class Match : MonoBehaviour
   private int myClubScore;
   private int enemyClubScore;
 
+  private int scoringChanceDividerConstant = 4;
+
   static private List<Event> randomEvents;
 
   public Match(Club amyClub, Club aenemyClub){
     myClub = amyClub;
     enemyClub = aenemyClub;
-
-    myClubChance = (amyClub.midfield()* 100) / (amyClub.midfield() + aenemyClub.midfield());
-    myScoreChance = (amyClub.attacking()* 100) / (amyClub.attacking() + aenemyClub.defending() + aenemyClub.goalkeeping());
-    myStopChance = ((amyClub.defending() + amyClub.goalkeeping()) * 100) / (amyClub.defending() + amyClub.goalkeeping() + aenemyClub.attacking());
 
     Debug.Log(amyClub.getName());
     Debug.Log(aenemyClub.getName());
@@ -35,26 +30,20 @@ public class Match : MonoBehaviour
 
   public void nextMatchEvent(){
 
-
+    // Verificar si algún equipo está en posición de meter gol
     if(teamScores()){
       return;
     }
 
-    if(RandomCalculator.evaluateChances(myClubChance)){
-      currentBallHolder = myClub;
-      currentPosition = Math.Min(95, currentPosition+10);
-    }
-    else{
-      currentBallHolder = enemyClub;
-      currentPosition = Math.Max(5, currentPosition - 10);
-    }
+    // Si no sucede ningún evento random o algún Gol, entonces calculo los eventos normales
+    calculateNormalEvent();
 
     MatchController.updateMatchUI(currentBallHolder,currentPosition);
   }
 
   private bool teamScores(){
     //Si estoy en posición de tiro al arco y meto gol
-    if (currentPosition >= 85 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myScoreChance))
+    if (currentPosition >= 85 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myClubScoreChance() / scoringChanceDividerConstant))
     {
         myClubScore++;
 
@@ -66,7 +55,7 @@ public class Match : MonoBehaviour
 
     //Si el equipo contrario está en posición de tiro al arco y mete gol
 
-    if (currentPosition <= 15 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myStopChance))
+    if (currentPosition <= 15 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myClubStopChance() / scoringChanceDividerConstant))
     {
         enemyClubScore++;
 
@@ -76,5 +65,58 @@ public class Match : MonoBehaviour
         return true;
     }
     return false;
+  }
+
+  private bool matchPositionIsDef(){
+    return currentPosition <= 35;
+  }
+  private bool matchPositionIsMid(){
+    return currentPosition > 35 &&  currentPosition <= 70;
+  }
+  private bool matchPositionIsAtk(){
+    return currentPosition > 70;
+  }
+
+  private void calculateNormalEvent(){
+
+    // Si la posición es en la defensa:
+    if (matchPositionIsDef())
+    {
+      calculateGoalKeeper(myClubStopChance());
+    }
+    // Sino, si la posición es en el medio campo:
+    else if (matchPositionIsMid())
+    {
+      calculateGoalKeeper(myClubMidFieldChance());
+    }
+    //Sino, como la posición es ataque:
+    else
+    {
+      calculateGoalKeeper(myClubScoreChance());
+    }
+  }
+
+  private void calculateGoalKeeper(int chancesToEvaluate){
+    if (RandomCalculator.evaluateChances(chancesToEvaluate)){
+        currentBallHolder = myClub;
+        currentPosition = Math.Min(95, currentPosition + 10);
+    }
+    else
+    {
+        currentBallHolder = enemyClub;
+        currentPosition = Math.Max(5, currentPosition - 10);
+    }
+  }
+
+  public int myClubMidFieldChance(){
+    return (myClub.midfield() * 100) / (myClub.midfield() + enemyClub.midfield());
+  }
+
+  public int myClubScoreChance(){
+    return (myClub.attacking() * 100) / (myClub.attacking() + enemyClub.defending() + enemyClub.goalkeeping());
+  }
+
+  public int myClubStopChance(){
+    return ((myClub.defending() + myClub.goalkeeping()) * 100) / (myClub.defending() + myClub.goalkeeping() + enemyClub.attacking());
   }
 }
