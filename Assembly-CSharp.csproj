@@ -58,6 +58,7 @@
      <Compile Include="Assets\Scripts\Calculator\RandomCalculator.cs" />
      <Compile Include="Assets\Scripts\Club\Club.cs" />
      <Compile Include="Assets\Scripts\Club\FootballPlayer.cs" />
+     <Compile Include="Assets\Scripts\Club\FootballPlayerCard.cs" />
      <Compile Include="Assets\Scripts\Club\Stadium.cs" />
      <Compile Include="Assets\Scripts\Factories\ClubFactory.cs" />
      <Compile Include="Assets\Scripts\Factories\FootballPlayerFactory.cs" />

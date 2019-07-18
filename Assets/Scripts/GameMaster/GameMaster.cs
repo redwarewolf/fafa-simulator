@@ -45,4 +45,16 @@ public class GameMaster : MonoBehaviour
   static public void nextMatchEvent(){
     currentMatch.nextMatchEvent();
   }
+
+  static public List<FootballPlayer> myClubDefPlayers(){
+    return player.getClub().defense;
+  }
+
+  static public List<FootballPlayer> myClubMidPlayers(){
+    return player.getClub().midfielders;
+  }
+
+  static public List<FootballPlayer> myClubAtkPlayers(){
+    return player.getClub().attack;
+  }
 }
