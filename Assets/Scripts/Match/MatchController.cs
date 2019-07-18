@@ -71,15 +71,13 @@ public class MatchController : MonoBehaviour
   private void setPlayersInSlots(List<FootballPlayer> footballPlayers, List<GameObject> slots){
     int i = 0;
     foreach(FootballPlayer footballPlayer in footballPlayers){
-      var myNewCard = Instantiate(footBallPlayerCard, new Vector3(transform.position.x, transform.position.y, transform.position.z), Quaternion.identity);
-      myNewCard.transform.parent = slots[i].transform;
+      var myNewCard = Instantiate(footBallPlayerCard, slots[i].transform, false);
       footBallPlayerCard.GetComponent<FootballPlayerCard>().setPlayerCard(footballPlayers[i]);
       i++;
     }
 
     while (i <= slotAmmount){
-      var myNewCard = Instantiate(emptyFootBallPlayerCard, new Vector3(transform.position.x, transform.position.y, transform.position.z), Quaternion.identity);
-      myNewCard.transform.parent = slots[i].transform;
+      var myNewCard = Instantiate(emptyFootBallPlayerCard,slots[i].transform , false);
       i++;
     }
   }
