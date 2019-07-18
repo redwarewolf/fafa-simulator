@@ -54,7 +54,7 @@ public class Match : MonoBehaviour
 
   private bool teamScores(){
     //Si estoy en posición de tiro al arco y meto gol
-    if (currentPosition >= 90 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myScoreChance))
+    if (currentPosition >= 85 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myScoreChance))
     {
         myClubScore++;
 
@@ -66,7 +66,7 @@ public class Match : MonoBehaviour
 
     //Si el equipo contrario está en posición de tiro al arco y mete gol
 
-    if (currentPosition <= 10 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myStopChance))
+    if (currentPosition <= 15 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myStopChance))
     {
         enemyClubScore++;
 
