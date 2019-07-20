@@ -10,7 +10,7 @@ public class Match : MonoBehaviour
   private Club enemyClub;
 
   private int currentPosition = 50;
-  private Club currentBallHolder;
+  private Club currentBallHolder = null;
 
   private int myClubScore;
   private int enemyClubScore;
@@ -19,7 +19,10 @@ public class Match : MonoBehaviour
 
   static private List<Event> randomEvents;
 
-  private FootballPlayer currentPlayer;
+  private FootballPlayer currentPlayer = null;
+
+  private FootballPlayer previousPlayer = null;
+  private Club previousBallHolder = null;
 
   public Match(Club amyClub, Club aenemyClub){
     myClub = amyClub;
@@ -40,12 +43,12 @@ public class Match : MonoBehaviour
     // Si no sucede ningún evento random o algún Gol, entonces calculo los eventos normales
     calculateNormalEvent();
 
-    MatchController.updateMatchUI(currentBallHolder,currentPosition,currentPlayer);
+    MatchController.updateMatchUI(currentBallHolder,currentPlayer, currentPosition, previousBallHolder, previousPlayer);
   }
 
   private bool teamScores(){
     //Si estoy en posición de tiro al arco y meto gol
-    if (currentPosition >= 90 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myClubScoreChance() / scoringChanceDividerConstant))
+    if (currentPosition >= 85 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myClubScoreChance() / scoringChanceDividerConstant))
     {
         myClubScore++;
 
@@ -57,7 +60,7 @@ public class Match : MonoBehaviour
 
     //Si el equipo contrario está en posición de tiro al arco y mete gol
 
-    if (currentPosition <= 10 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myClubStopChance() / scoringChanceDividerConstant))
+    if (currentPosition <= 15 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myClubStopChance() / scoringChanceDividerConstant))
     {
         enemyClubScore++;
 
@@ -99,6 +102,8 @@ public class Match : MonoBehaviour
   }
 
   private void calculateGoalKeeper(int chancesToEvaluate){
+    previousBallHolder = currentBallHolder;
+
     if (RandomCalculator.evaluateChances(chancesToEvaluate)){
         currentBallHolder = myClub;
         currentPosition = Math.Min(95, currentPosition + 10);
@@ -110,13 +115,27 @@ public class Match : MonoBehaviour
         currentPosition = Math.Max(5, currentPosition - 10);
         calculateNewPlayer();
     }
+
+    if (previousBallHolder == null)
+    {
+      Debug.Log("Previous Club == null");
+
+      previousBallHolder = currentBallHolder;
+    }
   }
 
   private void calculateNewPlayer(){
+    previousPlayer = currentPlayer;
+
     System.Random rnd = new System.Random();
     if (matchPositionIsDef()) currentPlayer = currentBallHolder.defense[rnd.Next(0, currentBallHolder.defense.Count)];
     else if (matchPositionIsMid()) currentPlayer = currentBallHolder.midfielders[rnd.Next(0, currentBallHolder.midfielders.Count)];
     else currentPlayer = currentBallHolder.attack[rnd.Next(0, currentBallHolder.attack.Count)];
+    
+    if(previousPlayer == null){
+      Debug.Log("Previous player == null");
+      previousPlayer = currentPlayer;
+    }
   }
 
   public int myClubMidFieldChance(){
