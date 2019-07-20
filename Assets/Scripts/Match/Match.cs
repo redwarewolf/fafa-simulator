@@ -19,6 +19,8 @@ public class Match : MonoBehaviour
 
   static private List<Event> randomEvents;
 
+  private FootballPlayer currentPlayer;
+
   public Match(Club amyClub, Club aenemyClub){
     myClub = amyClub;
     enemyClub = aenemyClub;
@@ -38,7 +40,7 @@ public class Match : MonoBehaviour
     // Si no sucede ningún evento random o algún Gol, entonces calculo los eventos normales
     calculateNormalEvent();
 
-    MatchController.updateMatchUI(currentBallHolder,currentPosition);
+    MatchController.updateMatchUI(currentBallHolder,currentPosition,currentPlayer);
   }
 
   private bool teamScores(){
@@ -100,12 +102,21 @@ public class Match : MonoBehaviour
     if (RandomCalculator.evaluateChances(chancesToEvaluate)){
         currentBallHolder = myClub;
         currentPosition = Math.Min(95, currentPosition + 10);
+        calculateNewPlayer();
     }
     else
     {
         currentBallHolder = enemyClub;
         currentPosition = Math.Max(5, currentPosition - 10);
+        calculateNewPlayer();
     }
+  }
+
+  private void calculateNewPlayer(){
+    System.Random rnd = new System.Random();
+    if (matchPositionIsDef()) currentPlayer = currentBallHolder.defense[rnd.Next(0, currentBallHolder.defense.Count)];
+    else if (matchPositionIsMid()) currentPlayer = currentBallHolder.midfielders[rnd.Next(0, currentBallHolder.midfielders.Count)];
+    else currentPlayer = currentBallHolder.attack[rnd.Next(0, currentBallHolder.attack.Count)];
   }
 
   public int myClubMidFieldChance(){

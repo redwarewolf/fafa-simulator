@@ -7,7 +7,8 @@ public class GameMaster : MonoBehaviour
 {
   static public Player player;
   static public Club enemyClub;
-
+  static public FootballPlayer previousPlayer;
+  static public Club previousBallHolder;
   static public Match currentMatch;
 
   void Awake(){
