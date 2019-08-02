@@ -14,7 +14,7 @@ public class MatchController : MonoBehaviour
 
   public int timerLength = 8;
 
-  void Start(){
+    void Start(){
     startTime = Time.time;
 
     timerTextBox = GameObject.FindWithTag("Timer").GetComponent<TextMeshProUGUI>();
@@ -33,13 +33,35 @@ public class MatchController : MonoBehaviour
 
   }
 
-  static public void updateMatchUI(Club currentBallHolder, int currentPosition){
-    matchTextBox.text = ("The team " + currentBallHolder.getName() + " has the ball at position " + currentPosition.ToString());
+  static public void updateMatchUI(Club currentBallHolder, FootballPlayer currentPlayer ,int currentPosition, Club previousBallHolder, FootballPlayer previousPlayer ){
+    if (same_team(currentBallHolder, previousBallHolder)){
+      if (same_player(currentPlayer, previousPlayer)){
+        matchTextBox.text = (currentPlayer.name + " advances to position " +
+                             currentPosition.ToString() + " for " + currentBallHolder.getName());
+      }
+      else {
+        matchTextBox.text = (previousPlayer.name + " passes the ball to " +
+                             currentPlayer.name + " at position " + currentPosition.ToString() + " for " +
+                             currentBallHolder.getName());
+      }
+    }
+    else {
+      matchTextBox.text = (currentPlayer.name + " steals the ball from " + previousPlayer.name + " and advances to position " +
+                           currentPosition.ToString() + " for " + currentBallHolder.getName());
+    }
   }
 
   static public void updateMatchScore(string currentMatchScore, string goaler)
   {
     scoreTextBox.text = currentMatchScore;
     matchTextBox.text = "The club " + goaler + " scored a GOAL!\n The match will resume at 50m.";
+  }
+
+  private static bool same_team(Club ballHolder, Club previousBallHolder){
+    return previousBallHolder.getName() == ballHolder.getName();
+  }
+
+  private static bool same_player(FootballPlayer player, FootballPlayer previousPlayer){
+    return previousPlayer.name == player.name;
   }
 }
