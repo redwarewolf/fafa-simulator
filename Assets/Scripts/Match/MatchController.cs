@@ -58,10 +58,10 @@ public class MatchController : MonoBehaviour
   }
 
   private static bool same_team(Club ballHolder, Club previousBallHolder){
-    return previousBallHolder == ballHolder;
+    return previousBallHolder.getName() == ballHolder.getName();
   }
 
   private static bool same_player(FootballPlayer player, FootballPlayer previousPlayer){
-    return previousPlayer == player;
+    return previousPlayer.name == player.name;
   }
 }

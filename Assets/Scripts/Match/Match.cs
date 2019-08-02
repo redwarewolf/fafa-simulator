@@ -19,14 +19,18 @@ public class Match : MonoBehaviour
 
   static private List<Event> randomEvents;
 
-  private FootballPlayer currentPlayer = null;
+  private FootballPlayer currentPlayer;
 
-  private FootballPlayer previousPlayer = null;
-  private Club previousBallHolder = null;
+  private FootballPlayer previousPlayer;
+  private Club previousBallHolder;
 
   public Match(Club amyClub, Club aenemyClub){
     myClub = amyClub;
     enemyClub = aenemyClub;
+
+    currentPlayer = null;
+    previousPlayer = null;
+    previousBallHolder = null;
 
     Debug.Log(amyClub.getName());
     Debug.Log(aenemyClub.getName());
@@ -42,6 +46,7 @@ public class Match : MonoBehaviour
 
     // Si no sucede ningún evento random o algún Gol, entonces calculo los eventos normales
     calculateNormalEvent();
+
 
     MatchController.updateMatchUI(currentBallHolder,currentPlayer, currentPosition, previousBallHolder, previousPlayer);
   }
@@ -116,7 +121,7 @@ public class Match : MonoBehaviour
         calculateNewPlayer();
     }
 
-    if (previousBallHolder == null)
+    if (previousBallHolder.getName() == null)
     {
       Debug.Log("Previous Club == null");
 
@@ -127,13 +132,22 @@ public class Match : MonoBehaviour
   private void calculateNewPlayer(){
     previousPlayer = currentPlayer;
 
+    Debug.Log("The Current currentBallHolder is: ");
+
+    Debug.Log(currentBallHolder.getName());
+
     System.Random rnd = new System.Random();
-    if (matchPositionIsDef()) currentPlayer = currentBallHolder.defense[rnd.Next(0, currentBallHolder.defense.Count)];
-    else if (matchPositionIsMid()) currentPlayer = currentBallHolder.midfielders[rnd.Next(0, currentBallHolder.midfielders.Count)];
-    else currentPlayer = currentBallHolder.attack[rnd.Next(0, currentBallHolder.attack.Count)];
-    
-    if(previousPlayer == null){
+    if (matchPositionIsAtk()) currentPlayer = currentBallHolder.attack[rnd.Next(currentBallHolder.attack.Count)];
+    if (matchPositionIsDef()) currentPlayer = currentBallHolder.defense[rnd.Next(currentBallHolder.defense.Count)] ;
+    if (matchPositionIsMid()) currentPlayer = currentBallHolder.midfielders[rnd.Next(currentBallHolder.midfielders.Count)];
+
+    Debug.Log("The Current Player is: ");
+
+    Debug.Log(currentPlayer.name);
+
+    if(previousPlayer.name == null){
       Debug.Log("Previous player == null");
+      Debug.Log("New PLayer is: " + currentPlayer.name);
       previousPlayer = currentPlayer;
     }
   }
