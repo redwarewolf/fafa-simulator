@@ -117,7 +117,7 @@ public class Match : MonoBehaviour
         calculateNewPlayer();
     }
 
-    if (previousBallHolder.getName() == null)
+    if ( (System.Object)previousBallHolder == null)
     {
       previousBallHolder = currentBallHolder;
     }
@@ -132,8 +132,7 @@ public class Match : MonoBehaviour
     if (matchPositionIsDef()) currentPlayer = currentBallHolder.defense[rnd.Next(currentBallHolder.defense.Count)] ;
     if (matchPositionIsMid()) currentPlayer = currentBallHolder.midfielders[rnd.Next(currentBallHolder.midfielders.Count)];
 
-    // Have to check for a better solution because this rises an exception but it doesnt break anything.
-    if(previousPlayer.name == null){
+    if( (System.Object)previousPlayer == null){
       previousPlayer = currentPlayer;
     }
   }
