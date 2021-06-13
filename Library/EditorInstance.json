@@ -1,10 +1,6 @@
 {
-<<<<<<< HEAD
-	"process_id" : 6520,
-=======
-	"process_id" : 17633,
->>>>>>> master
-	"version" : "2019.1.10f1",
-	"app_path" : "/home/pjara/Unity/Hub/Editor/2019.1.10f1/Editor/Unity",
-	"app_contents_path" : "/home/pjara/Unity/Hub/Editor/2019.1.10f1/Editor/Data"
+	"process_id" : 16648,
+	"version" : "2020.3.11f1",
+	"app_path" : "C:/Program Files/Unity/2020.3.11f1/Editor/Unity.exe",
+	"app_contents_path" : "C:/Program Files/Unity/2020.3.11f1/Editor/Data"
 }
