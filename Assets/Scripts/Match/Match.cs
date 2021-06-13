@@ -5,118 +5,162 @@ using UnityEngine;
 
 public class Match : MonoBehaviour
 {
-  private Club myClub;
+    private Club myClub;
 
-  private Club enemyClub;
+    private Club enemyClub;
 
-  private int currentPosition = 50;
-  private Club currentBallHolder;
+    private int currentPosition = 50;
+    private Club currentBallHolder = null;
 
-  private int myClubScore;
-  private int enemyClubScore;
+    private int myClubScore;
+    private int enemyClubScore;
 
-  private int scoringChanceDividerConstant = 4;
+    private int scoringChanceDividerConstant = 4;
 
-  static private List<Event> randomEvents;
+    static private List<Event> randomEvents;
 
-  public Match(Club amyClub, Club aenemyClub){
-    myClub = amyClub;
-    enemyClub = aenemyClub;
+    private FootballPlayer currentPlayer;
 
-    Debug.Log(amyClub.getName());
-    Debug.Log(aenemyClub.getName());
+    private FootballPlayer previousPlayer;
+    private Club previousBallHolder;
 
-    }
-
-  public void nextMatchEvent(){
-
-    // Verificar si algún equipo está en posición de meter gol
-    if(teamScores()){
-      return;
-    }
-
-    // Si no sucede ningún evento random o algún Gol, entonces calculo los eventos normales
-    calculateNormalEvent();
-
-    MatchController.updateMatchUI(currentBallHolder,currentPosition);
-  }
-
-  private bool teamScores(){
-    //Si estoy en posición de tiro al arco y meto gol
-    if (currentPosition >= 90 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myClubScoreChance() / scoringChanceDividerConstant))
+    public Match(Club amyClub, Club aenemyClub)
     {
-        myClubScore++;
+        myClub = amyClub;
+        enemyClub = aenemyClub;
 
-        MatchController.updateMatchScore(myClubScore.ToString() + "-" + enemyClubScore.ToString(), currentBallHolder.getName());
-        currentBallHolder = enemyClub;
-        currentPosition = 50;
-        return true;
+        currentPlayer = null;
+        previousPlayer = null;
+        previousBallHolder = null;
     }
 
-    //Si el equipo contrario está en posición de tiro al arco y mete gol
-
-    if (currentPosition <= 10 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myClubStopChance() / scoringChanceDividerConstant))
+    public void nextMatchEvent()
     {
-        enemyClubScore++;
 
-        MatchController.updateMatchScore(myClubScore.ToString() + "-" + enemyClubScore.ToString(), currentBallHolder.getName());
-        currentBallHolder = myClub;
-        currentPosition = 50;
-        return true;
+        // Verificar si algún equipo está en posición de meter gol
+        if (teamScores())
+        {
+            return;
+        }
+
+        // Si no sucede ningún evento random o algún Gol, entonces calculo los eventos normales
+        calculateNormalEvent();
+
+
+        MatchController.updateMatchUI(currentBallHolder, currentPlayer, currentPosition, previousBallHolder, previousPlayer);
     }
-    return false;
-  }
 
-  private bool matchPositionIsDef(){
-    return currentPosition <= 35;
-  }
-  private bool matchPositionIsMid(){
-    return currentPosition > 35 &&  currentPosition <= 70;
-  }
-  private bool matchPositionIsAtk(){
-    return currentPosition > 70;
-  }
-
-  private void calculateNormalEvent(){
-
-    // Si la posición es en la defensa:
-    if (matchPositionIsDef())
+    private bool teamScores()
     {
-      calculateGoalKeeper(myClubStopChance());
+        //Si estoy en posición de tiro al arco y meto gol
+        if (currentPosition >= 85 && currentBallHolder == myClub && RandomCalculator.evaluateChances(myClubScoreChance() / scoringChanceDividerConstant))
+        {
+            myClubScore++;
+
+            MatchController.updateMatchScore(myClubScore.ToString() + "-" + enemyClubScore.ToString(), currentBallHolder.getName());
+            currentBallHolder = enemyClub;
+            currentPosition = 50;
+            return true;
+        }
+
+        //Si el equipo contrario está en posición de tiro al arco y mete gol
+
+        if (currentPosition <= 15 && currentBallHolder == enemyClub && RandomCalculator.evaluateChances(myClubStopChance() / scoringChanceDividerConstant))
+        {
+            enemyClubScore++;
+
+            MatchController.updateMatchScore(myClubScore.ToString() + "-" + enemyClubScore.ToString(), currentBallHolder.getName());
+            currentBallHolder = myClub;
+            currentPosition = 50;
+            return true;
+        }
+        return false;
     }
-    // Sino, si la posición es en el medio campo:
-    else if (matchPositionIsMid())
+
+    private bool matchPositionIsDef()
     {
-      calculateGoalKeeper(myClubMidFieldChance());
+        return currentPosition <= 35;
     }
-    //Sino, como la posición es ataque:
-    else
+    private bool matchPositionIsMid()
     {
-      calculateGoalKeeper(myClubScoreChance());
+        return currentPosition > 35 && currentPosition <= 70;
     }
-  }
-
-  private void calculateGoalKeeper(int chancesToEvaluate){
-    if (RandomCalculator.evaluateChances(chancesToEvaluate)){
-        currentBallHolder = myClub;
-        currentPosition = Math.Min(95, currentPosition + 10);
-    }
-    else
+    private bool matchPositionIsAtk()
     {
-        currentBallHolder = enemyClub;
-        currentPosition = Math.Max(5, currentPosition - 10);
+        return currentPosition > 70;
     }
-  }
 
-  public int myClubMidFieldChance(){
-    return (myClub.midfield() * 100) / (myClub.midfield() + enemyClub.midfield());
-  }
+    private void calculateNormalEvent()
+    {
 
-  public int myClubScoreChance(){
-    return (myClub.attacking() * 100) / (myClub.attacking() + enemyClub.defending() + enemyClub.goalkeeping());
-  }
+        // Si la posición es en la defensa:
+        if (matchPositionIsDef())
+        {
+            calculateGoalKeeper(myClubStopChance());
+        }
+        // Sino, si la posición es en el medio campo:
+        else if (matchPositionIsMid())
+        {
+            calculateGoalKeeper(myClubMidFieldChance());
+        }
+        //Sino, como la posición es ataque:
+        else
+        {
+            calculateGoalKeeper(myClubScoreChance());
+        }
+    }
 
-  public int myClubStopChance(){
-    return ((myClub.defending() + myClub.goalkeeping()) * 100) / (myClub.defending() + myClub.goalkeeping() + enemyClub.attacking());
-  }
+    private void calculateGoalKeeper(int chancesToEvaluate)
+    {
+        previousBallHolder = currentBallHolder;
+
+        if (RandomCalculator.evaluateChances(chancesToEvaluate))
+        {
+            currentBallHolder = myClub;
+            currentPosition = Math.Min(95, currentPosition + 10);
+            calculateNewPlayer();
+        }
+        else
+        {
+            currentBallHolder = enemyClub;
+            currentPosition = Math.Max(5, currentPosition - 10);
+            calculateNewPlayer();
+        }
+
+        if ((System.Object)previousBallHolder == null)
+        {
+            previousBallHolder = currentBallHolder;
+        }
+    }
+
+    private void calculateNewPlayer()
+    {
+        previousPlayer = currentPlayer;
+
+
+        System.Random rnd = new System.Random();
+        if (matchPositionIsAtk()) currentPlayer = currentBallHolder.attack[rnd.Next(currentBallHolder.attack.Count)];
+        if (matchPositionIsDef()) currentPlayer = currentBallHolder.defense[rnd.Next(currentBallHolder.defense.Count)];
+        if (matchPositionIsMid()) currentPlayer = currentBallHolder.midfielders[rnd.Next(currentBallHolder.midfielders.Count)];
+
+        if ((System.Object)previousPlayer == null)
+        {
+            previousPlayer = currentPlayer;
+        }
+    }
+
+    public int myClubMidFieldChance()
+    {
+        return (myClub.midfield() * 100) / (myClub.midfield() + enemyClub.midfield());
+    }
+
+    public int myClubScoreChance()
+    {
+        return (myClub.attacking() * 100) / (myClub.attacking() + enemyClub.defending() + enemyClub.goalkeeping());
+    }
+
+    public int myClubStopChance()
+    {
+        return ((myClub.defending() + myClub.goalkeeping()) * 100) / (myClub.defending() + myClub.goalkeeping() + enemyClub.attacking());
+    }
 }
