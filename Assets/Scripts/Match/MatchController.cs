@@ -6,18 +6,18 @@ using TMPro;
 
 public class MatchController : MonoBehaviour
 {
-  private const int slotAmmount = 5;
+    private const int slotAmmount = 5;
 
-  private float startTime;
-  static public TextMeshProUGUI matchTextBox;
-  static public TextMeshProUGUI timerTextBox;
-  static public TextMeshProUGUI scoreTextBox;
+    private float startTime;
+    static public TextMeshProUGUI matchTextBox;
+    static public TextMeshProUGUI timerTextBox;
+    static public TextMeshProUGUI scoreTextBox;
 
 
 
-  private int timeLeft;
+    private int timeLeft;
 
-  public int timerLength = 8;
+    public int timerLength = 8;
 
 
     public GameObject defPanel;
@@ -28,28 +28,28 @@ public class MatchController : MonoBehaviour
     public GameObject emptyFootBallPlayerCard;
 
     void Start(){
-    startTime = Time.time;
+        startTime = Time.time;
 
-    timerTextBox = GameObject.FindWithTag("Timer").GetComponent<TextMeshProUGUI>();
-    matchTextBox = GameObject.FindWithTag("MatchText").GetComponent<TextMeshProUGUI>();
-    scoreTextBox = GameObject.FindWithTag("Score").GetComponent<TextMeshProUGUI>();
+        timerTextBox = GameObject.FindWithTag("Timer").GetComponent<TextMeshProUGUI>();
+        matchTextBox = GameObject.FindWithTag("MatchText").GetComponent<TextMeshProUGUI>();
+        scoreTextBox = GameObject.FindWithTag("Score").GetComponent<TextMeshProUGUI>();
 
-    setPlayersInSlots(GameMaster.myClubDefPlayers(), getChildren(defPanel));
-    setPlayersInSlots(GameMaster.myClubMidPlayers(), getChildren(midPanel));
-    setPlayersInSlots(GameMaster.myClubAtkPlayers(), getChildren(atkPanel));
+        setPlayersInSlots(GameMaster.myClubDefPlayers(), getChildren(defPanel));
+        setPlayersInSlots(GameMaster.myClubMidPlayers(), getChildren(midPanel));
+        setPlayersInSlots(GameMaster.myClubAtkPlayers(), getChildren(atkPanel));
 
 
     }
 
-  void Update(){
-    timeLeft = timerLength - (int)(Time.time - startTime);
-    if(timeLeft == -1){
-      startTime = Time.time;
-      GameMaster.nextMatchEvent();
-    }
-    timerTextBox.text = timeLeft.ToString();
+    void Update(){
+        timeLeft = timerLength - (int)(Time.time - startTime);
+        if(timeLeft == -1){
+            startTime = Time.time;
+            GameMaster.nextMatchEvent();
+        }
+        timerTextBox.text = timeLeft.ToString();
 
-  }
+    }
 
 
 

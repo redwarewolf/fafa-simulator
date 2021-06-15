@@ -49,11 +49,13 @@
   <ItemGroup>
      <Compile Include="Assets\Scripts\Factories\ClubFactory.cs" />
      <Compile Include="Assets\Scripts\UI\DragSlot.cs" />
+     <Compile Include="Assets\Scripts\UI\TabGroup.cs" />
      <Compile Include="Assets\Scripts\Club\Stadium.cs" />
      <Compile Include="Assets\Scripts\GameMaster\GameMaster.cs" />
      <Compile Include="Assets\Scripts\Factories\NameGenerator.cs" />
      <Compile Include="Assets\Scripts\Calculator\RandomCalculator.cs" />
      <Compile Include="Assets\Scripts\UI\DragHandler.cs" />
+     <Compile Include="Assets\Scripts\UI\TabButton.cs" />
      <Compile Include="Assets\Scripts\Player\Player.cs" />
      <Compile Include="Assets\Scripts\Club\FootballPlayer.cs" />
      <Compile Include="Assets\Scripts\Factories\FootballPlayerFactory.cs" />

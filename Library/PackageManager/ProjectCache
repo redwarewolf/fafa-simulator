@@ -5,16 +5,16 @@ m_ProjectFiles:
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 637592220446160699
-    m_Hash: 3406040071
+      ticks: 637593116384810357
+    m_Hash: 3242779246
   m_LockFileStatus:
     m_FilePath: C:/Users/pjara/OneDrive/Documents/fafa-simulator/Packages/packages-lock.json
     m_PathExists: 1
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 637592220642754295
-    m_Hash: 2602315133
+      ticks: 637593116384810357
+    m_Hash: 1437729687
 m_EmbeddedPackageManifests:
   m_ManifestsStatus: {}
 m_PackageAssets:
