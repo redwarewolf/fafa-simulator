@@ -60,7 +60,6 @@
      <Compile Include="Assets\Scripts\Club\FootballPlayer.cs" />
      <Compile Include="Assets\Scripts\Factories\FootballPlayerFactory.cs" />
      <Compile Include="Assets\Scripts\Match\Event.cs" />
-     <Compile Include="Assets\Scripts\UI\UIupdater.cs" />
      <Compile Include="Assets\Scripts\Match\Match.cs" />
      <Compile Include="Assets\Scripts\Club\Club.cs" />
      <Compile Include="Assets\Scripts\Club\FootballPlayerCard.cs" />
