@@ -29,6 +29,8 @@ y_sort_enabled = true
 
 [node name="Player" parent="ActorsContainer" instance=ExtResource("4_k0juu")]
 position = Vector2(238, 126)
+speed = null
+power = null
 
 [node name="Ball" parent="ActorsContainer" instance=ExtResource("5_71j4m")]
 position = Vector2(136, 81)
