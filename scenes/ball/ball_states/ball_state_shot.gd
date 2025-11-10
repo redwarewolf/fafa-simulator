@@ -8,10 +8,7 @@ const SHOT_SPRITE_SCALE := 0.8
 var time_since_shot := Time.get_ticks_msec()
 
 func _enter_tree() -> void:
-	if ball.velocity.x < 0:
-		ball.set_heading(Vector2.LEFT)
-		ball.flip_sprites()
-	animation_player.play("roll")
+	set_ball_animation_from_velocity()
 	ball_sprite.scale.y = SHOT_SPRITE_SCALE
 	ball.height = SHOT_HEIGHT # Escalarlo según poder a futuro.
 	time_since_shot = Time.get_ticks_msec()

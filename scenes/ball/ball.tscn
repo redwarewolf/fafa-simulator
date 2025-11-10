@@ -1,6 +1,7 @@
-[gd_scene load_steps=9 format=3 uid="uid://bgplolig1vhf4"]
+[gd_scene load_steps=10 format=3 uid="uid://bgplolig1vhf4"]
 
 [ext_resource type="Texture2D" uid="uid://b2yykr54bfgkw" path="res://assets/art/props/soccer-ball.png" id="1_nv6q1"]
+[ext_resource type="Script" uid="uid://dbni0vp5v2tvs" path="res://scenes/ball/ball.gd" id="1_stoaj"]
 [ext_resource type="Texture2D" uid="uid://ch3pbtbmo44lm" path="res://assets/art/props/ball-shadow.png" id="2_stoaj"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_f7cbr"]
@@ -69,6 +70,7 @@ radius = 4.0
 [node name="Ball" type="AnimatableBody2D"]
 collision_layer = 4
 sync_to_physics = false
+script = ExtResource("1_stoaj")
 
 [node name="BallSprite" type="Sprite2D" parent="."]
 unique_name_in_owner = true

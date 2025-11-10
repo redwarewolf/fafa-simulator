@@ -1,5 +1,5 @@
 class_name Ball
-extends Node
+extends AnimatableBody2D
 
 enum State { CARRIED , FREEFORM, SHOT }
 
@@ -14,13 +14,14 @@ var state_factory := BallStateFactory.new()
 
 var carrier : Player = null
 var velocity := Vector2.ZERO
+var height_velocity := 0.0
 var heading := Vector2.RIGHT
 var height := 0.0
 
 func _ready() -> void:
 	switch_state(State.FREEFORM)
 	
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	ball_sprite.position = Vector2.UP * height
 
 func switch_state(state: Ball.State) -> void:
@@ -33,11 +34,13 @@ func switch_state(state: Ball.State) -> void:
 	call_deferred("add_child",current_state)
 	
 	
-func set_heading(context_heading: Vector2 = Vector2.RIGHT) -> void:
-	if(carrier):
+func set_heading() -> void:
+	if(carrier != null):
 		heading = carrier.heading
+	elif(velocity.x >= 0):
+		heading = Vector2.RIGHT
 	else:
-		heading = context_heading
+		heading = Vector2.LEFT
 		
 
 func flip_sprites() -> void:
@@ -50,4 +53,9 @@ func shoot(shot_velocity : Vector2) -> void:
 	velocity = shot_velocity
 	carrier = null
 	switch_state(Ball.State.SHOT)
+	
+func pass_to(pass_velocity: Vector2) -> void:
+	velocity = pass_velocity
+	carrier = null
+	switch_state(Ball.State.FREEFORM)
 	

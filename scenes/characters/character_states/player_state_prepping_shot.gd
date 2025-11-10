@@ -14,5 +14,5 @@ func _process(_delta: float) -> void:
 	var bonus = EASE_REWARD_FACTOR
 	var shot_power = player.power * (1 + bonus)
 	print(shot_power)
-	var context_state_data = PlayerStateData.build().set_shot_power(shot_power).set_shot_direction(Vector2.RIGHT)
+	var context_state_data = PlayerStateData.build().set_shot_power(shot_power).set_shot_direction(player.heading) 
 	transition_state(Player.State.SHOOTING, context_state_data)

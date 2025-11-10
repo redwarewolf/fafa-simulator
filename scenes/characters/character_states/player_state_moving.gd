@@ -4,3 +4,11 @@ extends PlayerState
 func _process(_delta: float) -> void:
 	player.set_movement_animation()
 	player.set_heading()
+	if player.velocity != Vector2.ZERO:
+		teammate_detection_area.rotation = player.velocity.angle()
+
+	# If decided to shoot: 
+	# transition_state(Player.State.PREPPING_SHOT)
+	
+	# If decided to pass:
+	# transition_state(Player.State.PASSING)	

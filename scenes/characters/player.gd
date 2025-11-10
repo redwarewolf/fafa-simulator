@@ -3,7 +3,7 @@ extends CharacterBody2D
 
 const DURATION_TACKLE := 200
 
-enum State { MOVING , TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING}
+enum State { MOVING , TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING, PASSING}
 
 @export var speed : float = 80
 @export var power : float = 70
@@ -17,6 +17,7 @@ var ball : Ball
 
 @onready var animation_player : AnimationPlayer = %AnimationPlayer
 @onready var player_sprite : Sprite2D = %PlayerSprite
+@onready var teammate_detection_area : Area2D = %TeammateDetectionArea
 
 func _ready() -> void:
 	switch_state(State.MOVING)

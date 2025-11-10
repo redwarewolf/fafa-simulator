@@ -45,6 +45,7 @@ func _process(delta: float) -> void:
 		dribble_time = 0.0                     # Reset timer when idle
 		animation_player.play("idle")
 		animation_player.speed_scale = 1.0
+		process_gravity(	delta)
 	
 	# Update ball position relative to carrier
 	ball.position = carrier.position + Vector2(base_x + vx, OFFSET_FROM_PLAYER.y - vertical_offset)
