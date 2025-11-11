@@ -1,9 +1,6 @@
 class_name BallStateFreeform
 extends BallState
 
-const FRICTION_AIR := 35.0
-const FRICTION_GROUND := 250.0
-const BOUNCINESS := 0.8
 
 func _enter_tree() -> void:
 	player_detection_area.body_entered.connect(on_player_enter.bind())
@@ -14,7 +11,10 @@ func on_player_enter(body: Player)  -> void:
 	
 func _physics_process(delta: float) -> void:
 	set_ball_animation_from_velocity()
-	var friction = FRICTION_AIR if ball.height > 0 else FRICTION_GROUND
+	var friction = ball.FRICTION_AIR if ball.height > 0 else ball.FRICTION_GROUND
 	ball.velocity = ball.velocity.move_toward(Vector2.ZERO, friction*delta)
-	process_gravity(delta,BOUNCINESS)
-	ball.move_and_collide(ball.velocity * delta)
+	process_gravity(delta,ball.BOUNCINESS)
+	ball.move_and_bounce(delta)
+
+func can_air_interact() -> bool:
+	return true

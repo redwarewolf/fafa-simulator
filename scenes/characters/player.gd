@@ -2,8 +2,10 @@ class_name Player
 extends CharacterBody2D
 
 const DURATION_TACKLE := 200
+const GRAVITY := 8.0
 
-enum State { MOVING , TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING, PASSING}
+enum State { MOVING , TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING, 
+	PASSING , HEADER, VOLLEY_KICK, BICYCLE_KICK}
 
 @export var speed : float = 80
 @export var power : float = 70
@@ -12,22 +14,32 @@ var current_state: PlayerState = null
 var state_factory := PlayerStateFactory.new()
 
 var heading := Vector2.RIGHT
-
+var height := 0.0
+var height_velocity := 0.0
 var ball : Ball
 
 @onready var animation_player : AnimationPlayer = %AnimationPlayer
 @onready var player_sprite : Sprite2D = %PlayerSprite
 @onready var teammate_detection_area : Area2D = %TeammateDetectionArea
+@onready var ball_detection_area : Area2D = %BallDetectionArea
 
 func _ready() -> void:
 	switch_state(State.MOVING)
 	ball = get_node("/root/World/Ball")
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	set_movement_animation()
 	set_heading()
 	flip_sprites()
+	process_gravity(delta)
 	move_and_slide()
+	
+func process_gravity(delta: float) -> void:
+	if height > 0:
+		height_velocity -= GRAVITY * delta
+		height += height_velocity
+		height = max(0, height)
+	player_sprite.position = Vector2.UP * height
 
 func switch_state(state: State, state_data: PlayerStateData = PlayerStateData.new()) -> void:
 	if current_state != null:

@@ -7,6 +7,12 @@ enum State { CARRIED , FREEFORM, SHOT }
 @onready var player_detection_area : Area2D = %PlayerDetectionArea
 @onready var ball_sprite : Sprite2D = %BallSprite
 
+const FRICTION_AIR := 35.0
+const FRICTION_GROUND := 250.0
+const BOUNCINESS := 0.8
+const DISTANCE_HIGH_PASS := 130
+const AIR_CONNECT_HEIGHT := 20.0
+const AIR_CONNECT_RANGE := 10.0
 
 
 var current_state : BallState = null
@@ -54,8 +60,21 @@ func shoot(shot_velocity : Vector2) -> void:
 	carrier = null
 	switch_state(Ball.State.SHOT)
 	
-func pass_to(pass_velocity: Vector2) -> void:
-	velocity = pass_velocity
+func pass_to(destination: Vector2) -> void:
+	var direction := position.direction_to(destination)
+	var distance := position.distance_to(destination)
+	var intensity := sqrt(2 * distance * FRICTION_GROUND )
+	velocity = intensity * direction
+	if distance >= DISTANCE_HIGH_PASS:
+		height_velocity = BallState.GRAVITY * distance / (1.8 * intensity)
 	carrier = null
 	switch_state(Ball.State.FREEFORM)
+
+func stop() -> void:
+	velocity = Vector2.ZERO
+
+func can_air_interact() -> bool:
+	return current_state != null and current_state.can_air_interact()
 	
+func can_air_connect() -> bool:
+	return height >= AIR_CONNECT_HEIGHT - AIR_CONNECT_RANGE and height <= AIR_CONNECT_HEIGHT + AIR_CONNECT_RANGE

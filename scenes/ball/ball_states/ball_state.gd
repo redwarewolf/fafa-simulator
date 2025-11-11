@@ -3,7 +3,7 @@ extends Node
 
 signal state_transition_requested(new_state: BallState)
 
-var GRAVITY := 10.0
+const GRAVITY := 10.0
 
 var ball : Ball = null
 var carrier : Player = null
@@ -37,3 +37,12 @@ func process_gravity(delta: float, bounciness: float = 0.0) -> void:
 				ball.height_velocity = -ball.height_velocity * bounciness
 				ball.velocity *= bounciness
 			
+			
+func can_air_interact() -> bool:
+	return false
+
+func move_and_bounce(delta: float) -> void:
+	var collision = ball.move_and_collide(ball.velocity * delta)
+	if collision != null:
+		ball.velocity = ball.velocity.bounce(collision.get_normal() * ball.BOUNCINESS)
+		ball.switch_state(Ball.State.FREEFORM)
