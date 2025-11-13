@@ -11,9 +11,6 @@ const FRICTION_AIR := 35.0
 const FRICTION_GROUND := 250.0
 const BOUNCINESS := 0.8
 const DISTANCE_HIGH_PASS := 130
-const AIR_CONNECT_HEIGHT := 20.0
-const AIR_CONNECT_RANGE := 10.0
-
 
 var current_state : BallState = null
 var state_factory := BallStateFactory.new()
@@ -76,5 +73,5 @@ func stop() -> void:
 func can_air_interact() -> bool:
 	return current_state != null and current_state.can_air_interact()
 	
-func can_air_connect() -> bool:
-	return height >= AIR_CONNECT_HEIGHT - AIR_CONNECT_RANGE and height <= AIR_CONNECT_HEIGHT + AIR_CONNECT_RANGE
+func can_air_connect(air_connect_min_height: float, air_connect_max_height: float) -> bool:
+	return height >= air_connect_min_height and height <= air_connect_max_height

@@ -7,6 +7,7 @@ func _enter_tree() -> void:
 
 func on_player_enter(body: Player)  -> void:
 	ball.carrier = body
+	body.control_ball()
 	state_transition_requested.emit(Ball.State.CARRIED)
 	
 func _physics_process(delta: float) -> void:
@@ -14,7 +15,7 @@ func _physics_process(delta: float) -> void:
 	var friction = ball.FRICTION_AIR if ball.height > 0 else ball.FRICTION_GROUND
 	ball.velocity = ball.velocity.move_toward(Vector2.ZERO, friction*delta)
 	process_gravity(delta,ball.BOUNCINESS)
-	ball.move_and_bounce(delta)
+	move_and_bounce(delta)
 
 func can_air_interact() -> bool:
 	return true

@@ -1,21 +1,21 @@
 [gd_scene load_steps=6 format=3 uid="uid://diwdrwxttjbp"]
 
-[ext_resource type="Texture2D" uid="uid://btje8tqapc2j8" path="res://assets/art/backgrounds/goal-bottom.png" id="1_sx1j4"]
 [ext_resource type="Script" uid="uid://chli8ygch43t6" path="res://scenes/goal.gd" id="1_w3gav"]
+[ext_resource type="Texture2D" uid="uid://bpvyvodhx66nk" path="res://assets/art/backgrounds/goal-bottom-v2.png" id="2_jvyg3"]
 [ext_resource type="Texture2D" uid="uid://cwihor0p8ykqc" path="res://assets/art/backgrounds/goal-top.png" id="2_w3gav"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_w3gav"]
-size = Vector2(26, 2)
+size = Vector2(29, 2)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jvyg3"]
-size = Vector2(26, 2)
+size = Vector2(29, 2)
 
 [node name="Goal" type="Node2D"]
 y_sort_enabled = true
 script = ExtResource("1_w3gav")
 
 [node name="BottomFrameSprite" type="Sprite2D" parent="."]
-texture = ExtResource("1_sx1j4")
+texture = ExtResource("2_jvyg3")
 centered = false
 offset = Vector2(-23, -125)
 
@@ -32,13 +32,14 @@ collision_mask = 4
 monitorable = false
 
 [node name="BackNetCollision" type="CollisionPolygon2D" parent="BackNetArea"]
-polygon = PackedVector2Array(-20, -2, -12, -65, -10, -65, -18, -2)
+polygon = PackedVector2Array(-22, 20, -12, -66, -10, -66, -20, 20)
 
 [node name="BottomFrame" type="StaticBody2D" parent="."]
 position = Vector2(-3, -1)
 collision_mask = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="BottomFrame"]
+position = Vector2(-1.5, 23)
 shape = SubResource("RectangleShape2D_w3gav")
 
 [node name="TopFrame" type="StaticBody2D" parent="."]
@@ -46,4 +47,17 @@ position = Vector2(7, -67)
 collision_mask = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="TopFrame"]
+position = Vector2(-1.5, 0)
 shape = SubResource("RectangleShape2D_jvyg3")
+
+[node name="Targets" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="TopTarget" type="Node2D" parent="Targets"]
+position = Vector2(22, -56)
+
+[node name="MiddleTarget" type="Node2D" parent="Targets"]
+position = Vector2(22, -27)
+
+[node name="BottomTarget" type="Node2D" parent="Targets"]
+position = Vector2(22, 10)

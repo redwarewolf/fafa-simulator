@@ -1,5 +1,5 @@
 [{
-	"country": "FRANCE",
+	"team": "FRANCE",
 	"players": [{
 		"name": "H. LLORIS",
 		"skin": 0,
@@ -38,7 +38,7 @@
 		"power": 170,
 	}]
 }, {
-	"country": "ARGENTINA",
+	"team": "ARGENTINA",
 	"players": [{
 		"name": "E. MARTINEZ",
 		"skin": 0,
@@ -77,7 +77,7 @@
 		"power": 175,
 	}]
 }, {
-	"country": "BRAZIL",
+	"team": "BRAZIL",
 	"players": [{
 		"name": "A. BECKER",
 		"skin": 0,
@@ -116,7 +116,7 @@
 		"power": 184,
 	}]
 }, {
-	"country": "ENGLAND",
+	"team": "ENGLAND",
 	"players": [{
 		"name": "J. PICKFORD",
 		"skin": 0,
@@ -155,7 +155,7 @@
 		"power": 165,
 	}]
 }, {
-	"country": "GERMANY",
+	"team": "GERMANY",
 	"players": [{
 		"name": "M. NEUER",
 		"skin": 0,
@@ -194,7 +194,7 @@
 		"power": 178,
 	}]
 }, {
-	"country": "ITALY",
+	"team": "ITALY",
 	"players": [{
 		"name": "G. DONNARUMMA",
 		"skin": 0,
@@ -233,7 +233,7 @@
 		"power": 175,
 	}]
 }, {
-	"country": "SPAIN",
+	"team": "SPAIN",
 	"players": [{
 		"name": "U. SIMON",
 		"skin": 0,
@@ -272,7 +272,7 @@
 		"power": 170,
 	}]
 }, {
-	"country": "USA",
+	"team": "USA",
 	"players": [{
 		"name": "S. STERLING",
 		"skin": 0,
@@ -311,7 +311,7 @@
 		"power": 167,
 	}]
 }, {
-	"country": "CANADA",
+	"team": "CANADA",
 	"players": [{
 		"name": "D.S. CLAIR",
 		"skin": 1,

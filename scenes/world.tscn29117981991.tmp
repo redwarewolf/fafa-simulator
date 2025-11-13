@@ -1,11 +1,15 @@
-[gd_scene load_steps=10 format=3 uid="uid://bexoq36m2g176"]
+[gd_scene load_steps=14 format=3 uid="uid://bexoq36m2g176"]
 
+[ext_resource type="Texture2D" uid="uid://80tnpal6d7gg" path="res://assets/art/backgrounds/pitch-background.png" id="1_4wyf3"]
 [ext_resource type="Script" uid="uid://c4bai8p2ynrr3" path="res://scenes/camera.gd" id="1_qfnet"]
-[ext_resource type="Texture2D" uid="uid://dbuyaca2rqy7a" path="res://assets/art/backgrounds/field-background.png" id="2_7r4gi"]
-[ext_resource type="Texture2D" uid="uid://cgydcd01sceqr" path="res://assets/art/backgrounds/top-wall-v3.png" id="5_7r4gi"]
+[ext_resource type="Texture2D" uid="uid://ctt1hqgusnfww" path="res://assets/art/backgrounds/pitch-pattern.png" id="2_k0juu"]
+[ext_resource type="Texture2D" uid="uid://buckvei4b7gln" path="res://assets/art/backgrounds/football-field-test-.png" id="2_q5onr"]
+[ext_resource type="Texture2D" uid="uid://bk6ebs0wqudo2" path="res://assets/art/backgrounds/pitch-lines.png" id="3_71j4m"]
+[ext_resource type="PackedScene" uid="uid://d1n51cka6b5gw" path="res://scenes/characters/player.tscn" id="4_k0juu"]
 [ext_resource type="PackedScene" uid="uid://bgplolig1vhf4" path="res://scenes/ball/ball.tscn" id="5_71j4m"]
 [ext_resource type="Script" uid="uid://b50f30bye3a77" path="res://scenes/actors_container.gd" id="5_e3hyu"]
 [ext_resource type="PackedScene" uid="uid://diwdrwxttjbp" path="res://scenes/goal.tscn" id="5_i7141"]
+[ext_resource type="Texture2D" uid="uid://bj516fg6puenf" path="res://assets/art/backgrounds/top-wall.png" id="6_4mrxx"]
 [ext_resource type="Texture2D" uid="uid://0aaj2hwbuf6c" path="res://assets/art/backgrounds/bottom-wall.png" id="7_7r4gi"]
 [ext_resource type="Texture2D" uid="uid://cdhf5di8i65fh" path="res://assets/art/backgrounds/side-wall.png" id="8_w7kh3"]
 
@@ -17,8 +21,8 @@ size = Vector2(802, 7)
 [node name="Camera" type="Camera2D" parent="." node_paths=PackedStringArray("ball")]
 limit_left = 0
 limit_top = 0
-limit_right = 2350
-limit_bottom = 1225
+limit_right = 850
+limit_bottom = 360
 position_smoothing_enabled = true
 script = ExtResource("1_qfnet")
 ball = NodePath("../ActorsContainer/Ball")
@@ -26,7 +30,21 @@ ball = NodePath("../ActorsContainer/Ball")
 [node name="Backgrounds" type="Node2D" parent="."]
 
 [node name="Field" type="Sprite2D" parent="Backgrounds"]
-texture = ExtResource("2_7r4gi")
+texture = ExtResource("2_q5onr")
+centered = false
+
+[node name="Grass" type="Sprite2D" parent="Backgrounds"]
+modulate = Color(0.5176471, 0.8039216, 0.16470589, 1)
+texture = ExtResource("1_4wyf3")
+centered = false
+
+[node name="Pattern" type="Sprite2D" parent="Backgrounds"]
+modulate = Color(0.28627452, 0.54509807, 0, 1)
+texture = ExtResource("2_k0juu")
+centered = false
+
+[node name="Lines" type="Sprite2D" parent="Backgrounds"]
+texture = ExtResource("3_71j4m")
 centered = false
 
 [node name="ActorsContainer" type="Node2D" parent="." node_paths=PackedStringArray("ball", "goal_left", "goal_right")]
@@ -35,34 +53,30 @@ script = ExtResource("5_e3hyu")
 ball = NodePath("Ball")
 goal_left = NodePath("PitchObjects/GoalLeft")
 goal_right = NodePath("PitchObjects/GoalRight")
-team_left = "FRANCE"
-team_right = "GERMANY"
 
 [node name="PitchObjects" type="Node2D" parent="ActorsContainer"]
 y_sort_enabled = true
 
 [node name="GoalLeft" parent="ActorsContainer/PitchObjects" instance=ExtResource("5_i7141")]
-position = Vector2(72, 612)
+position = Vector2(72, 647)
 
 [node name="GoalRight" parent="ActorsContainer/PitchObjects" instance=ExtResource("5_i7141")]
-position = Vector2(2279, 612)
+position = Vector2(2279, 647)
 scale = Vector2(-1, 1)
 
 [node name="TopWall" type="Sprite2D" parent="ActorsContainer/PitchObjects"]
-position = Vector2(91, 164)
-texture = ExtResource("5_7r4gi")
+position = Vector2(49, 32)
+texture = ExtResource("6_4mrxx")
 centered = false
 
 [node name="StaticBody2D" type="StaticBody2D" parent="ActorsContainer/PitchObjects/TopWall"]
-visible = false
 collision_mask = 0
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="ActorsContainer/PitchObjects/TopWall/StaticBody2D"]
-position = Vector2(33, 2)
-polygon = PackedVector2Array(-29, 327, 13, -1, 2093, -1, 2132, 333, 2132, 374, 2132, 379, 2129, 370, 2080, 14, 20, 14, -24, 353, -29, 380, -29, 359, -29, 327)
+polygon = PackedVector2Array(0, 116, 13, 0, 739, 0, 752, 116, 740, 116, 730, 14, 22, 14, 12, 116)
 
 [node name="BottomWall" type="Sprite2D" parent="ActorsContainer/PitchObjects"]
-position = Vector2(772, 1052)
+position = Vector2(24, 344)
 texture = ExtResource("7_7r4gi")
 centered = false
 offset = Vector2(0, -12)
@@ -75,7 +89,7 @@ position = Vector2(401, -3.5)
 shape = SubResource("RectangleShape2D_7r4gi")
 
 [node name="LeftWall" type="Sprite2D" parent="ActorsContainer/PitchObjects"]
-position = Vector2(63, 636)
+position = Vector2(24, 221)
 texture = ExtResource("8_w7kh3")
 centered = false
 offset = Vector2(0, -14)
@@ -89,7 +103,7 @@ scale = Vector2(0.94642854, 1)
 polygon = PackedVector2Array(14, -1, 28, -1, 12, 116, 0, 116)
 
 [node name="RightWall" type="Sprite2D" parent="ActorsContainer/PitchObjects"]
-position = Vector2(2288, 636)
+position = Vector2(826, 221)
 scale = Vector2(-1, 1)
 texture = ExtResource("8_w7kh3")
 centered = false
@@ -103,49 +117,31 @@ position = Vector2(-0.4500003, 0)
 scale = Vector2(0.94642854, 1)
 polygon = PackedVector2Array(14, -1, 28, -1, 12, 116, 0, 116)
 
-[node name="Ball" parent="ActorsContainer" instance=ExtResource("5_71j4m")]
-position = Vector2(1175, 582)
+[node name="Player" parent="ActorsContainer" node_paths=PackedStringArray("own_goal", "target_goal") instance=ExtResource("4_k0juu")]
+position = Vector2(146, 621)
+own_goal = NodePath("../PitchObjects/GoalLeft")
+target_goal = NodePath("../PitchObjects/GoalRight")
 
-[node name="SpawnsLeft" type="Node2D" parent="ActorsContainer"]
+[node name="Ball" parent="ActorsContainer" instance=ExtResource("5_71j4m")]
+position = Vector2(225, 629)
+
+[node name="Spawns" type="Node2D" parent="ActorsContainer"]
 position = Vector2(425, 180)
 
-[node name="GoaliePosition" type="Node2D" parent="ActorsContainer/SpawnsLeft"]
-position = Vector2(-287, 411)
+[node name="GoaliePosition" type="Node2D" parent="ActorsContainer/Spawns"]
+position = Vector2(-255, 443)
 
-[node name="DefensePosition" type="Node2D" parent="ActorsContainer/SpawnsLeft"]
-position = Vector2(72, 211)
+[node name="DefensePosition" type="Node2D" parent="ActorsContainer/Spawns"]
+position = Vector2(-235, -30)
 
-[node name="DefensePosition2" type="Node2D" parent="ActorsContainer/SpawnsLeft"]
-position = Vector2(72, 611)
+[node name="DefensePosition2" type="Node2D" parent="ActorsContainer/Spawns"]
+position = Vector2(-235, 30)
 
-[node name="MidFieldPosition" type="Node2D" parent="ActorsContainer/SpawnsLeft"]
-position = Vector2(410, 411)
+[node name="MidFieldPosition" type="Node2D" parent="ActorsContainer/Spawns"]
+position = Vector2(-125, 0)
 
-[node name="OffensePosition" type="Node2D" parent="ActorsContainer/SpawnsLeft"]
-position = Vector2(610, 211)
+[node name="OffensePosition" type="Node2D" parent="ActorsContainer/Spawns"]
+position = Vector2(-25, -80)
 
-[node name="OffensePosition2" type="Node2D" parent="ActorsContainer/SpawnsLeft"]
-position = Vector2(610, 611)
-
-[node name="SpawnsRight" type="Node2D" parent="ActorsContainer"]
-unique_name_in_owner = true
-position = Vector2(1885, 180)
-scale = Vector2(-1, 1)
-
-[node name="GoaliePosition" type="Node2D" parent="ActorsContainer/SpawnsRight"]
-position = Vector2(-287, 411)
-
-[node name="DefensePosition" type="Node2D" parent="ActorsContainer/SpawnsRight"]
-position = Vector2(72, 211)
-
-[node name="DefensePosition2" type="Node2D" parent="ActorsContainer/SpawnsRight"]
-position = Vector2(72, 611)
-
-[node name="MidFieldPosition" type="Node2D" parent="ActorsContainer/SpawnsRight"]
-position = Vector2(388, 410)
-
-[node name="OffensePosition" type="Node2D" parent="ActorsContainer/SpawnsRight"]
-position = Vector2(588, 210)
-
-[node name="OffensePosition2" type="Node2D" parent="ActorsContainer/SpawnsRight"]
-position = Vector2(588, 610)
+[node name="OffensePosition2" type="Node2D" parent="ActorsContainer/Spawns"]
+position = Vector2(-25, 80)

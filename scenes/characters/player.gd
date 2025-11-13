@@ -3,10 +3,21 @@ extends CharacterBody2D
 
 const DURATION_TACKLE := 200
 const GRAVITY := 8.0
+const BALL_CONTROL_HEIGHT_MAX := 10.0
 
 enum State { MOVING , TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING, 
-	PASSING , HEADER, VOLLEY_KICK, BICYCLE_KICK}
+	PASSING , HEADER, VOLLEY_KICK, BICYCLE_KICK, CHEST_CONTROL}
 
+enum Role { GOALIE, DEFENSE, MIDFIELD, OFFENSE }
+enum SkinColor { LIGHT, MEDIUM, DARK, GREEN, RED }
+
+@export var own_goal : Goal
+@export var target_goal : Goal
+
+# STATS
+var full_name : String = ""
+var role : Player.Role
+var skin : Player.SkinColor
 @export var speed : float = 80
 @export var power : float = 70
 
@@ -22,6 +33,19 @@ var ball : Ball
 @onready var player_sprite : Sprite2D = %PlayerSprite
 @onready var teammate_detection_area : Area2D = %TeammateDetectionArea
 @onready var ball_detection_area : Area2D = %BallDetectionArea
+
+func initialize(context_position : Vector2, context_ball : Ball, context_own_goal: Goal, context_target_goal: Goal, context_player_data : PlayerResource) -> Player:
+		position = context_position
+		ball = context_ball
+		own_goal = context_own_goal
+		target_goal = context_target_goal
+		power = context_player_data.power
+		speed = context_player_data.speed
+		full_name = context_player_data.full_name
+		role = context_player_data.role
+		skin = context_player_data.skin_color
+		heading = Vector2.LEFT if target_goal.position.x < position.x else Vector2.RIGHT
+		return self
 
 func _ready() -> void:
 	switch_state(State.MOVING)
@@ -75,3 +99,7 @@ func has_ball() -> bool:
 func on_animation_complete() -> void:
 	if current_state != null:
 		current_state.on_animation_complete()
+		
+func control_ball() -> void:
+	if ball.height > BALL_CONTROL_HEIGHT_MAX:
+		switch_state(Player.State.CHEST_CONTROL)

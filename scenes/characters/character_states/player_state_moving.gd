@@ -14,6 +14,14 @@ func _process(_delta: float) -> void:
 		# If decided to pass:
 		# transition_state(Player.State.PASSING)	
 	# elif ball.can_air_interact():
+		# if player.velocity == Vector2.ZERO:
+			# if is_facing_target_goal():
+				# transition_state(Player.State.VOLLEY_KICK)
+			# else: 
+				# transition_state(Player.State.BICYCLE_KICK)
 		# if decided to shoot:
 			# transition_state(Player.State.HEADER)
 		
+func is_facing_target_goal() -> bool:
+	var direction_to_target_goal := player.position.direction_to(target_goal.position)
+	return player.heading.dot(direction_to_target_goal) > 0
