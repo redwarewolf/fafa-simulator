@@ -15,6 +15,7 @@ size = Vector2(802, 7)
 [node name="World" type="Node2D"]
 
 [node name="Camera" type="Camera2D" parent="." node_paths=PackedStringArray("ball")]
+zoom = Vector2(1.6, 1.6)
 limit_left = 0
 limit_top = 0
 limit_right = 2350
@@ -35,7 +36,7 @@ script = ExtResource("5_e3hyu")
 ball = NodePath("Ball")
 goal_left = NodePath("PitchObjects/GoalLeft")
 goal_right = NodePath("PitchObjects/GoalRight")
-team_left = "FRANCE"
+team_left = "ARGENTINA"
 team_right = "GERMANY"
 
 [node name="PitchObjects" type="Node2D" parent="ActorsContainer"]
@@ -104,7 +105,7 @@ scale = Vector2(0.94642854, 1)
 polygon = PackedVector2Array(14, -1, 28, -1, 12, 116, 0, 116)
 
 [node name="Ball" parent="ActorsContainer" instance=ExtResource("5_71j4m")]
-position = Vector2(1175, 582)
+position = Vector2(1176, 587)
 
 [node name="SpawnsLeft" type="Node2D" parent="ActorsContainer"]
 position = Vector2(425, 180)
@@ -145,7 +146,7 @@ position = Vector2(72, 611)
 position = Vector2(388, 410)
 
 [node name="OffensePosition" type="Node2D" parent="ActorsContainer/SpawnsRight"]
-position = Vector2(588, 210)
+position = Vector2(609, 332)
 
 [node name="OffensePosition2" type="Node2D" parent="ActorsContainer/SpawnsRight"]
 position = Vector2(588, 610)

@@ -17,7 +17,8 @@ func _enter_tree() -> void:
 func _physics_process(delta: float) -> void:
 	if (Time.get_ticks_msec() - time_since_shot > DURATION): #Escalarlo según poder
 		state_transition_requested.emit(Ball.State.FREEFORM)
-	ball.move_and_bounce(delta)
+	else:
+		move_and_bounce(delta)
 
 func _exit_tree() -> void:
 	ball_sprite.scale.y = 1.0

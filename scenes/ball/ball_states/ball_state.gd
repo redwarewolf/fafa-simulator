@@ -42,7 +42,7 @@ func can_air_interact() -> bool:
 	return false
 
 func move_and_bounce(delta: float) -> void:
-	var collision = ball.move_and_collide(ball.velocity * delta)
+	var collision := ball.move_and_collide(ball.velocity * delta)
 	if collision != null:
-		ball.velocity = ball.velocity.bounce(collision.get_normal() * ball.BOUNCINESS)
+		ball.velocity = ball.velocity.bounce(collision.get_normal()) * ball.BOUNCINESS
 		ball.switch_state(Ball.State.FREEFORM)
