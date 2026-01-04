@@ -11,6 +11,7 @@ const FRICTION_AIR := 35.0
 const FRICTION_GROUND := 250.0
 const BOUNCINESS := 0.8
 const DISTANCE_HIGH_PASS := 130
+const TUMBLE_HEIGHT_VELOCITY := 3.0
 
 var current_state : BallState = null
 var state_factory := BallStateFactory.new()
@@ -57,12 +58,18 @@ func shoot(shot_velocity : Vector2) -> void:
 	carrier = null
 	switch_state(Ball.State.SHOT)
 	
+func tumble(tumble_velocity: Vector2) -> void:
+	carrier = null
+	velocity = tumble_velocity
+	height_velocity = TUMBLE_HEIGHT_VELOCITY
+	switch_state(Ball.State.FREEFORM)
+	
 func pass_to(destination: Vector2) -> void:
 	var direction := position.direction_to(destination)
 	var distance := position.distance_to(destination)
 	var intensity := sqrt(2 * distance * FRICTION_GROUND )
 	velocity = intensity * direction
-	if distance >= DISTANCE_HIGH_PASS:
+	if distance > DISTANCE_HIGH_PASS:
 		height_velocity = BallState.GRAVITY * distance / (1.8 * intensity)
 	carrier = null
 	switch_state(Ball.State.FREEFORM)

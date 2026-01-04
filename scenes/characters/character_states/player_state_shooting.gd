@@ -3,7 +3,6 @@ extends PlayerState
 
 func _enter_tree() -> void:
 	animation_player.play("kick")
-	print("Play Kick")
 	
 func on_animation_complete() -> void:
 	shoot_ball()

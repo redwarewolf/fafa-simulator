@@ -4,17 +4,21 @@ extends Node
 const DURATION_AI_TICK_FREQUENCY := 200
 const SPREAD_ASSIST_FACTOR := 0.8
 const SHOT_DISTANCE := 200
+const TACKLE_DISTANCE := 15
 
 var ball : Ball = null
 var player : Player = null
 var time_since_last_ai_tick := Time.get_ticks_msec()
+var opponent_detection_area : Area2D = null
+
 
 func _ready() -> void:
 	time_since_last_ai_tick = Time.get_ticks_msec() + randi_range(0, DURATION_AI_TICK_FREQUENCY)
 
-func setup(context_player: Player, context_ball: Ball) -> void:
+func setup(context_player: Player, context_ball: Ball, context_opponent_detection_area : Area2D) -> void:
 	player = context_player
 	ball = context_ball
+	opponent_detection_area = context_opponent_detection_area
 
 func process_ai() -> void:
 	if Time.get_ticks_msec() - time_since_last_ai_tick > DURATION_AI_TICK_FREQUENCY:
@@ -63,8 +67,15 @@ func perform_ai_decisions() -> void:
 			var shot_direction := player.position.direction_to(player.target_goal.get_random_target_position())
 			var data := PlayerStateData.build().set_shot_power(player.power).set_shot_direction(shot_direction)
 			player.switch_state(Player.State.SHOOTING, data)
+		elif has_opponents_nearby(): # Podría considerar jugadores egoistas
+			player.switch_state(Player.State.PASSING)
 			
-			
+	
+	if is_ball_carried_by_opponents() and player_is_on_tackle_distance(): #Podría considerar otras formas de sacar la pelota
+		print("[AI] ", player.full_name, " deciding to TACKLE")
+		player.switch_state(Player.State.TACKLING)
+	
+
 func face_towards_target_goal() -> void:
 	if not player.is_facing_target_goal():
 		player.heading = player.heading * -1
@@ -98,7 +109,23 @@ func get_bicircular_weight(position: Vector2, center_target: Vector2, inner_circ
 		return lerpf(inner_circle_weight, outer_circle_weight, distance_to_inner_radius / close_range_distance)
 
 func is_ball_carried_by_teammate() -> bool:
-	return ball.carrier != null and ball.carrier != player and ball.carrier.team == player.team
+	return is_ball_carried()  and ball_carrier_is_teammate()
+
+func is_ball_carried_by_opponents() -> bool:
+	return is_ball_carried() and !ball_carrier_is_teammate()
+
+func is_ball_carried() -> bool:
+	return ball.carrier != null and ball.carrier != player
+
+func ball_carrier_is_teammate() -> bool:
+	return ball.carrier.team == player.team
 
 func player_has_ball() -> bool:
 	return ball.carrier == player
+
+func player_is_on_tackle_distance() -> bool:
+	return player.position.distance_to(ball.position) < TACKLE_DISTANCE
+
+func has_opponents_nearby() -> bool:
+	var players := opponent_detection_area.get_overlapping_bodies()
+	return players.find_custom(func (p: Player): return p.team != player.team) > -1
