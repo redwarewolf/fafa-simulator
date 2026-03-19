@@ -2,23 +2,50 @@ class_name AIBehavior
 extends Node
 
 const DURATION_AI_TICK_FREQUENCY := 200
-const SPREAD_ASSIST_FACTOR := 0.8
-const SHOT_DISTANCE := 200
-const TACKLE_DISTANCE := 15
 
-var ball : Ball = null
-var player : Player = null
+var ball: Ball = null
+var player: Player = null
 var time_since_last_ai_tick := Time.get_ticks_msec()
-var opponent_detection_area : Area2D = null
+var opponent_detection_area: Area2D = null
 
+var role_behavior: RoleBehavior = null
 
 func _ready() -> void:
 	time_since_last_ai_tick = Time.get_ticks_msec() + randi_range(0, DURATION_AI_TICK_FREQUENCY)
 
-func setup(context_player: Player, context_ball: Ball, context_opponent_detection_area : Area2D) -> void:
+func setup(context_player: Player, context_ball: Ball, context_opponent_detection_area: Area2D) -> void:
 	player = context_player
 	ball = context_ball
 	opponent_detection_area = context_opponent_detection_area
+	
+	setup_role_behavior()
+
+func setup_role_behavior() -> void:
+	match player.role:
+		Player.Role.GOALIE:
+			role_behavior = GoalieBehavior.new()
+		Player.Role.DEFENSE:
+			role_behavior = DefenderBehavior.new()
+		Player.Role.MIDFIELD:
+			role_behavior = MidfielderBehavior.new()
+		Player.Role.OFFENSE:
+			role_behavior = ForwardBehavior.new()
+		_:
+			role_behavior = MidfielderBehavior.new() # Default fallback
+	
+	role_behavior.name = "RoleBehavior"
+	add_child(role_behavior)
+	
+	# Pass all necessary context to the role behavior
+	role_behavior.setup(
+		player,
+		ball,
+		player.teammate_detection_area,
+		player.ball_detection_area,
+		opponent_detection_area,
+		player.own_goal,
+		player.target_goal
+	)
 
 func process_ai() -> void:
 	if Time.get_ticks_msec() - time_since_last_ai_tick > DURATION_AI_TICK_FREQUENCY:
@@ -29,13 +56,11 @@ func process_ai() -> void:
 func perform_ai_movement() -> void:
 	var total_steering_force := Vector2.ZERO
 
-	if player.has_ball():
-		total_steering_force += get_carrier_steering_force()
-	elif player.role != Player.Role.GOALIE:
-		total_steering_force += get_onduty_steering_force()
-		if is_ball_carried_by_teammate():
-			total_steering_force += get_assist_formation_steering()
+	# 1. Role-specific positioning (Delegated)
+	if role_behavior:
+		total_steering_force += role_behavior.get_positioning_force()
 
+	# 2. Universal behaviors (Applies to all roles)
 	total_steering_force += get_teammate_repulsion_force()
 
 	total_steering_force = total_steering_force.limit_length(1.0)
@@ -51,7 +76,7 @@ func get_teammate_repulsion_force() -> Vector2:
 
 		var dist := player.position.distance_to(other.position)
 
-		if dist < 40:  # Minimum desired spacing
+		if dist < 40: # Minimum desired spacing
 			var push := (player.position - other.position).normalized() * (40 - dist)
 			repulsion += push
 
@@ -59,73 +84,6 @@ func get_teammate_repulsion_force() -> Vector2:
 
 	
 func perform_ai_decisions() -> void:
-	if player_has_ball():
-		
-		var target := player.target_goal.get_center_target_position()
-		if player.position.distance_to(target) < SHOT_DISTANCE: # Agregar logica para hacer pases o ver si conviene disparar
-			face_towards_target_goal() # No creo que esto sea necesario.
-			var shot_direction := player.position.direction_to(player.target_goal.get_random_target_position())
-			var data := PlayerStateData.build().set_shot_power(player.power).set_shot_direction(shot_direction)
-			player.switch_state(Player.State.SHOOTING, data)
-		elif has_opponents_nearby(): # Podría considerar jugadores egoistas
-			player.switch_state(Player.State.PASSING)
-			
-	
-	if is_ball_carried_by_opponents() and player_is_on_tackle_distance(): #Podría considerar otras formas de sacar la pelota
-		print("[AI] ", player.full_name, " deciding to TACKLE")
-		player.switch_state(Player.State.TACKLING)
-	
-
-func face_towards_target_goal() -> void:
-	if not player.is_facing_target_goal():
-		player.heading = player.heading * -1
-	
-
-func get_onduty_steering_force() -> Vector2:
-	return player.weight_on_duty_steering * player.position.direction_to(ball.position)
-	
-func get_carrier_steering_force() -> Vector2:
-	var target := player.target_goal.get_center_target_position()
-	var direction := player.position.direction_to(target)
-	var weight := get_bicircular_weight(player.position, target, 100, 0 , 200, 0.9) #En vez de poner 0.9 como peso cuando lleva la pelota, debería limitar la velocidad de los jugadores cuando llevan la pelota segun stats
-	return weight * direction
-	
-func get_assist_formation_steering() -> Vector2:
-	var spawn_difference := ball.carrier.spawn_position - player.spawn_position
-	var assist_destination := ball.carrier.position - spawn_difference * SPREAD_ASSIST_FACTOR
-	var direction := player.position.direction_to(assist_destination)
-	var weight := get_bicircular_weight(player.position, assist_destination, 60, 0.2, 90, 1)
-	return weight*direction
-
-func get_bicircular_weight(position: Vector2, center_target: Vector2, inner_circle_radius: float, inner_circle_weight: float, outer_circle_radius: float, outer_circle_weight: float) -> float:
-	var distance_to_center := position.distance_to(center_target)
-	if distance_to_center > outer_circle_radius:
-		return outer_circle_weight
-	elif distance_to_center < inner_circle_radius:
-		return inner_circle_weight
-	else: 
-		var distance_to_inner_radius := distance_to_center - inner_circle_radius
-		var close_range_distance := outer_circle_radius - inner_circle_radius
-		return lerpf(inner_circle_weight, outer_circle_weight, distance_to_inner_radius / close_range_distance)
-
-func is_ball_carried_by_teammate() -> bool:
-	return is_ball_carried()  and ball_carrier_is_teammate()
-
-func is_ball_carried_by_opponents() -> bool:
-	return is_ball_carried() and !ball_carrier_is_teammate()
-
-func is_ball_carried() -> bool:
-	return ball.carrier != null and ball.carrier != player
-
-func ball_carrier_is_teammate() -> bool:
-	return ball.carrier.team == player.team
-
-func player_has_ball() -> bool:
-	return ball.carrier == player
-
-func player_is_on_tackle_distance() -> bool:
-	return player.position.distance_to(ball.position) < TACKLE_DISTANCE
-
-func has_opponents_nearby() -> bool:
-	var players := opponent_detection_area.get_overlapping_bodies()
-	return players.find_custom(func (p: Player): return p.team != player.team) > -1
+	# Delegate decision making to role behavior
+	if role_behavior:
+		role_behavior.make_decisions()
