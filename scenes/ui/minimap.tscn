@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://minimap_uid_gen"]
+[ext_resource type="Script" path="res://scenes/ui/minimap.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dbuyaca2rqy7a" path="res://assets/art/backgrounds/field-background.png" id="2_bg"]
+
+[node name="Minimap" type="TextureRect"]
+custom_minimum_size = Vector2(235, 122)
+offset_right = 235.0
+offset_bottom = 122.0
+texture = ExtResource("2_bg")
+expand_mode = 1
+script = ExtResource("1_script")
+
+[node name="Markers" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Border" type="ReferenceRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+border_color = Color(1, 1, 1, 1)
+border_width = 2.0
+editor_only = false

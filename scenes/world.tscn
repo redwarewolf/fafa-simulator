@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://diwdrwxttjbp" path="res://scenes/goal.tscn" id="5_i7141"]
 [ext_resource type="Texture2D" uid="uid://0aaj2hwbuf6c" path="res://assets/art/backgrounds/bottom-wall.png" id="7_7r4gi"]
 [ext_resource type="Texture2D" uid="uid://cdhf5di8i65fh" path="res://assets/art/backgrounds/side-wall.png" id="8_w7kh3"]
+[ext_resource type="PackedScene" path="res://scenes/ui/minimap.tscn" id="minimap_scene"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_7r4gi"]
 size = Vector2(802, 7)
@@ -150,3 +151,16 @@ position = Vector2(609, 332)
 
 [node name="OffensePosition2" type="Node2D" parent="ActorsContainer/SpawnsRight"]
 position = Vector2(588, 610)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Minimap" parent="HUD" node_paths=PackedStringArray("actors_container") instance=ExtResource("minimap_scene")]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = -154.0
+offset_right = 267.0
+offset_bottom = -32.0
+grow_vertical = 0
+actors_container = NodePath("../../ActorsContainer")
