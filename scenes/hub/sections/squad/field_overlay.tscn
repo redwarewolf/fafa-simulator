@@ -1,0 +1,25 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/hub/sections/squad/field_overlay.gd" id="1"]
+
+[node name="FieldOverlay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1")
+
+[node name="HoverTimer" type="Timer" parent="."]
+wait_time = 1.0
+one_shot = true
+
+[node name="SlotTooltip" type="PanelContainer" parent="."]
+visible = false
+mouse_filter = 2
+z_index = 10
+
+[node name="TooltipLabel" type="Label" parent="SlotTooltip"]
+text = ""

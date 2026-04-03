@@ -11,7 +11,7 @@ enum State { MOVING , TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING,
 
 enum Role { GOALIE, DEFENSE, MIDFIELD, OFFENSE }
 enum SkinColor { LIGHT, MEDIUM, DARK, GREEN, RED }
-const TEAMS := [ "DEFAULT" , "FRANCE" , "ARGENTINA", "BRAZIL", "ENGLAND", "GERMANY", "ITALY", "SPAIN", "USA" ]
+const TEAMS := [ "DEFAULT", "SACA CHISPAS", "LOS FULBOS FC", "CLUB ATLETICO PIÑATA", "DEPORTIVO LADRILLO", "UNION PATADURAS", "ATLÉTICO GAMBETA", "SAN LORENZO DE NADA", "RACING DE LA ESQUINA" ]
 
 var ai_behavior : AIBehavior = AIBehavior.new()
 
@@ -50,8 +50,8 @@ func initialize(context_position : Vector2, context_ball : Ball, context_own_goa
 		ball = context_ball
 		own_goal = context_own_goal
 		target_goal = context_target_goal
-		power = context_player_data.power
-		speed = context_player_data.speed
+		power = context_player_data.sho
+		speed = context_player_data.pac
 		full_name = context_player_data.full_name
 		role = context_player_data.role
 		skin = context_player_data.skin_color

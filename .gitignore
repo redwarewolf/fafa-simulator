@@ -14,3 +14,10 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# Godot temp/backup scene files
+*.tmp
+
+# User save data (runtime-generated, not source)
+# (lives in the OS user data folder, but guard against accidental copies)
+tactics.json

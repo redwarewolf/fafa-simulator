@@ -16,14 +16,20 @@ func _init() -> void:
 		if not squads.has(team_name):
 			squads.set(team_name, [])
 			for player in players:
-				var full_name := player["name"] as String
-				var skin := player["skin"] as Player.SkinColor
-				var role := player["role"] as Player.Role
-				var speed := player["speed"] as float
-				var power := player["power"] as float
-				var player_resource := PlayerResource.new(full_name,skin, role,speed,power)
+				var player_resource := PlayerResource.new(
+					player["name"] as String,
+					player["skin"] as Player.SkinColor,
+					player["role"] as Player.Role,
+					player["age"] as int,
+					player["quality"] as PlayerResource.Quality,
+					player["pac"] as int,
+					player["sho"] as int,
+					player["pas"] as int,
+					player["dri"] as int,
+					player["def"] as int,
+					player["phy"] as int
+				)
 				squads.get(team_name).append(player_resource)
-		assert(players.size() == 6)
 	squad_file.close()
 
 func get_team(team: String) -> Array:
