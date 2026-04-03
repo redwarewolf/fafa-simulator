@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="FAFA Simulator"
-run/main_scene="uid://bexoq36m2g176"
+run/main_scene="uid://cf6eg8fl5cb8v"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
