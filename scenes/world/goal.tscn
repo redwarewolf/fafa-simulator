@@ -1,6 +1,6 @@
 [gd_scene load_steps=8 format=3 uid="uid://diwdrwxttjbp"]
 
-[ext_resource type="Script" uid="uid://chli8ygch43t6" path="res://scenes/goal.gd" id="1_w3gav"]
+[ext_resource type="Script" uid="uid://chli8ygch43t6" path="res://scenes/world/goal.gd" id="1_w3gav"]
 [ext_resource type="Texture2D" uid="uid://bpvyvodhx66nk" path="res://assets/art/backgrounds/goal-bottom-v2.png" id="2_jvyg3"]
 [ext_resource type="Texture2D" uid="uid://cwihor0p8ykqc" path="res://assets/art/backgrounds/goal-top.png" id="2_w3gav"]
 

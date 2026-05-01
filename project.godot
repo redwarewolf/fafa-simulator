@@ -8,16 +8,21 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="FAFA Simulator"
-run/main_scene="uid://bexoq36m2g176"
-config/features=PackedStringArray("4.5", "Forward Plus")
+run/main_scene="uid://cf6eg8fl5cb8v"
+config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
 DataLoader="*res://utils/data_loader.gd"
+GameState="*res://scenes/hub/game_state.gd"
 
 [debug]
 
@@ -25,12 +30,11 @@ gdscript/warnings/unused_signal=0
 
 [display]
 
-window/size/viewport_width=1680
-window/size/viewport_height=1080
-window/size/window_width_override=1680
-window/size/window_height_override=1080
-window/stretch/mode="viewport"
-window/stretch/scale_mode="integer"
+window/size/viewport_width=640
+window/size/viewport_height=480
+window/size/window_width_override=1280
+window/size/window_height_override=960
+window/stretch/mode="canvas_items"
 
 [layer_names]
 

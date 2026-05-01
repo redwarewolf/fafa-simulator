@@ -1,0 +1,78 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/hub/sections/squad_section.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/player_card.tscn" id="3"]
+[ext_resource type="Texture2D" path="res://assets/art/backgrounds/football-field-test-.png" id="4"]
+
+[node name="SquadSection" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 0
+
+[node name="LeftColumn" type="VBoxContainer" parent="HBox"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="RosterPanel" parent="HBox/LeftColumn" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VBox" type="VBoxContainer" parent="HBox/LeftColumn/RosterPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HBox/LeftColumn/RosterPanel/VBox"]
+layout_mode = 2
+text = "SQUAD"
+
+[node name="RosterTree" type="Tree" parent="HBox/LeftColumn/RosterPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+hide_root = true
+select_mode = 1
+columns = 2
+column_titles_visible = true
+
+[node name="PlayerCard" parent="HBox/LeftColumn" instance=ExtResource("3")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FieldPanel" parent="HBox" instance=ExtResource("2")]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="FieldTexture" type="TextureRect" parent="HBox/FieldPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("4")
+expand_mode = 1
+stretch_mode = 6
+
+[connection signal="cell_selected" from="HBox/LeftColumn/RosterPanel/VBox/RosterTree" to="." method="_on_roster_tree_cell_selected"]
+[connection signal="column_title_clicked" from="HBox/LeftColumn/RosterPanel/VBox/RosterTree" to="." method="_on_roster_tree_column_title_clicked"]

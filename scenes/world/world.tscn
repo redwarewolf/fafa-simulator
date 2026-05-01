@@ -1,11 +1,11 @@
 [gd_scene load_steps=11 format=3 uid="uid://bexoq36m2g176"]
 
-[ext_resource type="Script" uid="uid://c4bai8p2ynrr3" path="res://scenes/camera.gd" id="1_qfnet"]
+[ext_resource type="Script" uid="uid://c4bai8p2ynrr3" path="res://scenes/world/camera.gd" id="1_qfnet"]
 [ext_resource type="Texture2D" uid="uid://dbuyaca2rqy7a" path="res://assets/art/backgrounds/field-background.png" id="2_7r4gi"]
 [ext_resource type="Texture2D" uid="uid://cgydcd01sceqr" path="res://assets/art/backgrounds/top-wall-v3.png" id="5_7r4gi"]
 [ext_resource type="PackedScene" uid="uid://bgplolig1vhf4" path="res://scenes/ball/ball.tscn" id="5_71j4m"]
-[ext_resource type="Script" uid="uid://b50f30bye3a77" path="res://scenes/actors_container.gd" id="5_e3hyu"]
-[ext_resource type="PackedScene" uid="uid://diwdrwxttjbp" path="res://scenes/goal.tscn" id="5_i7141"]
+[ext_resource type="Script" uid="uid://b50f30bye3a77" path="res://scenes/world/actors_container.gd" id="5_e3hyu"]
+[ext_resource type="PackedScene" uid="uid://diwdrwxttjbp" path="res://scenes/world/goal.tscn" id="5_i7141"]
 [ext_resource type="Texture2D" uid="uid://0aaj2hwbuf6c" path="res://assets/art/backgrounds/bottom-wall.png" id="7_7r4gi"]
 [ext_resource type="Texture2D" uid="uid://cdhf5di8i65fh" path="res://assets/art/backgrounds/side-wall.png" id="8_w7kh3"]
 [ext_resource type="PackedScene" path="res://scenes/ui/minimap.tscn" id="minimap_scene"]
@@ -16,7 +16,7 @@ size = Vector2(802, 7)
 [node name="World" type="Node2D"]
 
 [node name="Camera" type="Camera2D" parent="." node_paths=PackedStringArray("ball")]
-zoom = Vector2(1.6, 1.6)
+zoom = Vector2(0.6, 0.6)
 limit_left = 0
 limit_top = 0
 limit_right = 2350
@@ -28,6 +28,7 @@ ball = NodePath("../ActorsContainer/Ball")
 [node name="Backgrounds" type="Node2D" parent="."]
 
 [node name="Field" type="Sprite2D" parent="Backgrounds"]
+position = Vector2(0, -8)
 texture = ExtResource("2_7r4gi")
 centered = false
 
@@ -37,8 +38,8 @@ script = ExtResource("5_e3hyu")
 ball = NodePath("Ball")
 goal_left = NodePath("PitchObjects/GoalLeft")
 goal_right = NodePath("PitchObjects/GoalRight")
-team_left = "ARGENTINA"
-team_right = "GERMANY"
+team_left = "SACA CHISPAS"
+team_right = "UNION PATADURAS"
 
 [node name="PitchObjects" type="Node2D" parent="ActorsContainer"]
 y_sort_enabled = true
