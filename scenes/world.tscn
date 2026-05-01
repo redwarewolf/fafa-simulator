@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://bexoq36m2g176"]
+[gd_scene load_steps=11 format=3 uid="uid://bexoq36m2g176"]
 
 [ext_resource type="Script" uid="uid://c4bai8p2ynrr3" path="res://scenes/camera.gd" id="1_qfnet"]
 [ext_resource type="Texture2D" uid="uid://dbuyaca2rqy7a" path="res://assets/art/backgrounds/field-background.png" id="2_7r4gi"]
@@ -153,6 +153,7 @@ position = Vector2(609, 332)
 position = Vector2(588, 610)
 
 [node name="HUD" type="CanvasLayer" parent="."]
+visible = false
 
 [node name="Minimap" parent="HUD" node_paths=PackedStringArray("actors_container") instance=ExtResource("minimap_scene")]
 anchors_preset = 2
