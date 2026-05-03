@@ -19,3 +19,6 @@ func set_movement_animation() -> void: #Configurar velocidad de animacion segun 
 		animation_player.play("walk")
 	else:
 		animation_player.play("run")
+
+func can_carry_ball() -> bool:
+	return player.role != Player.Role.GOALIE

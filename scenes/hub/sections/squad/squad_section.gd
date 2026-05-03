@@ -39,7 +39,7 @@ func _ready() -> void:
 	roster_tree.set_column_custom_minimum_width(COL_OVR, 48)
 	# Forward drag events from the Tree back to this script
 	roster_tree.set_drag_forwarding(_tree_get_drag_data, _tree_can_drop_data, _tree_drop_data)
-	players = DataLoader.get_team(GameState.club_team_key)
+	players = GameState.player_club.players
 	_populate_tree()
 	_active_index = GameState.active_tactic_index
 	_populate_tactics()

@@ -77,9 +77,10 @@ func _spawn_from_tactic(tactic, team: String, own_goal: Goal, mirror: bool) -> A
 		add_child(player)
 	return player_nodes
 	
-func spawn_players(team : String, own_goal : Goal,spawns) -> Array[Player]:
+func spawn_players(team : String, own_goal : Goal, spawns) -> Array[Player]:
 	var player_nodes : Array[Player] = []
-	var players := DataLoader.get_team(team)
+	var club := DataLoader.get_club_by_team_key(team)
+	var players : Array[PlayerResource] = club.players if club != null else []
 	var target_goal := goal_right if own_goal == goal_left else goal_left
 	for i in players.size():
 		var player_position := spawns.get_child(i).global_position as Vector2

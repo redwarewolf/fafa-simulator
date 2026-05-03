@@ -1,31 +1,25 @@
 class_name GoalieBehavior
 extends RoleBehavior
 
-const GOAL_LINE_DISTANCE := 30.0 # How far from goal line to position
-const MAX_ROAM_DISTANCE := 80.0 # Maximum distance from goal to chase ball
+const PROXIMITY_CONCERN := 10.0
 
-func get_positioning_force() -> Vector2:
-	var goal_center := own_goal.get_center_target_position()
-	
-	# If ball is very close and no one has it, consider coming out
-	if ball.carrier == null:
-		var ball_distance := player.position.distance_to(ball.position)
-		if ball_distance < MAX_ROAM_DISTANCE:
-			# Move towards ball but stay near goal
-			var to_ball := player.position.direction_to(ball.position)
-			return to_ball * 0.5
-	
-	# Default: Stay near goal line, position based on ball angle
-	var ball_to_goal := ball.position.direction_to(goal_center)
-	var ideal_position := goal_center - ball_to_goal * GOAL_LINE_DISTANCE
-	
-	var to_ideal := player.position.direction_to(ideal_position)
-	var weight := get_bicircular_weight(player.position, ideal_position, 20, 0.1, 40, 1.0)
-	
-	return to_ideal * weight
+func calculate_target_zone(_ball_zone: FieldZones.Zone) -> FieldZones.Zone:
+	return home_zone  # Goalie never leaves their zone
 
-func make_decisions() -> void:
-	# Goalies don't make offensive decisions
-	# They can't shoot or pass in this simple implementation
-	# Future: Could add clearing passes or goal kicks
-	pass
+func get_fine_positioning_force() -> Vector2:
+	var top := own_goal.get_top_target_position()
+	var bottom := own_goal.get_bottom_target_position()
+	var center := player.spawn_position
+	var target_y := clampf(ball.position.y, top.y, bottom.y)
+	var destination := Vector2(center.x, target_y)
+	var direction := player.position.direction_to(destination)
+	var distance_to_destination := player.position.distance_to(destination)
+	var weight := clampf(distance_to_destination / PROXIMITY_CONCERN, 0.0, 1.0)
+	return weight * direction
+
+func make_fine_decisions() -> void:
+	if ball.is_headed_for_scoring_area(
+		own_goal.get_top_target_position(),
+		own_goal.get_bottom_target_position()
+	):
+		player.switch_state(Player.State.DIVING)

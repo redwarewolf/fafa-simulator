@@ -9,6 +9,7 @@ var time_since_last_ai_tick := Time.get_ticks_msec()
 var opponent_detection_area: Area2D = null
 
 var role_behavior: RoleBehavior = null
+var role_behavior_factory: AIBehaviorFactory = AIBehaviorFactory.new()
 
 func _ready() -> void:
 	time_since_last_ai_tick = Time.get_ticks_msec() + randi_range(0, DURATION_AI_TICK_FREQUENCY)
@@ -17,26 +18,12 @@ func setup(context_player: Player, context_ball: Ball, context_opponent_detectio
 	player = context_player
 	ball = context_ball
 	opponent_detection_area = context_opponent_detection_area
-	
 	setup_role_behavior()
 
 func setup_role_behavior() -> void:
-	match player.role:
-		Player.Role.GOALIE:
-			role_behavior = GoalieBehavior.new()
-		Player.Role.DEFENSE:
-			role_behavior = DefenderBehavior.new()
-		Player.Role.MIDFIELD:
-			role_behavior = MidfielderBehavior.new()
-		Player.Role.OFFENSE:
-			role_behavior = ForwardBehavior.new()
-		_:
-			role_behavior = MidfielderBehavior.new() # Default fallback
-	
+	role_behavior = role_behavior_factory.get_role_behavior(player.role)
 	role_behavior.name = "RoleBehavior"
 	add_child(role_behavior)
-	
-	# Pass all necessary context to the role behavior
 	role_behavior.setup(
 		player,
 		ball,
@@ -50,6 +37,8 @@ func setup_role_behavior() -> void:
 func process_ai() -> void:
 	if Time.get_ticks_msec() - time_since_last_ai_tick > DURATION_AI_TICK_FREQUENCY:
 		time_since_last_ai_tick = Time.get_ticks_msec()
+		if role_behavior:
+			role_behavior.update_zone_state()
 		perform_ai_movement()
 		perform_ai_decisions()
 	
@@ -76,8 +65,8 @@ func get_teammate_repulsion_force() -> Vector2:
 
 		var dist := player.position.distance_to(other.position)
 
-		if dist < 40: # Minimum desired spacing
-			var push := (player.position - other.position).normalized() * (40 - dist)
+		if dist < 60:
+			var push := (player.position - other.position).normalized() * (60 - dist)
 			repulsion += push
 
 	return repulsion

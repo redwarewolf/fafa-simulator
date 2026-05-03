@@ -11,7 +11,7 @@ func _enter_tree() -> void:
 	time_start_shot = Time.get_ticks_msec()
 
 func _process(_delta: float) -> void:
-	var bonus = EASE_REWARD_FACTOR
-	var shot_power = player.power * (1 + bonus)
-	var context_state_data = PlayerStateData.build().set_shot_power(shot_power).set_shot_direction(player.heading) 
-	transition_state(Player.State.SHOOTING, context_state_data)
+	if Time.get_ticks_msec() - time_start_shot >= DURATION_MAX_BONUS:
+		var shot_power := player.power * (1.0 + EASE_REWARD_FACTOR)
+		var context_state_data := PlayerStateData.build().set_shot_power(shot_power).set_shot_direction(player.heading)
+		transition_state(Player.State.SHOOTING, context_state_data)

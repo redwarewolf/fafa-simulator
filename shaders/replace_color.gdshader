@@ -7,7 +7,7 @@ group_uniforms;
 
 uniform int team_color;
 
-uniform int skin_color : hint_enum("Light", "Medium", "Dark");
+uniform int skin_color : hint_enum("Light", "Medium", "Dark", "Radioactive", "Demonic", "Alien", "Robot");
 
 vec2 px_to_uv(ivec2 pos, ivec2 tex_size) {
 	return vec2(

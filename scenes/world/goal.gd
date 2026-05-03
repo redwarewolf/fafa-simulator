@@ -15,3 +15,9 @@ func get_random_target_position() -> Vector2:
 
 func get_center_target_position() -> Vector2:
 	return targets.get_child(int(targets.get_child_count() / 2.0)).global_position
+
+func get_top_target_position() -> Vector2:
+	return targets.get_child(0).global_position
+
+func get_bottom_target_position() -> Vector2:
+	return targets.get_child(targets.get_child_count() - 1).global_position

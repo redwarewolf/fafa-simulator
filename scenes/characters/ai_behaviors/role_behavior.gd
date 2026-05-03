@@ -1,7 +1,7 @@
 class_name RoleBehavior
 extends Node
 
-# References set during setup
+# ─── Context references ────────────────────────────────────────────────────────
 var player: Player = null
 var ball: Ball = null
 var teammate_detection_area: Area2D = null
@@ -9,6 +9,19 @@ var ball_detection_area: Area2D = null
 var opponent_detection_area: Area2D = null
 var own_goal: Goal = null
 var target_goal: Goal = null
+var field_zones: FieldZones = null
+
+# ─── Zone state ────────────────────────────────────────────────────────────────
+## Radius within which the player activates fine behavior regardless of zone.
+const PROXIMITY_RADIUS := 150.0
+
+var home_zone: FieldZones.Zone = FieldZones.Zone.NONE
+var current_zone: FieldZones.Zone = FieldZones.Zone.NONE
+var target_zone: FieldZones.Zone = FieldZones.Zone.NONE
+var _last_ball_zone: FieldZones.Zone = FieldZones.Zone.NONE
+var _is_left_team: bool = false
+## Cached result of is_fine_behavior_active() — updated once per tick.
+var _fine_active: bool = true
 
 func setup(context_player: Player, context_ball: Ball, context_teammate_detection: Area2D, context_ball_detection: Area2D, context_opponent_detection: Area2D, context_own_goal: Goal, context_target_goal: Goal) -> void:
 	player = context_player
@@ -18,16 +31,75 @@ func setup(context_player: Player, context_ball: Ball, context_teammate_detectio
 	opponent_detection_area = context_opponent_detection
 	own_goal = context_own_goal
 	target_goal = context_target_goal
+	# field_zones lookup is deferred to _ready() — get_tree() is null here
 
-# Override in subclasses: Returns steering force for role-specific positioning
-func get_positioning_force() -> Vector2:
+func _ready() -> void:
+	field_zones = get_tree().get_first_node_in_group("field_zones") as FieldZones
+	if field_zones:
+		home_zone = field_zones.get_zone(player.spawn_position)
+		_is_left_team = field_zones.is_left_zone(home_zone)
+		target_zone = home_zone
+
+# ─── Zone system — called once per AI tick by AIBehavior ──────────────────────
+
+## Updates current_zone, recalculates target_zone if ball changed zones,
+## and caches whether fine behavior should be active this tick.
+func update_zone_state() -> void:
+	if field_zones == null:
+		_fine_active = true
+		return
+	var ball_zone := field_zones.get_zone(ball.position)
+	if ball_zone != _last_ball_zone:
+		_last_ball_zone = ball_zone
+		target_zone = calculate_target_zone(ball_zone)
+	current_zone = field_zones.get_zone(player.position)
+	var in_target := current_zone == target_zone or target_zone == FieldZones.Zone.NONE
+	var ball_nearby := player.position.distance_to(ball.position) < PROXIMITY_RADIUS
+	_fine_active = in_target or ball_nearby
+
+# ─── Overridable hooks ─────────────────────────────────────────────────────────
+
+## Override in subclasses: target zone given the ball's current zone.
+func calculate_target_zone(_ball_zone: FieldZones.Zone) -> FieldZones.Zone:
+	return home_zone
+
+## Override in subclasses: fine-grained steering when in target zone or close to ball.
+func get_fine_positioning_force() -> Vector2:
 	return Vector2.ZERO
 
-# Override in subclasses: Makes role-specific decisions (shoot, pass, tackle, etc.)
-func make_decisions() -> void:
+## Override in subclasses: tactical decisions when in target zone or close to ball.
+func make_fine_decisions() -> void:
 	pass
 
-# ===== UTILITY FUNCTIONS (available to all role behaviors) =====
+# ─── Top-level API called by AIBehavior ───────────────────────────────────────
+
+func get_positioning_force() -> Vector2:
+	if _fine_active:
+		return get_fine_positioning_force()
+	return _get_navigate_force()
+
+func make_decisions() -> void:
+	if _fine_active:
+		make_fine_decisions()
+
+# ─── Navigation ───────────────────────────────────────────────────────────────
+
+func _get_navigate_force() -> Vector2:
+	if field_zones == null or target_zone == FieldZones.Zone.NONE:
+		return Vector2.ZERO
+	var next := field_zones.get_next_zone_toward(current_zone, target_zone)
+	var destination := field_zones.get_zone_center(next)
+	var direction := player.position.direction_to(destination)
+	var dist := player.position.distance_to(destination)
+	# Ease out as we approach the zone center
+	var weight := clampf(dist / 80.0, 0.1, 1.0)
+	return direction * weight
+
+## Helper: get target zone from depth + ball position for this player's team side.
+func _zone_from_depth(target_depth: int) -> FieldZones.Zone:
+	return field_zones.get_zone_at_depth(target_depth, ball.position, _is_left_team)
+
+# ─── Utility functions ────────────────────────────────────────────────────────
 
 func player_has_ball() -> bool:
 	return ball.carrier == player

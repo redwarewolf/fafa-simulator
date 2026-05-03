@@ -6,11 +6,11 @@ const GRAVITY := 8.0
 const BALL_CONTROL_HEIGHT_MAX := 10.0
 const WALK_ANIM_THRESHOLD := 0.6
 
-enum State { MOVING , TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING, 
-	PASSING , HEADER, VOLLEY_KICK, BICYCLE_KICK, CHEST_CONTROL, HURT}
+enum State { MOVING, TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING,
+	PASSING, HEADER, VOLLEY_KICK, BICYCLE_KICK, CHEST_CONTROL, HURT, DIVING }
 
 enum Role { GOALIE, DEFENSE, MIDFIELD, OFFENSE }
-enum SkinColor { LIGHT, MEDIUM, DARK, GREEN, RED }
+enum SkinColor { LIGHT, MEDIUM, DARK, RADIOACTIVE, DEMONIC, ALIEN, ROBOT }
 const TEAMS := [ "DEFAULT", "SACA CHISPAS", "LOS FULBOS FC", "CLUB ATLETICO PIÑATA", "DEPORTIVO LADRILLO", "UNION PATADURAS", "ATLÉTICO GAMBETA", "SAN LORENZO DE NADA", "RACING DE LA ESQUINA" ]
 
 var ai_behavior : AIBehavior = AIBehavior.new()
@@ -60,11 +60,10 @@ func initialize(context_position : Vector2, context_ball : Ball, context_own_goa
 		return self
 
 func _ready() -> void:
+	spawn_position = position
 	setup_ai_behavior()
 	set_shader_properties()
-	
 	switch_state(State.MOVING)
-	spawn_position = position
 	tackle_damage_emitter_area.body_entered.connect(on_tackle_player.bind())
 
 func _process(delta: float) -> void:
@@ -108,6 +107,9 @@ func flip_sprites() -> void:
 		
 func has_ball() -> bool:
 	return ball.carrier == self
+
+func can_carry_ball() -> bool:
+	return current_state != null and current_state.can_carry_ball()
 	
 func on_animation_complete() -> void:
 	if current_state != null:

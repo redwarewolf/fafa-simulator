@@ -36,9 +36,9 @@ func _preload_sections() -> void:
 		_section_instances[key] = instance
 
 func _update_header() -> void:
-	club_name_label.text = GameState.club_name
-	division_label.text = "Division %s" % GameState.division
-	budget_label.text = "$%s" % _format_money(GameState.budget)
+	club_name_label.text = GameState.player_club.display_name
+	division_label.text = "Division %s" % GameState.player_club.division
+	budget_label.text = "$%s" % _format_money(GameState.player_club.budget)
 	date_label.text = GameState.get_date_string()
 
 func _show_section(key: String) -> void:

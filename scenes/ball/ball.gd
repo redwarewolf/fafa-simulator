@@ -82,3 +82,20 @@ func can_air_interact() -> bool:
 	
 func can_air_connect(air_connect_min_height: float, air_connect_max_height: float) -> bool:
 	return height >= air_connect_min_height and height <= air_connect_max_height
+
+## Returns true if the ball's current velocity trajectory will pass through
+## the Y range defined by [top_position, bottom_position] at the goal's X coordinate.
+## This is a mathematical alternative to the raycast-based approach.
+func is_headed_for_scoring_area(top_position: Vector2, bottom_position: Vector2) -> bool:
+	const MIN_SHOT_SPEED := 50.0
+	if velocity.length() < MIN_SHOT_SPEED:
+		return false
+	var goal_x := top_position.x
+	# Ball must be moving toward the goal (same X direction)
+	if sign(goal_x - position.x) != sign(velocity.x):
+		return false
+	var time_to_goal := (goal_x - position.x) / velocity.x
+	var predicted_y := position.y + velocity.y * time_to_goal
+	var top_y: float = min(top_position.y, bottom_position.y)
+	var bottom_y: float = max(top_position.y, bottom_position.y)
+	return predicted_y >= top_y and predicted_y <= bottom_y

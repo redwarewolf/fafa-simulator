@@ -47,13 +47,8 @@ const FORMATIONS : Dictionary = {
 	],
 }
 
-# Club info
-var club_name : String = "Saca Chispas"
-var club_team_key : String = "SACA CHISPAS"
-var division : String = "E"
-
-# Finances
-var budget : int = 50000
+# Club
+var player_club : ClubResource = null  ## The club the player manages
 
 # Calendar
 var day : int = 1
@@ -65,6 +60,7 @@ var tactics : Array = []
 var active_tactic_index : int = 0
 
 func _ready() -> void:
+	player_club = DataLoader.get_club("saca-chispas")
 	if not _load_tactics():
 		_init_default_tactics()
 
