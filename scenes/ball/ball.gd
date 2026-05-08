@@ -12,6 +12,7 @@ const FRICTION_GROUND := 250.0
 const BOUNCINESS := 0.8
 const DISTANCE_HIGH_PASS := 130
 const TUMBLE_HEIGHT_VELOCITY := 3.0
+const LONG_KICK_ARC_MULTIPLIER := 3.0
 
 var current_state : BallState = null
 var state_factory := BallStateFactory.new()
@@ -71,6 +72,22 @@ func pass_to(destination: Vector2) -> void:
 	velocity = intensity * direction
 	if distance > DISTANCE_HIGH_PASS:
 		height_velocity = BallState.GRAVITY * distance / (1.8 * intensity)
+	else:
+		height_velocity = 0.0  # Short pass stays on the ground — clear any residual velocity
+	carrier = null
+	switch_state(Ball.State.FREEFORM)
+
+## Goalkeeper long distribution — a high-arc inverted parabola.
+## Uses air friction for the horizontal component so the ball carries far,
+## and sets a large height_velocity for the visible arc.
+func long_kick(destination: Vector2) -> void:
+	var direction := position.direction_to(destination)
+	var distance := position.distance_to(destination)
+	# Base horizontal speed on air friction — ball is airborne for most of its travel
+	var intensity := sqrt(2.0 * distance * FRICTION_AIR)
+	velocity = intensity * direction
+	# High arc: ~3× what a regular high pass would give — adjust LONG_KICK_ARC via constant
+	height_velocity = BallState.GRAVITY * distance / (1.8 * intensity) * LONG_KICK_ARC_MULTIPLIER
 	carrier = null
 	switch_state(Ball.State.FREEFORM)
 

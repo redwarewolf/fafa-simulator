@@ -23,6 +23,7 @@ config/icon="res://icon.svg"
 
 DataLoader="*res://utils/data_loader.gd"
 GameState="*res://scenes/hub/game_state.gd"
+DebugDraw="*res://utils/debug_draw.gd"
 
 [debug]
 

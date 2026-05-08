@@ -7,7 +7,7 @@ const BALL_CONTROL_HEIGHT_MAX := 10.0
 const WALK_ANIM_THRESHOLD := 0.6
 
 enum State { MOVING, TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING,
-	PASSING, HEADER, VOLLEY_KICK, BICYCLE_KICK, CHEST_CONTROL, HURT, DIVING }
+	PASSING, HEADER, VOLLEY_KICK, BICYCLE_KICK, CHEST_CONTROL, HURT, DIVING, HOLDING_BALL }
 
 enum Role { GOALIE, DEFENSE, MIDFIELD, OFFENSE }
 enum SkinColor { LIGHT, MEDIUM, DARK, RADIOACTIVE, DEMONIC, ALIEN, ROBOT }
@@ -28,6 +28,7 @@ var team : String = ""
 
 var current_state: PlayerState = null
 var state_factory := PlayerStateFactory.new()
+var _current_state_type : State = State.MOVING  # Tracked for debug label
 
 var spawn_position := Vector2.ZERO
 var weight_on_duty_steering := 0.0
@@ -65,12 +66,16 @@ func _ready() -> void:
 	set_shader_properties()
 	switch_state(State.MOVING)
 	tackle_damage_emitter_area.body_entered.connect(on_tackle_player.bind())
+	if DebugDraw.ENABLED:
+		_setup_debug_label()
 
 func _process(delta: float) -> void:
 	set_heading()
 	flip_sprites()
 	process_gravity(delta)
 	move_and_slide()
+	if DebugDraw.ENABLED:
+		_update_debug_label()
 	
 func process_gravity(delta: float) -> void:
 	if height > 0:
@@ -80,6 +85,10 @@ func process_gravity(delta: float) -> void:
 	player_sprite.position = Vector2.UP * height
 
 func switch_state(state: State, state_data: PlayerStateData = PlayerStateData.new()) -> void:
+	if DebugDraw.ENABLED:
+		var from_name: String = State.keys()[_current_state_type] if current_state != null else "START"
+		print("[%s] %s → %s" % [full_name if full_name != "" else "Player", from_name, State.keys()[state]])
+	_current_state_type = state
 	if current_state != null:
 		current_state.queue_free()
 	current_state = state_factory.get_fresh_state(state)
@@ -142,5 +151,27 @@ func get_hurt(hurt_origin : Vector2) -> void:
 	
 func on_tackle_player(player_hit : Player) -> void:
 	if player_hit != self and player_hit.team != team and player_hit == ball.carrier:
+		if player_hit.current_state != null and player_hit.current_state.is_holding_ball():
+			return  # Keeper holding the ball is immune to tackles
 		player_hit.get_hurt(position.direction_to(player_hit.position))
-	
+
+# ─── Debug helpers ────────────────────────────────────────────────────────────
+
+func _setup_debug_label() -> void:
+	var label := Label.new()
+	label.name = "DebugLabel"
+	label.add_theme_font_size_override("font_size", 9)
+	label.position = Vector2(-20, -50)
+	label.z_index = 100
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.modulate = Color(1, 0, 0)  # Red for readability against grass
+	add_child(label)
+
+func _update_debug_label() -> void:
+	var label := get_node_or_null("DebugLabel") as Label
+	if label == null:
+		return
+	var display_name := full_name.substr(0, 10) if full_name != "" else team
+	var state_str: String = State.keys()[_current_state_type]
+	label.text = display_name + "\n" + state_str
+

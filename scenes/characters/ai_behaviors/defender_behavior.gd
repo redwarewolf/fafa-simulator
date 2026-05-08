@@ -4,6 +4,10 @@ extends RoleBehavior
 const SHOT_DISTANCE := 250.0
 const TACKLE_DISTANCE := 15.0
 
+func draw_debug() -> void:
+	DebugDraw.circle(player.position, SHOT_DISTANCE, Color(0.2, 0.5, 1))    # Blue — shoot range
+	DebugDraw.circle(player.position, TACKLE_DISTANCE, Color(1, 0.6, 0.1))  # Orange — tackle range
+
 ## Defenders stay 1 depth behind the ball, capped between own defense (1) and own center (3).
 func calculate_target_zone(ball_zone: FieldZones.Zone) -> FieldZones.Zone:
 	var ball_depth := field_zones.get_zone_depth(ball_zone, _is_left_team)
@@ -40,7 +44,7 @@ func _defensive_positioning() -> Vector2:
 
 func make_fine_decisions() -> void:
 	if player_has_ball():
-		if has_opponents_nearby():
+		if has_opponents_nearby() and has_pass_target_in_view():
 			player.switch_state(Player.State.PASSING)
 		elif player.position.distance_to(target_goal.get_center_target_position()) < SHOT_DISTANCE:
 			var shot_direction := player.position.direction_to(target_goal.get_random_target_position())

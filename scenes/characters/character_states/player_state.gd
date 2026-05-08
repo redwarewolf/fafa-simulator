@@ -34,3 +34,6 @@ func on_animation_complete() -> void:
 
 func can_carry_ball() -> bool:
 	return false
+
+func is_holding_ball() -> bool:
+	return false

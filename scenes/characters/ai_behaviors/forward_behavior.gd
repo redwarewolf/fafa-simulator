@@ -5,6 +5,10 @@ const SHOT_DISTANCE := 280.0
 const TACKLE_DISTANCE := 15.0
 const SPREAD_ASSIST_FACTOR := 0.9
 
+func draw_debug() -> void:
+	DebugDraw.circle(player.position, SHOT_DISTANCE, Color(1, 0.2, 0.2))    # Red — shoot range
+	DebugDraw.circle(player.position, TACKLE_DISTANCE, Color(1, 0.6, 0.1))  # Orange — tackle range
+
 ## Forwards press high — min own center (3), max opponent mid (5).
 ## They don't track all the way into opp defense; they stay available for counter-attacks.
 func calculate_target_zone(ball_zone: FieldZones.Zone) -> FieldZones.Zone:
@@ -46,7 +50,7 @@ func make_fine_decisions() -> void:
 			var shot_direction := player.position.direction_to(target_goal.get_random_target_position())
 			var data := PlayerStateData.build().set_shot_power(player.power).set_shot_direction(shot_direction)
 			player.switch_state(Player.State.SHOOTING, data)
-		elif has_opponents_nearby():
+		elif has_opponents_nearby() and has_pass_target_in_view():
 			player.switch_state(Player.State.PASSING)
 	if is_ball_carried_by_opponent() and player_is_on_tackle_distance(TACKLE_DISTANCE):
 		player.switch_state(Player.State.TACKLING)

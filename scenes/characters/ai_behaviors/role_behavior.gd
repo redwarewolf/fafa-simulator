@@ -13,7 +13,7 @@ var field_zones: FieldZones = null
 
 # ─── Zone state ────────────────────────────────────────────────────────────────
 ## Radius within which the player activates fine behavior regardless of zone.
-const PROXIMITY_RADIUS := 150.0
+const PROXIMITY_RADIUS := 200.0
 
 var home_zone: FieldZones.Zone = FieldZones.Zone.NONE
 var current_zone: FieldZones.Zone = FieldZones.Zone.NONE
@@ -74,11 +74,21 @@ func make_fine_decisions() -> void:
 # ─── Top-level API called by AIBehavior ───────────────────────────────────────
 
 func get_positioning_force() -> Vector2:
+	# Outfield players react to keeper possession globally
+	if player.role != Player.Role.GOALIE:
+		if is_opponent_keeper_holding():
+			return _get_retreat_force()
+		if is_own_keeper_holding():
+			return _get_reset_force()
 	if _fine_active:
 		return get_fine_positioning_force()
 	return _get_navigate_force()
 
 func make_decisions() -> void:
+	# Suppress combat decisions while any keeper is holding
+	if player.role != Player.Role.GOALIE:
+		if is_opponent_keeper_holding() or is_own_keeper_holding():
+			return
 	if _fine_active:
 		make_fine_decisions()
 
@@ -132,6 +142,18 @@ func get_closest_teammate_in_view() -> Player:
 		return teammates_in_view[0]
 	return null
 
+## Override in subclasses: draw role-specific debug circles (shot range, tackle range, etc.).
+func draw_debug() -> void:
+	pass
+
+## Returns true if at least one teammate is within the forward detection area.
+## Use this to gate PASSING decisions — don't enter the pass state with no one to receive.
+func has_pass_target_in_view() -> bool:
+	for body in teammate_detection_area.get_overlapping_bodies():
+		if body is Player and body != player and body.team == player.team:
+			return true
+	return false
+
 func get_bicircular_weight(position: Vector2, center_target: Vector2, inner_circle_radius: float, inner_circle_weight: float, outer_circle_radius: float, outer_circle_weight: float) -> float:
 	var distance_to_center := position.distance_to(center_target)
 	if distance_to_center > outer_circle_radius:
@@ -142,3 +164,32 @@ func get_bicircular_weight(position: Vector2, center_target: Vector2, inner_circ
 		var distance_to_inner_radius := distance_to_center - inner_circle_radius
 		var close_range_distance := outer_circle_radius - inner_circle_radius
 		return lerpf(inner_circle_weight, outer_circle_weight, distance_to_inner_radius / close_range_distance)
+
+## Returns true when the opposing keeper is holding the ball in their hands.
+func is_opponent_keeper_holding() -> bool:
+	return ball.carrier != null \
+		and ball.carrier.role == Player.Role.GOALIE \
+		and ball.carrier.team != player.team \
+		and ball.carrier.current_state != null \
+		and ball.carrier.current_state.is_holding_ball()
+
+## Returns true when our own keeper is holding the ball in their hands.
+func is_own_keeper_holding() -> bool:
+	return ball.carrier != null \
+		and ball.carrier.role == Player.Role.GOALIE \
+		and ball.carrier.team == player.team \
+		and ball.carrier.current_state != null \
+		and ball.carrier.current_state.is_holding_ball()
+
+## Retreat force: pull toward a spot between spawn and own goal (opponent keeper holds).
+func _get_retreat_force() -> Vector2:
+	var retreat_target := player.spawn_position.lerp(own_goal.get_center_target_position(), 0.3)
+	var direction := player.position.direction_to(retreat_target)
+	var dist := player.position.distance_to(retreat_target)
+	return direction * clampf(dist / 80.0, 0.0, 1.0)
+
+## Reset force: drift back to spawn position (own keeper holds, spread to receive).
+func _get_reset_force() -> Vector2:
+	var direction := player.position.direction_to(player.spawn_position)
+	var dist := player.position.distance_to(player.spawn_position)
+	return direction * clampf(dist / 80.0, 0.0, 1.0)
