@@ -10,12 +10,16 @@ extends RefCounted
 ## run_support_weight() — no new architecture. See docs/ai-overhaul.md
 ## Phase 4.
 
-enum Kind { NONE, POACHER, TARGET_MAN, WIDE_OUTLET, PLAYMAKER, BOX_TO_BOX }
+enum Kind { NONE, POACHER, TARGET_MAN, WIDE_OUTLET, PLAYMAKER, BOX_TO_BOX, FULL_BACK, STOPPER }
 
 ## Deterministic from the player's own effective stats and role, so the
 ## same player always gets the same trait — no randomness or save-data
-## migration needed. Trait pool is role-group-appropriate (a defender/
-## keeper gets no attacking/playmaking personality layered on).
+## migration needed. Trait pool is role-group-appropriate. DEFENSE used to
+## fall through to NONE unconditionally (a marauding overlapping full-back
+## and a stay-at-home centre-back had identical on-ball tendencies) even
+## though OFFENSE already splits by the same holds_flank check for
+## WIDE_OUTLET — same bug shape as the wing-back positioning fix, just in
+## the trait layer instead of positioning. See docs/ai-overhaul.md Phase 6.
 static func derive(player: Player) -> Kind:
 	match Positions.group(player.role):
 		Positions.Group.OFFENSE:
@@ -26,6 +30,8 @@ static func derive(player: Player) -> Kind:
 			return Kind.POACHER
 		Positions.Group.MIDFIELD:
 			return Kind.PLAYMAKER if player.passing >= player.dribbling else Kind.BOX_TO_BOX
+		Positions.Group.DEFENSE:
+			return Kind.FULL_BACK if Positions.holds_flank(player.role) else Kind.STOPPER
 		_:
 			return Kind.NONE
 
@@ -36,6 +42,8 @@ const WEIGHT_MULTIPLIERS := {
 	Kind.WIDE_OUTLET: {"shoot": 0.85, "pass": 1.1,  "dribble": 1.2},
 	Kind.PLAYMAKER:   {"shoot": 0.8,  "pass": 1.25, "dribble": 0.9},
 	Kind.BOX_TO_BOX:  {"shoot": 1.0,  "pass": 1.0,  "dribble": 1.1},
+	Kind.FULL_BACK:   {"shoot": 1.0,  "pass": 1.0,  "dribble": 1.3},
+	Kind.STOPPER:     {"shoot": 0.7,  "pass": 1.1,  "dribble": 0.6},
 }
 
 ## Added to RoleAI.run_support_weight() — how much more/less eagerly this
@@ -49,6 +57,8 @@ const RUN_SUPPORT_DELTA := {
 	Kind.WIDE_OUTLET: 0.15,
 	Kind.PLAYMAKER: -0.1,
 	Kind.BOX_TO_BOX: 0.2,
+	Kind.FULL_BACK: 0.15,
+	Kind.STOPPER: -0.1,
 }
 
 ## Applies this trait's multipliers on top of [param base_weights] (a

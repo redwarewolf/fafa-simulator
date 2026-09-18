@@ -13,9 +13,15 @@ func support_shape_factor() -> float:
 ## reasonable candidate to break beyond the carrier, not just forwards. See
 ## docs/ai-overhaul.md Phase 3.
 const SUPPORT_RUN_WEIGHT := 0.5
+## A CDM's entire job is screening the defense — bombing forward on the
+## same runs a CM/CAM/wide midfielder should makes them useless in that
+## job. Same bug shape as DefenderAI's centre-back-vs-full-back split
+## (_holds_flank already gates a defender's run_support_weight() there);
+## this role just had no equivalent check. See docs/ai-overhaul.md Phase 6.
+const CDM_SUPPORT_RUN_WEIGHT := 0.1
 
 func run_support_weight() -> float:
-	return SUPPORT_RUN_WEIGHT
+	return CDM_SUPPORT_RUN_WEIGHT if player.role == Positions.Role.CDM else SUPPORT_RUN_WEIGHT
 
 func role_weights() -> Dictionary:
 	return {"shoot": 0.9, "pass": 1.1, "dribble": 1.0, "shot_range": SHOT_RANGE}
