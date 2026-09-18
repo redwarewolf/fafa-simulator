@@ -36,9 +36,10 @@ const CLEAR_ANGLE_JITTER_DEG := 35.0
 
 ## Verbose print() trace of every distribution decision — full player/ball
 ## snapshot, every candidate considered and why it was accepted/rejected, and
-## the final choice. Temporary debugging aid for "the short pass lands right
-## next to an opponent" — flip off once that's diagnosed.
-const DEBUG_LOG_DISTRIBUTION := true
+## the final choice. Was left hardcoded true since before this AI overhaul
+## (see docs/ai-overhaul.md Phase 6 cleanup) — flip back to true locally
+## when diagnosing a specific distribution complaint.
+const DEBUG_LOG_DISTRIBUTION := false
 
 var _hold_start_time := 0
 var _hold_has_quick_outlet := false
