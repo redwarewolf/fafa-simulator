@@ -145,6 +145,13 @@ func _try_tackle() -> void:
 
 # ─── Off-ball: candidate-point scoring ──────────────────────────────────────
 
+## How far from a loose ball a non-presser's candidate still gets pushed
+## away — wider than TACKLE_DISTANCE/OPPONENT_AVOID_RADIUS since this is
+## about holding a genuinely spread supporting shape, not just not
+## literally standing on the ball.
+const LOOSE_BALL_AVOID_RADIUS := 150.0
+const LOOSE_BALL_AVOID_PENALTY := 150.0
+
 func _choose_off_ball_target() -> Vector2:
 	# Man-marking bypasses candidate scoring entirely. CandidatePointScorer
 	# rewards distance from the nearest opponent (openness) and progress
@@ -199,6 +206,20 @@ func _choose_off_ball_target() -> Vector2:
 			# docs/ai-overhaul.md Phase 6.
 			is_ball_carried_by_opponent()
 		)
+		if ball.carrier == null:
+			# Narrowing is_defending (above) stopped non-pressers from being
+			# REWARDED for crowding a loose ball, but did nothing to stop
+			# them converging on it anyway if the ball just happens to sit
+			# inside their normal off-ball scoring optimum (e.g. mid-depth,
+			# open space). Every player reaching this function during a
+			# loose ball is by definition NOT the presser (pressing bypasses
+			# this whole function) — trust that one teammate to contest it
+			# and actively push everyone else's candidates away from the
+			# immediate scramble instead, so they free up as pass options
+			# rather than also piling in. See docs/ai-overhaul.md Phase 6.
+			var dist_to_ball := c.distance_to(ball.position)
+			if dist_to_ball < LOOSE_BALL_AVOID_RADIUS:
+				score -= LOOSE_BALL_AVOID_PENALTY * (1.0 - dist_to_ball / LOOSE_BALL_AVOID_RADIUS)
 		if score > best_score:
 			best_score = score
 			best = c
