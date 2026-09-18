@@ -70,9 +70,10 @@ Each phase is independently shippable and playtestable before starting the next.
 - Also fixed findings log #2 (safe retention passing) in `OnBallUtility` as part of this phase, since it's the same "why doesn't passing happen" symptom.
 - **Verified** (2026-09-18): re-ran the same live-decision logging used to diagnose #1/#2 — `PASS` went from 0 occurrences pre-fix to 6/106 post-fix, with `advancement` now positive for close support options. No script errors.
 
-### Phase 4 — Player personality/role traits (data-only, low risk)
-Status: not started.
-- Small named-trait system layered onto individual players (Poacher / Playmaker / Box-to-Box / Target Man / Wide Outlet, or similar), adjusting `RoleAI.role_weights()` and off-ball base-point bias per player, not just per position group.
+### Phase 4 — Player personality/role traits (data-only, low risk) ✅ DONE (2026-09-18)
+- `scenes/characters/ai/player_traits.gd`: `PlayerTraits.derive(player)` deterministically picks one of `POACHER`/`TARGET_MAN`/`WIDE_OUTLET` (OFFENSE roles) or `PLAYMAKER`/`BOX_TO_BOX` (MIDFIELD roles) — or `NONE` for GK/DEFENSE — from the player's own existing stats (physicality/speed/dribbling/passing) and role. No new persisted field, no roster-generation changes.
+- `RoleAI` applies it in two places without any subclass changes: `_decide_on_ball()` runs `role_weights()` through `PlayerTraits.apply_weights()` before handing weights to `OnBallUtility.decide()`; `_apply_run_support()` adds `PlayerTraits.run_support_delta()` on top of the role's `run_support_weight()`.
+- **Verified** (2026-09-18): logged every spawned player's derived trait against their actual role/stats — defenders/GK correctly got `NONE`, midfielders split `PLAYMAKER`/`BOX_TO_BOX` by passing-vs-dribbling, the winger got `WIDE_OUTLET`, the striker got `POACHER`, all matching the intended logic. No script errors.
 
 ### Phase 5 — Fatigue/stamina polish (confirm scope before starting)
 Status: not started.

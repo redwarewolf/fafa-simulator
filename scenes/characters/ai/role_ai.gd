@@ -28,6 +28,9 @@ var _roam_forward: int = 0
 var _holds_flank: bool = false
 var _anchor_y: float = 0.0
 var _last_off_ball_target: Vector2 = Vector2.ZERO
+## Derived once in _ready() — see PlayerTraits.derive(). Layers a per-player
+## personality on top of this role's base weights/run-support eagerness.
+var _trait: int = PlayerTraits.Kind.NONE
 
 ## BallStateCarried offsets the ball ~10-14px ahead of the carrier in their
 ## heading direction (see OFFSET_FROM_PLAYER), so a defender who is genuinely
@@ -53,6 +56,7 @@ func _ready() -> void:
 	_roam_forward = roam.y
 	_holds_flank = Positions.holds_flank(player.role)
 	_anchor_y = player.anchor_position.y
+	_trait = PlayerTraits.derive(player)
 	field_zones = get_tree().get_first_node_in_group("field_zones") as FieldZones
 	if field_zones:
 		_anchor_depth = field_zones.get_zone_depth(field_zones.get_zone(player.anchor_position), _is_left_team)
@@ -122,7 +126,8 @@ func _carrier_target_position() -> Vector2:
 	return player.position.lerp(target, weight)
 
 func _decide_on_ball() -> void:
-	var action := OnBallUtility.decide(player, ball, player.get_teammates(), player.get_opponents(), target_goal, role_weights())
+	var weights := PlayerTraits.apply_weights(_trait, role_weights())
+	var action := OnBallUtility.decide(player, ball, player.get_teammates(), player.get_opponents(), target_goal, weights)
 	match action.kind:
 		OnBallUtility.ActionKind.SHOOT:
 			player.face_towards_target_goal()
@@ -215,7 +220,7 @@ func _off_ball_base_position() -> Vector2:
 const RUN_TRIGGER_SPEED := 20.0
 
 func _apply_run_support(mirrored: Vector2) -> Vector2:
-	var weight := run_support_weight()
+	var weight := clampf(run_support_weight() + PlayerTraits.run_support_delta(_trait), 0.0, 1.0)
 	if weight <= 0.0:
 		return mirrored
 	var carrier := ball.carrier
