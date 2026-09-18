@@ -31,6 +31,10 @@ static func compute_velocity(player: Player, target: Vector2, ball: Ball, oppone
 	# Player.get_dribble_speed) — a chasing defender running at full `speed`
 	# needs to actually be faster than the carrier to ever close the gap.
 	var move_speed := player.get_dribble_speed() if ball.carrier == player else player.speed
+	# Fatigue (see Player.stamina/get_stamina_factor) scales both cases down
+	# together, so the relative chase dynamic above still holds late in a
+	# match — a tired carrier and a tired chaser both slow down, not just one.
+	move_speed *= player.get_stamina_factor()
 	return total * move_speed
 
 static func _teammate_repulsion(player: Player, ball: Ball) -> Vector2:

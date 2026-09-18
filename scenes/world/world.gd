@@ -296,6 +296,7 @@ func _transition(new_state: MatchState) -> void:
 		MatchState.GAMEOVER:
 			actors_container.process_mode = Node.PROCESS_MODE_DISABLED
 			GameEvents.game_over.emit()
+			_write_back_stamina()
 			var match_result := {}
 			if not SeasonManager.pending_player_fixture.is_empty():
 				match_result = SeasonManager.report_player_match_result(score_left, score_right)
@@ -331,6 +332,17 @@ func _show_game_over(match_result: Dictionary) -> void:
 		for s in _scorers:
 			lines.append(tr("%s  %s (%s)") % [s["time_str"], s["player"], s["team"]])
 	summary_label.text = "\n".join(lines)
+
+## Persists each player's depleted in-match Player.stamina back onto their
+## PlayerResource — otherwise it's just discarded when this scene unloads.
+## Covers both rosters, not only the human club's, so an AI opponent that
+## plays multiple live matches in one session (e.g. repeated Test Matches)
+## carries fatigue too. See docs/ai-overhaul.md Phase 5; recovery on a rest
+## day is SeasonManager.resolve_day()'s job, not this scene's.
+func _write_back_stamina() -> void:
+	for p in actors_container.left_team + actors_container.right_team:
+		if p.player_data != null:
+			p.player_data.stamina = p.stamina
 
 func _on_back_to_hub_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub/hub.tscn")

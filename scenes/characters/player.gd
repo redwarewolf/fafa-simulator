@@ -72,6 +72,33 @@ var special_type : String = ""
 ## Personality trait copied from PlayerResource.teamplay — see there.
 var teamplay : float = 50
 
+## Kept for stamina read/write-back only (see stamina below) — everything
+## else about this player already got copied into plain fields above.
+var player_data : PlayerResource = null
+## Live in-match value, seeded from PlayerResource.stamina and depleted over
+## the match by _process() — PlayerResource.stamina itself is a runtime-only,
+## not-persisted attribute (see there), so this is the only place a match
+## actually experiences fatigue; MatchWorld writes the end-of-match value
+## back to player_data.stamina (see MatchWorld._transition's GAMEOVER
+## branch) and SeasonManager.resolve_day() recovers it on a rest day. See
+## docs/ai-overhaul.md Phase 5.
+var stamina : float = 100.0
+## Baseline depletion per second, plus an activity-scaled extra term so
+## sprinting drains faster than jogging/standing — see get_stamina_factor().
+## Tuned so a mostly-active outfield player over MatchWorld.MATCH_DURATION
+## (360s, representing 90 minutes) ends up noticeably but not crushingly
+## tired; flagged as a Phase 6 tuning candidate.
+const STAMINA_DECAY_PER_SEC := 0.11
+const STAMINA_DECAY_ACTIVITY_SCALE := 0.09
+## Speed multiplier at 0 stamina — never below this, so fatigue is felt
+## without a fully-drained player becoming unable to function.
+const STAMINA_FACTOR_MIN := 0.7
+
+## Effective move-speed multiplier from current fatigue — Locomotion applies
+## this on top of `speed`/get_dribble_speed().
+func get_stamina_factor() -> float:
+	return lerpf(STAMINA_FACTOR_MIN, 1.0, stamina / 100.0)
+
 ## Effective move speed while this player is the one controlling the ball —
 ## see DRIBBLE_SPEED_MIN/MAX_FRACTION. Locomotion.compute_velocity picks this
 ## over `speed` whenever ball.carrier == player.
@@ -160,6 +187,8 @@ func initialize(context_position : Vector2, context_ball : Ball, context_own_goa
 		passing = context_player_data.get_effective_stat_for_role("pas", apt_pct)
 		physicality = context_player_data.get_effective_stat_for_role("phy", apt_pct)
 		teamplay = context_player_data.teamplay
+		player_data = context_player_data
+		stamina = context_player_data.stamina
 		full_name = context_player_data.full_name
 		skin = context_player_data.skin_color
 		hair = context_player_data.hair_color
@@ -212,6 +241,18 @@ func _process(delta: float) -> void:
 	flip_sprites()
 	process_gravity(delta)
 	move_and_slide()
+	_process_stamina(delta)
+
+## Only depletes while this node is actually processing — frozen restart/
+## kickoff/foul players (PROCESS_MODE_DISABLED) and a paused EVENT/GAMEOVER
+## match correctly don't tire, since Godot simply never calls this. Activity
+## is read off how much of top speed the player is currently using, not
+## whether they're the ball carrier — a presser sprinting to close down the
+## ball tires the same as a carrier sprinting away from one.
+func _process_stamina(delta: float) -> void:
+	var activity := velocity.length() / maxf(speed, 1.0)
+	var decay := STAMINA_DECAY_PER_SEC + activity * STAMINA_DECAY_ACTIVITY_SCALE
+	stamina = clampf(stamina - decay * delta, 0.0, 100.0)
 	# Keep GoalieHands AnimatableBody2D synced to our world position so
 	# the physics engine sees it at the correct location every frame.
 	if role == Positions.Role.GK:

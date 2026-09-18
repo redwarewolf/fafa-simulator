@@ -61,7 +61,7 @@ func perform_ai_movement() -> void:
 		var restart_target := _press_target()
 		_debug_intent_target = restart_target
 		_debug_intent_kind = "press"
-		player.velocity = player.position.direction_to(restart_target) * player.speed
+		player.velocity = player.position.direction_to(restart_target) * player.speed * player.get_stamina_factor()
 		return
 	# Primary presser: close down the carrier/ball, bypassing formation and
 	# marking. Any outfield player can be the presser — role doesn't matter,
@@ -70,7 +70,7 @@ func perform_ai_movement() -> void:
 		var press_target := _press_target()
 		_debug_intent_target = press_target
 		_debug_intent_kind = "press"
-		player.velocity = player.position.direction_to(press_target) * player.speed
+		player.velocity = player.position.direction_to(press_target) * player.speed * player.get_stamina_factor()
 		return
 	# Cover presser: interpose between the carrier and the opponents' next
 	# most dangerous option instead of running the normal role/marking

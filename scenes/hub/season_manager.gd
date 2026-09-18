@@ -208,6 +208,8 @@ func resolve_day() -> void:
 	if not pending_player_fixture.is_empty():
 		return  # player still owes a match — don't advance further
 
+	_recover_stamina()
+
 	if phase == Phase.PRE_SEASON or phase == Phase.MID_SEASON_BREAK:
 		phase_dates_remaining -= 1
 
@@ -224,6 +226,24 @@ func resolve_day() -> void:
 
 	if pending_player_fixture.is_empty():
 		_check_phase_transition()
+
+## Stamina is a live-match-only runtime attribute (see PlayerResource —
+## deliberately not persisted to JSON) that Player/Locomotion deplete during
+## a played match (see docs/ai-overhaul.md Phase 5) and MatchWorld writes
+## back onto PlayerResource at full time. Full recovery on any day that
+## isn't itself a player-match day keeps the fatigue model simple: tired
+## during a match you actually played, fresh again by the next day off,
+## rather than compounding unpredictably across a whole season — a shorter
+## recovery could be tuned in later if that reads as too forgiving.
+## Covers every club, not just the human one, so an AI opponent's fatigue
+## from a previous live match (e.g. a repeated Test Match) doesn't linger
+## forever with no way to recover.
+const STAMINA_RECOVERY_PER_DAY := 100.0
+
+func _recover_stamina() -> void:
+	for club : ClubResource in DataLoader.clubs.values():
+		for p : PlayerResource in club.players:
+			p.stamina = clampf(p.stamina + STAMINA_RECOVERY_PER_DAY, 0.0, 100.0)
 
 
 ## Every league fixture tagged with the given leg has been played.
