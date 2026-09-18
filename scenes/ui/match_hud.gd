@@ -16,7 +16,9 @@ extends CanvasLayer
 const SPEED_STEPS := [1.0, 2.0, 4.0, 8.0]
 const SPEED_ICONS := [">", ">>", ">>>", ">>>>"
 ]
+const PAUSE_ICON := "||"
 var _speed_index := 0
+var _paused := false
 
 var _world: MatchWorld
 var _actors_container: ActorsContainer
@@ -97,6 +99,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
+			KEY_0: _toggle_pause()
 			KEY_1: _set_speed(0)
 			KEY_2: _set_speed(1)
 			KEY_3: _set_speed(2)
@@ -105,14 +108,33 @@ func _unhandled_input(event: InputEvent) -> void:
 func _exit_tree() -> void:
 	Engine.time_scale = 1.0
 
+## Independent of _set_speed's 1x-8x steps — resumes at whichever step was
+## active before pausing rather than always snapping back to 1x. Useful for
+## AI debugging (see docs/ai-overhaul.md Phase 6): freezing a moment lets
+## you inspect positions/debug overlays without the match continuing to
+## simulate. AITick/timer logic (Time.get_ticks_msec()-based, e.g.
+## TeamTacticalState's press commitment window) isn't scaled by
+## Engine.time_scale, so decisions keep recomputing in the background while
+## paused — harmless, since nothing visibly moves either way.
+func _toggle_pause() -> void:
+	_paused = not _paused
+	if _paused:
+		Engine.time_scale = 0.0
+		speed_label.text = PAUSE_ICON
+	else:
+		Engine.time_scale = SPEED_STEPS[_speed_index]
+		speed_label.text = SPEED_ICONS[_speed_index]
+
 func _set_speed(index: int) -> void:
 	_speed_index = index
+	_paused = false
 	Engine.time_scale = SPEED_STEPS[index]
 	speed_label.text = SPEED_ICONS[index]
 
 func _on_game_over() -> void:
 	Engine.time_scale = 1.0
 	_speed_index = 0
+	_paused = false
 	speed_label.text = SPEED_ICONS[0]
 	var sl := _world.score_left
 	var sr := _world.score_right

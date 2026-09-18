@@ -286,16 +286,28 @@ func _ball_depth_base_position() -> Vector2:
 	# together — same-role players already agree on a band from ball_depth +
 	# depth_offset() alone, so this is the part that formula can't express.
 	var target_depth := clampi(ball_depth + depth_offset() + roundi(player.team_line_bias), _anchor_depth - _roam_back, _anchor_depth + _roam_forward)
-	var zone := _zone_from_depth(target_depth)
+	var zone := _zone_from_depth(target_depth, ball_depth)
 	return field_zones.get_zone_center(zone)
 
 ## Row (top/mid/bottom) normally follows the ball; a flank player reads it
 ## off their own anchor so a full back overlapping stays on the touchline
-## instead of sliding into the middle behind the ball.
-func _zone_from_depth(target_depth: int) -> FieldZones.Zone:
+## instead of sliding into the middle behind the ball on ordinary attacking
+## play. That anchor pin used to be unconditional, though, which left a
+## full-back glued to their own corner even when the ball was centrally
+## dangerous deep in their own box and nobody had assigned them a specific
+## mark — tucks infield toward the ball as danger rises instead, reusing
+## the same near/far depth band TeamTacticalState's mark tightness scales
+## over, so "how central should I be" agrees with "how tight should my
+## marking be." See docs/ai-overhaul.md Phase 6.
+func _zone_from_depth(target_depth: int, ball_depth: int) -> FieldZones.Zone:
 	var row_hint := ball.position
 	if _holds_flank:
-		row_hint.y = _anchor_y
+		var danger := 1.0 - clampf(
+			(float(ball_depth) - TeamTacticalState.DANGER_NEAR_DEPTH) \
+				/ (TeamTacticalState.DANGER_FAR_DEPTH - TeamTacticalState.DANGER_NEAR_DEPTH),
+			0.0, 1.0
+		)
+		row_hint.y = lerpf(_anchor_y, ball.position.y, danger)
 	return field_zones.get_zone_at_depth(target_depth, row_hint, _is_left_team)
 
 # ─── Utility functions (kept from RoleBehavior) ─────────────────────────────
