@@ -96,6 +96,17 @@ var marked_by: Player = null
 ## 0 = primary presser (closest to the ball/carrier), -1 = not pressing.
 ## Written once per team tick by TeamTacticalState.
 var pressing_rank: int = -1
+## True for the single next-closest teammate to a pressed opponent carrier —
+## interposes between the carrier and the opponents' most dangerous other
+## option (cover_shadow_point) instead of also converging on the ball like
+## pressing_rank==0 does. Written once per team tick by TeamTacticalState.
+var is_cover_presser: bool = false
+var cover_shadow_point: Vector2 = Vector2.ZERO
+## Shared per-team adjustment every player's ball-depth positioning is
+## nudged by — the piece of team shape that isn't already implied by same-
+## role players independently computing the same depth formula off the same
+## ball position. Written once per team tick by TeamTacticalState.
+var team_line_bias: float = 0.0
 ## True only for the single player MatchWorld leaves unfrozen during a FOUL
 ## or KICKOFF restart (see MatchWorld._free_kick_taker/_kickoff_taker). Makes
 ## AIBehavior steer straight at the ball regardless of pressing_rank/marking,

@@ -207,7 +207,10 @@ func _ball_depth_base_position() -> Vector2:
 		return player.anchor_position
 	var ball_zone := field_zones.get_zone(ball.position)
 	var ball_depth := field_zones.get_zone_depth(ball_zone, _is_left_team)
-	var target_depth := clampi(ball_depth + depth_offset(), _anchor_depth - _roam_back, _anchor_depth + _roam_forward)
+	# team_line_bias (TeamTacticalState) shifts the whole team's shape
+	# together — same-role players already agree on a band from ball_depth +
+	# depth_offset() alone, so this is the part that formula can't express.
+	var target_depth := clampi(ball_depth + depth_offset() + roundi(player.team_line_bias), _anchor_depth - _roam_back, _anchor_depth + _roam_forward)
 	var zone := _zone_from_depth(target_depth)
 	return field_zones.get_zone_center(zone)
 

@@ -45,12 +45,20 @@ const DANGER_FAR_DEPTH := 5.0
 var current_presser: Player = null
 var _presser_committed_since_ms := 0
 var _prev_marks: Dictionary = {}  # Player (defender) -> Player (marked opponent)
+## Cached on first recompute() — a roster's role composition doesn't change
+## mid-match, so there's no reason to recompute this every tick. See
+## TacticPreset and docs/ai-overhaul.md Phase 2.
+var preset: TacticPreset = null
 
 ## own_team is defending (marks/presses opposing_team); is_left_team is
 ## own_team's side, used for ball-depth-based mark tightness.
 func recompute(own_team: Array[Player], opposing_team: Array[Player], ball: Ball, field_zones: FieldZones, is_left_team: bool) -> void:
+	if preset == null:
+		preset = TacticPreset.from_roster(own_team)
 	_recompute_pressing(own_team, ball)
 	_recompute_marking(own_team, opposing_team, ball, field_zones, is_left_team)
+	_recompute_cover_presser(own_team, opposing_team, ball)
+	_recompute_line_bias(own_team, ball, field_zones, is_left_team)
 
 # ─── Pressing ───────────────────────────────────────────────────────────────
 
@@ -90,7 +98,10 @@ func _recompute_pressing(team: Array[Player], ball: Ball) -> void:
 	elif now - _presser_committed_since_ms > MIN_PRESS_COMMITMENT_MS and closest != current_presser:
 		var closest_dist := closest.position.distance_to(reference)
 		var current_dist := current_presser.position.distance_to(reference)
-		if closest_dist + PRESS_TAKEOVER_MARGIN < current_dist:
+		# A higher-press_intensity side takes over sooner (smaller margin to
+		# beat) — a more attacking-shaped team contests the ball more eagerly.
+		var margin := PRESS_TAKEOVER_MARGIN * lerpf(1.4, 0.6, preset.press_intensity)
+		if closest_dist + margin < current_dist:
 			current_presser = closest
 			_presser_committed_since_ms = now
 
@@ -182,3 +193,67 @@ func _own_goal_center(team: Array[Player]) -> Vector2:
 		if p.own_goal != null:
 			return p.own_goal.get_center_target_position()
 	return Vector2.ZERO
+
+# ─── Cover presser ──────────────────────────────────────────────────────────
+
+## The next-closest teammate to a pressed opponent carrier (after
+## current_presser) interposes — Craig Reynolds' term for standing between
+## two moving entities — between the carrier and the opponent team's most
+## dangerous OTHER option, cutting that passing lane instead of also
+## converging on the ball the primary presser is already closing down. See
+## docs/ai-overhaul.md Phase 2.
+func _recompute_cover_presser(own_team: Array[Player], opposing_team: Array[Player], ball: Ball) -> void:
+	for p in own_team:
+		p.is_cover_presser = false
+	var carrier := ball.carrier
+	if carrier == null or carrier.team == _team_key(own_team):
+		return  # Only relevant while we're pressing an opponent carrier.
+
+	var candidates : Array[Player] = own_team.filter(func(p): return p.role != Positions.Role.GK \
+		and p.pressing_rank > 0 and p.process_mode != Node.PROCESS_MODE_DISABLED)
+	if candidates.is_empty():
+		return
+	candidates.sort_custom(func(a, b): return a.pressing_rank < b.pressing_rank)
+	var cover: Player = candidates[0]
+
+	var own_goal_center := _own_goal_center(own_team)
+	var danger_target: Player = null
+	var best_danger := -INF
+	for o in opposing_team:
+		if o == carrier or o.role == Positions.Role.GK:
+			continue
+		var goal_prox := 1.0 - clampf(o.position.distance_to(own_goal_center) / 1500.0, 0.0, 1.0)
+		if goal_prox > best_danger:
+			best_danger = goal_prox
+			danger_target = o
+	if danger_target == null:
+		return  # e.g. a lone-attacker breakaway with no supporting option to shadow.
+
+	cover.is_cover_presser = true
+	# Roughly midway between carrier and the receiver they'd most dangerously
+	# pass to — a first approximation of a cover shadow, not a full predicted-
+	# interception-point model; see this file's Phase 2 entry in
+	# docs/ai-overhaul.md for why that's deferred to tuning.
+	cover.cover_shadow_point = carrier.position.lerp(danger_target.position, 0.5)
+
+# ─── Shared line bias ───────────────────────────────────────────────────────
+
+## Every player's ball-depth positioning (RoleAI._ball_depth_base_position)
+## gets nudged by this, on top of their own depth_offset() — same-role
+## players already land on the same band from that formula alone (it's a
+## deterministic function of the same ball depth), so this is specifically
+## the team-wide shape shift that formula can't express: holding a higher
+## line when there's no immediate threat, or dropping deeper under sustained
+## pressure near our own goal. A coarse, reactive stand-in for a real
+## mentality/line-height tactic slider — see docs/ai-overhaul.md Phase 2.
+func _recompute_line_bias(own_team: Array[Player], ball: Ball, field_zones: FieldZones, is_left_team: bool) -> void:
+	var bias := preset.mentality
+	if field_zones != null:
+		var ball_depth := field_zones.get_zone_depth(field_zones.get_zone(ball.position), is_left_team)
+		if ball_depth >= 5:
+			bias += 1.0
+		elif ball_depth <= 2:
+			bias -= 1.0
+	bias = clampf(bias, -1.5, 1.5)
+	for p in own_team:
+		p.team_line_bias = bias

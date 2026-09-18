@@ -72,6 +72,15 @@ func perform_ai_movement() -> void:
 		_debug_intent_kind = "press"
 		player.velocity = player.position.direction_to(press_target) * player.speed
 		return
+	# Cover presser: interpose between the carrier and the opponents' next
+	# most dangerous option instead of running the normal role/marking
+	# target — see TeamTacticalState._recompute_cover_presser.
+	if player.is_cover_presser:
+		var cover_target := player.cover_shadow_point
+		_debug_intent_target = cover_target
+		_debug_intent_kind = "cover"
+		player.velocity = Locomotion.compute_velocity(player, cover_target, ball, opponent_detection_area)
+		return
 
 	var target := role_ai.get_target_position() if role_ai else player.position
 	_debug_intent_target = target
@@ -114,12 +123,15 @@ func _process(_delta: float) -> void:
 		role_ai.draw_debug()
 	if DebugDraw.SHOW_PRESSING_LINES and player.pressing_rank == 0 and ball.carrier != null:
 		DebugDraw.line(player.position, ball.carrier.position, Color(1, 0, 0, 0.9))  # red — primary presser
+	if DebugDraw.SHOW_PRESSING_LINES and player.is_cover_presser:
+		DebugDraw.line(player.position, player.cover_shadow_point, Color(1, 0.6, 0, 0.9))  # orange — cover presser
 	if DebugDraw.SHOW_MARKING_LINES and player.mark_target != null:
 		DebugDraw.line(player.position, player.mark_target.position, Color(1, 1, 0, 0.7))  # yellow — marking assignment
 	if DebugDraw.SHOW_INTENT_LINES and _debug_intent_kind != "":
 		var color := Color.WHITE
 		match _debug_intent_kind:
 			"press": color = Color(1, 0, 0, 0.9)     # red — closing the carrier
+			"cover": color = Color(1, 0.6, 0, 0.9)    # orange — cover-shadowing a passing lane
 			"mark": color = Color(1, 1, 0, 0.9)       # yellow — tracking an assigned mark
 			"role": color = Color(0.2, 1, 0.4, 0.9)   # green — formation/off-ball positioning
 		DebugDraw.line(player.position, _debug_intent_target, color)

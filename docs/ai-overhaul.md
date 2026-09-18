@@ -43,13 +43,14 @@ Each phase is independently shippable and playtestable before starting the next.
 - `DebugDraw.SHOW_PITCH_CONTROL` populated: `ActorsContainer._draw_pitch_control_debug()` tints a coarse grid blue/red by team-control advantage every frame while the toggle is on.
 - **Verified** (2026-09-18, via `run-fafa-simulator`): heatmap screenshot showed a clean blue/red split matching each team's actual half with a contested green seam at the halfway line — pitch control tracks real space correctly. A few seconds of normal play afterward showed no script errors and a sensible-looking kickoff shape, confirming the on-ball/off-ball wiring didn't regress normal behavior.
 
-### Phase 2 — Team Tactical Brain: coordinated line + multi-presser + presets
-Status: not started.
-- Coordinated defensive line: one shared backline depth per team per tick (replaces each defender independently clamping its own depth).
-- Multi-presser coordination: a second presser cover-shadows the most dangerous pass option (Reynolds' Interpose) instead of also converging on the ball.
-- Tactical presets (mentality/line-height/press-intensity/tempo), derived from formation + role composition for now — no tactics-board UI work in this scope.
-- Explicitly out of scope: an actual offside rule (`referee.gd` is purely decorative today, no offside enforcement exists) — that's a rules/referee feature, not AI, and needs its own scoping. The coordinated line is worth doing without it regardless — it's the difference between a defense that looks organized and one that doesn't.
-- Validate: `corner_defense`/press-trap scripted scenarios; extend `SHOW_PRESSING_LINES`/`SHOW_MARKING_LINES`/`SHOW_INTENT_LINES`.
+### Phase 2 — Team Tactical Brain: coordinated line + multi-presser + presets ✅ DONE (2026-09-18)
+- `scenes/characters/ai/tactic_preset.gd`: new `TacticPreset` — `mentality` (-1..+1) and `press_intensity` (0..1), derived automatically from a roster's OFFENSE-vs-DEFENSE role-group counts (no tactics-board UI work in this scope). Cached once per `TeamTacticalState` per match.
+- Coordinated shared shape: `TeamTacticalState._recompute_line_bias()` computes one `team_line_bias` value per team per tick (mentality baseline + reactive push-up/drop-off from ball depth), written onto every `Player` and read by `RoleAI._ball_depth_base_position()` on top of each role's own `depth_offset()`. Same-role players already agreed on a band from that formula alone (deterministic off the same ball depth) — this is specifically the team-wide shift that formula couldn't express: holding a higher or deeper line as a unit.
+- Multi-presser coordination: `TeamTacticalState._recompute_cover_presser()` designates the next-closest teammate (after the primary presser) as `is_cover_presser`, with a `cover_shadow_point` roughly midway between the ball carrier and the opponents' most dangerous other option (nearest-to-own-goal), instead of also converging on the ball — `AIBehavior.perform_ai_movement()` steers there via `Locomotion.compute_velocity()` when set. The midpoint is a first-approximation interpose point, not a predicted-interception model — flagged as a tuning candidate for Phase 6 if it doesn't read well enough in practice.
+- `press_intensity` also feeds `_recompute_pressing()`'s takeover margin — a more attacking-shaped side contests the ball a bit more eagerly.
+- Debug: `SHOW_PRESSING_LINES` draws the cover presser's shadow line in orange; `SHOW_INTENT_LINES` recognizes a `"cover"` intent kind with the same color.
+- Explicitly out of scope: an actual offside rule (`referee.gd` is purely decorative today, no offside enforcement exists) — that's a rules/referee feature, not AI, and needs its own scoping.
+- **Verified** (2026-09-18, via `run-fafa-simulator`): three screenshots across live play all show the orange cover-shadow line/cross rendering in a plausible position near the ball contest, alongside the existing red primary-press line and green role-target lines rendering normally. No script errors in `godot.log` across the whole session.
 
 ### Phase 3 — Attacking patterns & off-ball intelligence
 Status: not started.
