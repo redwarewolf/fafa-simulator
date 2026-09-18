@@ -164,13 +164,22 @@ static func pass_score(player: Player, teammate: Player, opponents: Array[Player
 static func is_progressive_pass(player: Player, teammate: Player, opponents: Array[Player], target_goal: Goal) -> bool:
 	return pass_score(player, teammate, opponents, target_goal) > PROGRESSIVE_PASS_MIN_ADVANCEMENT
 
+## A passing lane is blocked by whichever defender is most in the way, not
+## by the combined "reach" of every defender loosely near the line —
+## summing over all of them (the old behavior) meant a moderately crowded
+## midfield (2-3 opponents each only partially blocking) could stack a
+## 200-300+ penalty even though a real passer only has to beat the single
+## tightest gap. Fixed after live A/B testing against the pre-overhaul
+## checkpoint showed pass scores were still losing to dribbling far more
+## than they should even for genuinely decent options — see
+## docs/ai-overhaul.md Phase 6.
 static func _pass_lane_penalty(from_pos: Vector2, target_pos: Vector2, opponents: Array[Player]) -> float:
-	var penalty := 0.0
+	var worst := 0.0
 	for opponent in opponents:
 		var d := GeometryUtils.distance_point_to_segment(opponent.position, from_pos, target_pos)
 		if d < PASS_LANE_CLEAR_RADIUS:
-			penalty += PASS_LANE_PENALTY * (1.0 - d / PASS_LANE_CLEAR_RADIUS)
-	return penalty
+			worst = maxf(worst, PASS_LANE_PENALTY * (1.0 - d / PASS_LANE_CLEAR_RADIUS))
+	return worst
 
 ## Direct wiring between the marking system and pass decisions: a receiver
 ## being closely shadowed scores worse as a pass target than an open one.
@@ -258,6 +267,19 @@ static func _shoot_score(player: Player, target_goal: Goal, opponents: Array[Pla
 # whatever happened when pass/shoot both failed to fire. Also where `phy`
 # (previously dead) finally gets used. ──────────────────────────────────────
 
+## No opponent within reach ahead used to score the full 50-point
+## space_score ceiling plus up to 30 for skill — an unconditional ~65-80
+## baseline handed to nearly any player nearly anywhere on the pitch,
+## regardless of whether a teammate was in a clearly better spot. That
+## context-free freebie is what let dribbling beat genuinely good passes
+## (positive advancement, clear lane) in live A/B testing against the
+## pre-overhaul checkpoint. Halved both ceilings so dribbling still wins
+## when it's actually the better read (real space, no options) without
+## being the default just because nobody happens to be standing in front
+## of this exact player. See docs/ai-overhaul.md Phase 6.
+const DRIBBLE_SPACE_SCORE_MAX := 25.0
+const DRIBBLE_SKILL_SCORE_WEIGHT := 0.15
+
 static func _dribble_score(player: Player, opponents: Array[Player]) -> float:
 	var travel_dir := player.heading
 	var space := 300.0
@@ -271,8 +293,8 @@ static func _dribble_score(player: Player, opponents: Array[Player]) -> float:
 		if ahead > 0.3 and d < space:
 			space = d
 			nearest_defender = o
-	var space_score := clampf(space, 0.0, 300.0) / 300.0 * 50.0
-	var skill_score := player.dribbling * 0.3
+	var space_score := clampf(space, 0.0, 300.0) / 300.0 * DRIBBLE_SPACE_SCORE_MAX
+	var skill_score := player.dribbling * DRIBBLE_SKILL_SCORE_WEIGHT
 	var resistance := 0.0
 	if nearest_defender != null:
 		# A physically strong carrier shrugs off nearby pressure more easily.
@@ -282,7 +304,18 @@ static func _dribble_score(player: Player, opponents: Array[Player]) -> float:
 
 # ─── Decision ───────────────────────────────────────────────────────────────
 
-const MIN_ACT_THRESHOLD := 20.0
+## Shooting from a poor angle/range needs a real bar to clear — a low-
+## quality speculative effort just gives the ball away, so this stays high.
+const SHOOT_MIN_ACT_THRESHOLD := 20.0
+## Passing had the SAME 20-point bar as shooting, on top of also having to
+## beat dribble/hold — miscalibrated once _dribble_score's baseline was
+## roughly halved (see there): dribble dropping below hold's 10 baseline
+## was landing on HOLD by default instead of freeing those decisions up for
+## PASS, since a modestly-positive pass (10-20) still failed this gate.
+## Dribble has no such gate at all (it only has to beat best_val); pass
+## shouldn't be held to a stricter bar than the action it's competing
+## against. See docs/ai-overhaul.md Phase 6.
+const PASS_MIN_ACT_THRESHOLD := 5.0
 const HOLD_BASELINE := 10.0
 
 ## Personality spread applied to the raw shoot score: a low-teamplay (more
@@ -307,10 +340,10 @@ static func decide(player: Player, ball: Ball, teammates: Array[Player], opponen
 
 	var best_kind := ActionKind.HOLD
 	var best_val := hold_score
-	if shoot_score > best_val and shoot_score > MIN_ACT_THRESHOLD:
+	if shoot_score > best_val and shoot_score > SHOOT_MIN_ACT_THRESHOLD:
 		best_val = shoot_score
 		best_kind = ActionKind.SHOOT
-	if pass_val > best_val and pass_val > MIN_ACT_THRESHOLD:
+	if pass_val > best_val and pass_val > PASS_MIN_ACT_THRESHOLD:
 		best_val = pass_val
 		best_kind = ActionKind.PASS
 	if dribble_score > best_val:
