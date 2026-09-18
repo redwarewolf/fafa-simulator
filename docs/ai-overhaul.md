@@ -26,6 +26,18 @@ So "first principles redesign" here means: **derive the target architecture from
 6. **Player personality/traits** (new, data-only) — Phase 4.
 7. **Validation harness** (new) — debug overlay extension + scripted scenarios, built first (Phase 0) so every later phase is checked against something better than "eyeballing a full match."
 
+## Findings & known issues log
+
+Anything discovered during play-testing goes here immediately, whether or not it's fixed right away — so nothing observed gets lost between sessions. Update the status inline once acted on.
+
+1. **Passing rarely happens — ✅ FIXED (2026-09-18).** Live-logged every `OnBallUtility.pass_score()` call during a normal test match: the `advancement` term (how much closer to goal the target is than the passer) dominated the score, and it was negative for nearly every candidate in every sample taken — e.g. `Mateo Herrera -> Leandro Martinez: advancement=-171.5`, `-> Sergio Garcia: advancement=-630.7`. Root cause: whichever player was most advanced up the pitch had *no teammate* level with or ahead of them to pass to — a support-shape gap, not a scoring bug. Fixed in Phase 3 by generalizing forward-run triggers beyond `ForwardAI`. Re-logged after the fix: `advancement` now trends positive for close support options (e.g. `Diego Aguirre -> Nicolas Fernandez: advancement=46.4`), and `PASS` went from **zero** occurrences in the original ~120-decision sample to 6/106 in the post-fix sample. Passing frequency may still feel low for "build-up play" — see Phase 6.
+2. **No "safe retention" pass under pressure — ✅ FIXED (2026-09-18).** Even with no forward option, `pass_score()` had no way to value a short, safe, sideways/backward pass to simply keep possession — `advancement` being negative always outscored it against dribbling. Fixed alongside #1 with a bounded retention bonus (scaled by passer pressure and lane/receiver openness) — confirmed contributing 60-82 points on real safe-but-non-advancing options in the post-fix log. Constants (`RETENTION_PRESSURE_RADIUS`/`RETENTION_BONUS_MAX`/`RETENTION_SAFETY_DIVISOR`) are first-pass estimates, flagged for Phase 6 tuning if the balance feels off.
+3. **Defensive-transition recovery gap — OBSERVED, root cause NOT confirmed, deferred.** The "one player runs straight through everyone" moments the user saw appear to be clean counter-attacks right after the defense was caught out of position (e.g. recovering from a save/corner), where nobody is close enough to press for a couple of seconds. Watching pressing/marking debug lines live showed defenders *do* converge and tackle normally in ordinary congested-midfield play — so this looks specific to post-transition recovery shape, not a general pressing/marking failure, and not something Phase 2 broke. No fix attempted yet — needs its own dedicated investigation (watch a transition moment specifically with debug lines on) before deciding whether it's a Phase 2 tuning tweak or a new Phase.
+4. **Straight-line dribble path when uncontested — OBSERVED, by design, not a bug, unscheduled.** `RoleAI._carrier_target_position()`'s bicircular pull always aims straight at goal center when nobody's blocking, which reads as robotic on an open breakaway. Not wrong, but a candidate "fun to watch" polish item (e.g. lateral weave/feint variation) for a future phase — not scheduled yet.
+5. **Cover-presser shadow point is a naive midpoint — already noted under Phase 2, flagged for Phase 6 tuning**, not a bug, just a first approximation.
+
+Debug tooling added while investigating #1/#2, left in place (gated off by default) for reuse: `OnBallUtility.DEBUG_LOG_DECISIONS` (per-decision score breakdown) and a `pass_score()`-internal breakdown print, both toggled by that same const.
+
 ## Roadmap
 
 Each phase is independently shippable and playtestable before starting the next. Validate every phase with all three methods: play-test via the `run-fafa-simulator` skill, debug overlays/metrics, and scripted mini-scenarios.
@@ -52,11 +64,11 @@ Each phase is independently shippable and playtestable before starting the next.
 - Explicitly out of scope: an actual offside rule (`referee.gd` is purely decorative today, no offside enforcement exists) — that's a rules/referee feature, not AI, and needs its own scoping.
 - **Verified** (2026-09-18, via `run-fafa-simulator`): three screenshots across live play all show the orange cover-shadow line/cross rendering in a plausible position near the ball contest, alongside the existing red primary-press line and green role-target lines rendering normally. No script errors in `godot.log` across the whole session.
 
-### Phase 3 — Attacking patterns & off-ball intelligence
-Status: not started.
-- Generalize `ForwardAI`'s existing run-trigger logic (`_off_ball_base_position` override) so fullbacks/wingers can trigger overlaps and central midfielders can trigger underlaps/third-man runs — kept emergent from candidate scoring, not scripted set patterns.
-- "Don't cluster" bias: when two attackers already occupy similar depth/lane, bias the trailing one toward a third-man pocket instead of duplicating the run.
-- Validate: `goal_kick_buildup` scripted scenario, full-match eye test.
+### Phase 3 — Attacking patterns & off-ball intelligence ✅ DONE (2026-09-18)
+- Moved `ForwardAI`'s run-ahead-of-the-shape trigger up into `RoleAI._apply_run_support()`, driven by two new overridable knobs (`run_support_weight()`/`run_support_distance()`, default 0 = off). `ForwardAI` now just supplies its existing weight/distance; `DefenderAI` grants it only to flank-holders (LB/RB overlap, CB still holds the line); `MidfielderAI` grants a moderate weight to all midfield roles (underlap/third-man). This directly addresses findings log #1 above.
+- "Don't cluster": not a new mechanism — `CandidatePointScorer`'s existing `CROWD_PENALTY_PER_TEAMMATE` already discourages candidates near other teammates, so multiple triggered runs naturally spread apart rather than duplicating each other. No separate code needed.
+- Also fixed findings log #2 (safe retention passing) in `OnBallUtility` as part of this phase, since it's the same "why doesn't passing happen" symptom.
+- **Verified** (2026-09-18): re-ran the same live-decision logging used to diagnose #1/#2 — `PASS` went from 0 occurrences pre-fix to 6/106 post-fix, with `advancement` now positive for close support options. No script errors.
 
 ### Phase 4 — Player personality/role traits (data-only, low risk)
 Status: not started.

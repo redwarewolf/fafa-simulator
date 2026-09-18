@@ -75,6 +75,17 @@ func carrier_pull_radii() -> Array:
 func support_shape_factor() -> float:
 	return 0.8
 
+## How eagerly this role makes a supporting forward run (overlap/underlap/
+## third-man — see _apply_run_support) once a teammate is carrying the ball
+## with pace. 0 disables it, holding the mirrored shape point instead — the
+## safe default for roles that shouldn't abandon their base shape.
+func run_support_weight() -> float:
+	return 0.0
+
+## How far ahead of the mirrored shape point a triggered run reaches.
+func run_support_distance() -> float:
+	return 200.0
+
 ## Weight multipliers for OnBallUtility.decide() — lets a striker favor SHOOT
 ## and a defender favor PASS without separate decision code per role.
 func role_weights() -> Dictionary:
@@ -187,8 +198,33 @@ func _choose_off_ball_target() -> Vector2:
 func _off_ball_base_position() -> Vector2:
 	if is_ball_carried_by_teammate():
 		var shape_offset := ball.carrier.anchor_position - player.anchor_position
-		return ball.carrier.position - shape_offset * support_shape_factor()
+		var mirrored := ball.carrier.position - shape_offset * support_shape_factor()
+		return _apply_run_support(mirrored)
 	return _ball_depth_base_position()
+
+## Generalizes what used to be ForwardAI's own run-ahead-of-the-shape
+## trigger to any role with a nonzero run_support_weight() — an overlapping
+## full-back or an underlapping/third-man central midfielder is the same
+## idea as a forward's run in behind: bias the shape-mirrored support point
+## toward goal (and, for flank-holders, back out toward their own touchline)
+## once the carrier is genuinely moving with the ball, not just shuffling.
+## See docs/ai-overhaul.md Phase 3 — added because pass_score's advancement
+## term was going negative for nearly every teammate whenever nobody but
+## forwards ever got ahead of/level with the carrier, so passing almost
+## never beat dribbling.
+const RUN_TRIGGER_SPEED := 20.0
+
+func _apply_run_support(mirrored: Vector2) -> Vector2:
+	var weight := run_support_weight()
+	if weight <= 0.0:
+		return mirrored
+	var carrier := ball.carrier
+	if carrier.velocity.length() < RUN_TRIGGER_SPEED:
+		return mirrored
+	var run_point := mirrored + carrier.position.direction_to(target_goal.get_center_target_position()) * run_support_distance()
+	if _holds_flank:
+		run_point.y = lerpf(run_point.y, _anchor_y, 0.5)
+	return mirrored.lerp(run_point, weight)
 
 ## Leads the marked opponent by their current velocity, same as
 ## AIBehavior._press_target does for the ball carrier — a shadow point pinned

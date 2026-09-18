@@ -20,6 +20,15 @@ func carrier_pull_radii() -> Array:
 func support_shape_factor() -> float:
 	return 0.6
 
+## Only a flank-holder (LB/RB) overlaps forward when a teammate carries the
+## ball with pace — a centre-back has no business bombing on, so this stays
+## 0 for them and they hold the mirrored line instead. See
+## docs/ai-overhaul.md Phase 3.
+const OVERLAP_RUN_WEIGHT := 0.5
+
+func run_support_weight() -> float:
+	return OVERLAP_RUN_WEIGHT if _holds_flank else 0.0
+
 func role_weights() -> Dictionary:
 	return {"shoot": 0.5, "pass": 1.2, "dribble": 0.6, "shot_range": SHOT_RANGE}
 

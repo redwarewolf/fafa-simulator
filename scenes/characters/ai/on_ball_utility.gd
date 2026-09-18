@@ -11,6 +11,11 @@ extends RefCounted
 
 enum ActionKind { SHOOT, PASS, DRIBBLE, HOLD }
 
+## TEMPORARY diagnostic flag — logs every decide() call's scores. Added to
+## investigate a "lone attacker dribbles straight in, defense doesn't
+## intercept, no build-up passing" report; remove once diagnosed.
+const DEBUG_LOG_DECISIONS := false
+
 class Action:
 	var kind: int
 	var pass_target: Player
@@ -95,6 +100,22 @@ const CHARGE_RISK_PRESSURE_RADIUS := 150.0
 ## CHARGE_RISK_PRESSURE_RADIUS, so charging in space is free.
 const CHARGE_RISK_PENALTY_PER_SEC := 60.0
 
+## advancement alone means ANY sideways/backward pass always scores worse
+## than dribbling, even a completely safe one — real players still lay the
+## ball off under pressure just to keep possession rather than force a risky
+## dribble alone. This adds back a bounded bonus for that, scaled by how
+## pressured the PASSER is (no reason to bail out safely if nobody's closing
+## you down) and by how genuinely clean the lane/receiver is (this isn't a
+## license to shovel it sideways into a crowd). See docs/ai-overhaul.md
+## Phase 3 finding #2 — a real gap, found investigating why passing almost
+## never happened, distinct from the support-run fix for finding #1.
+const RETENTION_PRESSURE_RADIUS := 120.0
+const RETENTION_BONUS_MAX := 180.0
+## lane_penalty + openness_penalty below this reads as "clean enough" for a
+## safety-first pass — wider than a literally-zero-penalty bar, since a
+## congested midfield rarely offers a perfectly clear lane.
+const RETENTION_SAFETY_DIVISOR := 300.0
+
 static func pass_score(player: Player, teammate: Player, opponents: Array[Player], target_goal: Goal) -> float:
 	var my_dist_to_goal := player.position.distance_to(target_goal.get_center_target_position())
 	var their_dist_to_goal := teammate.position.distance_to(target_goal.get_center_target_position())
@@ -129,7 +150,16 @@ static func pass_score(player: Player, teammate: Player, opponents: Array[Player
 		var pressure_factor := clampf(1.0 - nearest_opponent / CHARGE_RISK_PRESSURE_RADIUS, 0.0, 1.0)
 		charge_risk_penalty = (charge_ms / 1000.0) * CHARGE_RISK_PENALTY_PER_SEC * pressure_factor
 
-	return advancement - lane_penalty - openness_penalty + shot_quality_bonus - charge_risk_penalty
+	var passer_pressure := 1.0 - clampf(CandidatePointScorer.nearest_opponent_distance(player.position, opponents) / RETENTION_PRESSURE_RADIUS, 0.0, 1.0)
+	var openness_safety := clampf(1.0 - (lane_penalty + openness_penalty) / RETENTION_SAFETY_DIVISOR, 0.0, 1.0)
+	var retention_bonus := passer_pressure * openness_safety * RETENTION_BONUS_MAX
+
+	if DEBUG_LOG_DECISIONS:
+		print("    pass_score(%s->%s): advancement=%.1f lane_pen=%.1f openness_pen=%.1f shot_bonus=%.1f charge_pen=%.1f retention_bonus=%.1f dist=%.1f" % [
+			player.full_name, teammate.full_name, advancement, lane_penalty, openness_penalty,
+			shot_quality_bonus, charge_risk_penalty, retention_bonus, distance
+		])
+	return advancement - lane_penalty - openness_penalty + shot_quality_bonus - charge_risk_penalty + retention_bonus
 
 static func is_progressive_pass(player: Player, teammate: Player, opponents: Array[Player], target_goal: Goal) -> bool:
 	return pass_score(player, teammate, opponents, target_goal) > PROGRESSIVE_PASS_MIN_ADVANCEMENT
@@ -286,5 +316,12 @@ static func decide(player: Player, ball: Ball, teammates: Array[Player], opponen
 	if dribble_score > best_val:
 		best_val = dribble_score
 		best_kind = ActionKind.DRIBBLE
+
+	if DEBUG_LOG_DECISIONS:
+		print("[%s] decide: shoot=%.1f pass=%.1f(%s) dribble=%.1f hold=%.1f -> %s" % [
+			player.full_name, shoot_score, pass_val,
+			pass_target.full_name if pass_target != null else "none",
+			dribble_score, hold_score, ActionKind.keys()[best_kind]
+		])
 
 	return Action.new(best_kind, pass_target if best_kind == ActionKind.PASS else null)
