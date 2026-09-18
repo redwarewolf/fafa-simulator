@@ -28,12 +28,19 @@ const SHOW_GK_DISTRIBUTION := false
 ## by which of those it is. Diagnoses "why is this player going THERE"
 ## independent of what Locomotion's steering blend actually does with it.
 const SHOW_INTENT_LINES := false
+## Pitch-control heatmap: one filled cell per grid point, tinted by which
+## team could reach it first (see scenes/characters/ai/pitch_control.gd —
+## Phase 1 of docs/ai-overhaul.md). Empty/unpopulated until that lands; this
+## toggle and rect_filled() exist ahead of it so Phase 1 has somewhere to draw.
+const SHOW_PITCH_CONTROL := false
 
 ## Line width in pixels (screen space).
 const LINE_WIDTH := 1.0
 
 # Each entry: { from, to, color, expire_ms }
 var _lines: Array[Dictionary] = []
+# Each entry: { rect, color, expire_ms } — filled quads, e.g. heatmap cells.
+var _rects: Array[Dictionary] = []
 
 func _ready() -> void:
 	z_index = 100  # Draw above all gameplay sprites
@@ -52,6 +59,12 @@ func _draw() -> void:
 			draw_line(entry.from, entry.to, entry.color, LINE_WIDTH)
 			still_alive.append(entry)
 	_lines = still_alive
+	var rects_still_alive: Array[Dictionary] = []
+	for entry in _rects:
+		if now < entry.expire_ms:
+			draw_rect(entry.rect, entry.color, true)
+			rects_still_alive.append(entry)
+	_rects = rects_still_alive
 
 ## Draw a line between two world positions.
 ## [param duration_sec] — how many seconds the line stays visible (default: one frame only).
@@ -78,3 +91,10 @@ func circle(center: Vector2, radius: float, color: Color = Color.WHITE, duration
 		line(center + Vector2(cos(a), sin(a)) * radius,
 			 center + Vector2(cos(b), sin(b)) * radius,
 			 color, duration_sec)
+
+## Draw a filled, axis-aligned world-space rect (e.g. a heatmap cell).
+## [param duration_sec] — how many seconds it stays visible (default: one frame only).
+func rect_filled(rect: Rect2, color: Color = Color.WHITE, duration_sec: float = 0.0) -> void:
+	if ENABLED:
+		var ms: int = max(17, int(duration_sec * 1000.0))
+		_rects.append({ "rect": rect, "color": color, "expire_ms": Time.get_ticks_msec() + ms })

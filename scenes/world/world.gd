@@ -115,6 +115,7 @@ func _resolve_home_club() -> ClubResource:
 	return GameState.player_club
 
 func _process(delta: float) -> void:
+	_poll_scenario_trigger(delta)
 	match state:
 		MatchState.IN_PLAY:
 			match_time += delta
@@ -333,3 +334,32 @@ func _show_game_over(match_result: Dictionary) -> void:
 
 func _on_back_to_hub_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub/hub.tscn")
+
+## Dev scripted-scenario trigger (see scenes/world/scenario_debug.gd, Phase 0
+## of docs/ai-overhaul.md). Polls a small file under user:// instead of a
+## keybind: this game has no reliable input-injection path for an external
+## driver on Windows (PostMessage'd WM_KEYDOWN doesn't reach Godot's window —
+## confirmed by hand; likely gated on real OS focus, unlike the mouse clicks
+## the run-fafa-simulator skill already uses), so a file poll is the only
+## automatable trigger. Only runs when DebugDraw.ENABLED, so it's inert (one
+## FileAccess.file_exists check every SCENARIO_POLL_INTERVAL seconds) in a
+## normal playthrough and doesn't exist at all in a release export mindset.
+const SCENARIO_TRIGGER_PATH := "user://scenario_trigger.txt"
+const SCENARIO_POLL_INTERVAL := 0.5
+var _scenario_poll_timer := 0.0
+
+func _poll_scenario_trigger(delta: float) -> void:
+	if not DebugDraw.ENABLED:
+		return
+	_scenario_poll_timer += delta
+	if _scenario_poll_timer < SCENARIO_POLL_INTERVAL:
+		return
+	_scenario_poll_timer = 0.0
+	if not FileAccess.file_exists(SCENARIO_TRIGGER_PATH):
+		return
+	var f := FileAccess.open(SCENARIO_TRIGGER_PATH, FileAccess.READ)
+	var scenario_name := f.get_as_text().strip_edges()
+	f.close()
+	DirAccess.remove_absolute(SCENARIO_TRIGGER_PATH)
+	if scenario_name != "":
+		ScenarioDebug.apply(scenario_name, actors_container)
