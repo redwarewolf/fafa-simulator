@@ -44,6 +44,19 @@ static func nearest_opponent_distance(point: Vector2, opponents: Array[Player]) 
 			best = d
 	return minf(best if best != INF else 9999.0, SPACE_SATURATION_RADIUS)
 
+## Same 0..SPACE_SATURATION_RADIUS scale as nearest_opponent_distance(), but
+## from PitchControl's time-to-reach (position AND velocity) instead of
+## straight-line distance — an opponent already sprinting toward [param
+## point] reads as closer than one standing still at the same distance, and
+## one running away reads as farther. This is what lets off-ball scoring
+## anticipate space opening up instead of only reacting to where opponents
+## currently stand (see docs/ai-overhaul.md Phase 1). REFERENCE_SPEED just
+## converts PitchControl's seconds back onto the existing px scale so
+## W_SPACE and friends don't need retuning.
+const REFERENCE_SPEED := 100.0
+static func opponent_reach_space(point: Vector2, opponents: Array[Player]) -> float:
+	return minf(PitchControl.opponent_reach_time(point, opponents) * REFERENCE_SPEED, SPACE_SATURATION_RADIUS)
+
 static func count_teammates_near(point: Vector2, teammates: Array[Player], radius: float) -> int:
 	var count := 0
 	for t in teammates:
@@ -106,10 +119,10 @@ static func score_off_ball_candidate(
 	var sticky := STICKY_BONUS if point.distance_to(last_target) < STICKY_RADIUS else 0.0
 
 	if is_defending:
-		var pressure := SPACE_SATURATION_RADIUS - nearest_opponent_distance(point, opponents)
+		var pressure := SPACE_SATURATION_RADIUS - opponent_reach_space(point, opponents)
 		return W_PRESSURE * pressure - crowd + sticky
 
-	var space := nearest_opponent_distance(point, opponents)
+	var space := opponent_reach_space(point, opponents)
 	var goal_pos := target_goal.get_center_target_position()
 	var progression := player.position.distance_to(goal_pos) - point.distance_to(goal_pos)
 

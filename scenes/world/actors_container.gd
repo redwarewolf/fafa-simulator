@@ -148,11 +148,35 @@ func spawn_players(team : String, own_goal : Goal, spawns) -> Array[Player]:
 		add_child(player)
 	return player_nodes
 
+## Grid cell size for the SHOW_PITCH_CONTROL debug heatmap — purely a
+## visualization aid, not read by any AI decision, so this is only ever
+## computed when that toggle is on.
+const DEBUG_PITCH_CONTROL_CELL := 110.0
+
 func _process(_delta: float) -> void:
 	if Time.get_ticks_msec() - time_since_last_tactical_refresh > DURATION_TACTICAL_REFRESH:
 		time_since_last_tactical_refresh = Time.get_ticks_msec()
 		_team_tactical_left.recompute(left_team, right_team, ball, _field_zones, true)
 		_team_tactical_right.recompute(right_team, left_team, ball, _field_zones, false)
+	if DebugDraw.ENABLED and DebugDraw.SHOW_PITCH_CONTROL:
+		_draw_pitch_control_debug()
+
+## Tints each grid cell by which team's players (position + velocity, see
+## PitchControl) could reach it first — blue for left_team, red for
+## right_team, alpha scaled by how clear-cut the advantage is. Confirms
+## Phase 1's anticipatory space model visually tracks real open space rather
+## than just trusting the math (see docs/ai-overhaul.md Phase 1).
+func _draw_pitch_control_debug() -> void:
+	var cols := int(ceil((FIELD_RIGHT - FIELD_LEFT) / DEBUG_PITCH_CONTROL_CELL))
+	var rows := int(ceil((FIELD_BOTTOM - FIELD_TOP) / DEBUG_PITCH_CONTROL_CELL))
+	for row in rows:
+		for col in cols:
+			var x := FIELD_LEFT + col * DEBUG_PITCH_CONTROL_CELL
+			var y := FIELD_TOP + row * DEBUG_PITCH_CONTROL_CELL
+			var center := Vector2(x + DEBUG_PITCH_CONTROL_CELL * 0.5, y + DEBUG_PITCH_CONTROL_CELL * 0.5)
+			var value := PitchControl.control(center, left_team, right_team)
+			var color := Color(0.2, 0.4, 1.0, absf(value) * 0.35) if value > 0.0 else Color(1.0, 0.2, 0.2, absf(value) * 0.35)
+			DebugDraw.rect_filled(Rect2(x, y, DEBUG_PITCH_CONTROL_CELL, DEBUG_PITCH_CONTROL_CELL), color)
 
 ## [param slot_role]: the position this player is actually being fielded in —
 ## a tactic slot's role, or just the player's own role for the legacy

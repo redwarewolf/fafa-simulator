@@ -144,8 +144,12 @@ static func _pass_lane_penalty(from_pos: Vector2, target_pos: Vector2, opponents
 
 ## Direct wiring between the marking system and pass decisions: a receiver
 ## being closely shadowed scores worse as a pass target than an open one.
+## Uses PitchControl's time-to-reach (via opponent_reach_space) rather than
+## raw distance, so a defender already closing down the receiver counts as
+## tighter marking than their current distance alone would suggest, and one
+## drifting away counts as more open — see docs/ai-overhaul.md Phase 1.
 static func _receiver_openness_penalty(receiver_pos: Vector2, opponents: Array[Player]) -> float:
-	var nearest := CandidatePointScorer.nearest_opponent_distance(receiver_pos, opponents)
+	var nearest := CandidatePointScorer.opponent_reach_space(receiver_pos, opponents)
 	if nearest >= RECEIVER_OPENNESS_RADIUS:
 		return 0.0
 	return RECEIVER_OPENNESS_PENALTY * (1.0 - nearest / RECEIVER_OPENNESS_RADIUS)
