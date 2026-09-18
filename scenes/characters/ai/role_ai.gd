@@ -226,6 +226,11 @@ func _apply_run_support(mirrored: Vector2) -> Vector2:
 	var carrier := ball.carrier
 	if carrier.velocity.length() < RUN_TRIGGER_SPEED:
 		return mirrored
+	# Flag this tick as an active sprint (see Player.is_making_run) — a
+	# runner aiming for a forward point at the SAME speed as a carrier who's
+	# themselves capped below full speed (Player.get_dribble_speed) can
+	# never actually get ahead of/level with them before the moment passes.
+	player.is_making_run = true
 	var run_point := mirrored + carrier.position.direction_to(target_goal.get_center_target_position()) * run_support_distance()
 	if _holds_flank:
 		run_point.y = lerpf(run_point.y, _anchor_y, 0.5)

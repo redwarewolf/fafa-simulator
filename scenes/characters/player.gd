@@ -134,6 +134,14 @@ var cover_shadow_point: Vector2 = Vector2.ZERO
 ## role players independently computing the same depth formula off the same
 ## ball position. Written once per team tick by TeamTacticalState.
 var team_line_bias: float = 0.0
+## True while this player is actively executing a triggered supporting run
+## (see RoleAI._apply_run_support) — Locomotion reads this to apply a sprint
+## speed boost, so a runner can actually get ahead of/level with a carrier
+## who's dribbling at a fraction of full speed, not just aim for a forward
+## point at the same pace. Reset every AI tick by AIBehavior before any
+## branch runs, so it can never go stale if this player becomes a presser/
+## cover-presser instead on a later tick. See docs/ai-overhaul.md Phase 6.
+var is_making_run: bool = false
 ## True only for the single player MatchWorld leaves unfrozen during a FOUL
 ## or KICKOFF restart (see MatchWorld._free_kick_taker/_kickoff_taker). Makes
 ## AIBehavior steer straight at the ball regardless of pressing_rank/marking,

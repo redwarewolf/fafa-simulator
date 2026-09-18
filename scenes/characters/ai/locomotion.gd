@@ -17,6 +17,15 @@ const TEAMMATE_REPULSION_RADIUS_CARRIED := 80.0
 const OPPONENT_AVOID_RADIUS := 60.0
 const OPPONENT_AVOID_STRENGTH := 2.5
 const OPPONENT_AVOID_AHEAD_DOT := 0.2
+## Speed multiplier while Player.is_making_run is set (see
+## RoleAI._apply_run_support) — a supporting run needs to be a genuine
+## sprint, not just a forward-aimed point at the same pace as everyone
+## else, or a runner can never actually get ahead of/level with a carrier
+## dribbling at a fraction of full speed before the moment passes. Also
+## feeds Player's stamina decay automatically, since that already scales
+## with velocity-vs-speed — no extra bookkeeping needed for "sprinting
+## tires you out faster." See docs/ai-overhaul.md Phase 6.
+const SPRINT_MULTIPLIER := 1.25
 
 static func compute_velocity(player: Player, target: Vector2, ball: Ball, opponent_detection_area: Area2D) -> Vector2:
 	var dist := player.position.distance_to(target)
@@ -31,6 +40,8 @@ static func compute_velocity(player: Player, target: Vector2, ball: Ball, oppone
 	# Player.get_dribble_speed) — a chasing defender running at full `speed`
 	# needs to actually be faster than the carrier to ever close the gap.
 	var move_speed := player.get_dribble_speed() if ball.carrier == player else player.speed
+	if player.is_making_run and ball.carrier != player:
+		move_speed *= SPRINT_MULTIPLIER
 	# Fatigue (see Player.stamina/get_stamina_factor) scales both cases down
 	# together, so the relative chase dynamic above still holds late in a
 	# match — a tired carrier and a tired chaser both slow down, not just one.

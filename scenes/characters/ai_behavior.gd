@@ -53,6 +53,12 @@ func process_ai() -> void:
 ## — not recomputed independently here the way the old per-player pressing
 ## rank was, which had no memory and could flip every tick.
 func perform_ai_movement() -> void:
+	# Reset every tick before any branch runs, so a stale sprint flag from a
+	# tick where this player was making a run can't survive into a tick
+	# where they've become a presser/cover-presser instead — only
+	# RoleAI._apply_run_support sets it back to true, and only that same
+	# tick, if it's still actually triggered.
+	player.is_making_run = false
 	# Restart taker (see Player.is_restart_taker): the only unfrozen player
 	# during a FOUL/KICKOFF, so pressing_rank/mark_target — team-wide state
 	# that ignores frozen players — can't be trusted to point them at the
