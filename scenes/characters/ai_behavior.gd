@@ -53,12 +53,6 @@ func process_ai() -> void:
 ## — not recomputed independently here the way the old per-player pressing
 ## rank was, which had no memory and could flip every tick.
 func perform_ai_movement() -> void:
-	# Reset every tick before any branch runs, so a stale sprint flag from a
-	# tick where this player was making a run can't survive into a tick
-	# where they've become a presser/cover-presser instead — only
-	# RoleAI._apply_run_support sets it back to true, and only that same
-	# tick, if it's still actually triggered.
-	player.is_making_run = false
 	# Restart taker (see Player.is_restart_taker): the only unfrozen player
 	# during a FOUL/KICKOFF, so pressing_rank/mark_target — team-wide state
 	# that ignores frozen players — can't be trusted to point them at the
@@ -67,16 +61,19 @@ func perform_ai_movement() -> void:
 		var restart_target := _press_target()
 		_debug_intent_target = restart_target
 		_debug_intent_kind = "press"
-		player.velocity = player.position.direction_to(restart_target) * player.speed * player.get_stamina_factor()
+		player.velocity = player.position.direction_to(restart_target) * player.speed * Locomotion.SPRINT_MULTIPLIER * player.get_stamina_factor()
 		return
 	# Primary presser: close down the carrier/ball, bypassing formation and
 	# marking. Any outfield player can be the presser — role doesn't matter,
-	# only distance (and commitment — see TeamTacticalState).
+	# only distance (and commitment — see TeamTacticalState). Same
+	# SPRINT_MULTIPLIER Locomotion applies to every other non-carrier — a
+	# presser chasing down a counter-attack needs the same relative pace a
+	# supporting attacker gets, not just whoever's making an attacking run.
 	if player.pressing_rank == 0:
 		var press_target := _press_target()
 		_debug_intent_target = press_target
 		_debug_intent_kind = "press"
-		player.velocity = player.position.direction_to(press_target) * player.speed * player.get_stamina_factor()
+		player.velocity = player.position.direction_to(press_target) * player.speed * Locomotion.SPRINT_MULTIPLIER * player.get_stamina_factor()
 		return
 	# Cover presser: interpose between the carrier and the opponents' next
 	# most dangerous option instead of running the normal role/marking

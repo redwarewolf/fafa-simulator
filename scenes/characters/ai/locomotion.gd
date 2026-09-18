@@ -17,14 +17,18 @@ const TEAMMATE_REPULSION_RADIUS_CARRIED := 80.0
 const OPPONENT_AVOID_RADIUS := 60.0
 const OPPONENT_AVOID_STRENGTH := 2.5
 const OPPONENT_AVOID_AHEAD_DOT := 0.2
-## Speed multiplier while Player.is_making_run is set (see
-## RoleAI._apply_run_support) — a supporting run needs to be a genuine
-## sprint, not just a forward-aimed point at the same pace as everyone
-## else, or a runner can never actually get ahead of/level with a carrier
-## dribbling at a fraction of full speed before the moment passes. Also
-## feeds Player's stamina decay automatically, since that already scales
-## with velocity-vs-speed — no extra bookkeeping needed for "sprinting
-## tires you out faster." See docs/ai-overhaul.md Phase 6.
+## Applies to every non-carrier — attacking runners making a support run
+## AND defenders pressing/recovering/chasing a break alike. A player in
+## close control of the ball can't sprint flat out (see
+## Player.get_dribble_speed, capped at 55-92% of `speed`); everyone else
+## moving purposefully can, whether that's an off-ball attacker getting
+## ahead for a pass or a defender trying to close a counter-attack down.
+## Originally gated behind a "making a run" flag, widened after live
+## playtesting showed defenders chasing back on a break needed the same
+## relative pace, not just attacking runners — see docs/ai-overhaul.md
+## Phase 6. Also feeds Player's stamina decay automatically, since that
+## already scales with velocity-vs-speed — no extra bookkeeping needed for
+## "sprinting tires you out faster."
 const SPRINT_MULTIPLIER := 1.25
 
 static func compute_velocity(player: Player, target: Vector2, ball: Ball, opponent_detection_area: Area2D) -> Vector2:
@@ -39,9 +43,7 @@ static func compute_velocity(player: Player, target: Vector2, ball: Ball, oppone
 	# Carrying the ball is slower than running free (see
 	# Player.get_dribble_speed) — a chasing defender running at full `speed`
 	# needs to actually be faster than the carrier to ever close the gap.
-	var move_speed := player.get_dribble_speed() if ball.carrier == player else player.speed
-	if player.is_making_run and ball.carrier != player:
-		move_speed *= SPRINT_MULTIPLIER
+	var move_speed := player.get_dribble_speed() if ball.carrier == player else player.speed * SPRINT_MULTIPLIER
 	# Fatigue (see Player.stamina/get_stamina_factor) scales both cases down
 	# together, so the relative chase dynamic above still holds late in a
 	# match — a tired carrier and a tired chaser both slow down, not just one.
