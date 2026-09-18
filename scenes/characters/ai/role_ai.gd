@@ -184,7 +184,20 @@ func _choose_off_ball_target() -> Vector2:
 	for c in candidates:
 		var score := CandidatePointScorer.score_off_ball_candidate(
 			c, player, opponents, teammates, target_goal, marker, teammate_carrying, _last_off_ball_target,
-			not teammate_carrying
+			# is_defending used to mean "any teammate isn't carrying" — true
+			# for BOTH teams during a loose/freeform ball (nobody's
+			# teammate has it), which scored every non-presser player on
+			# both sides by "reward standing close to the nearest opponent"
+			# — exactly wherever the scramble already was, self-reinforcing
+			# a clump around every loose ball. Narrowed to specifically an
+			# OPPONENT carrying the ball: a genuinely loose ball now uses
+			# the normal attacking-style positioning (open space, good
+			# passing angle) for whoever isn't the presser, which is the
+			# right read either way — good support if we win it, and the
+			# next tactical tick's marking/pressing recompute handles it
+			# properly once the ball actually settles with a side. See
+			# docs/ai-overhaul.md Phase 6.
+			is_ball_carried_by_opponent()
 		)
 		if score > best_score:
 			best_score = score

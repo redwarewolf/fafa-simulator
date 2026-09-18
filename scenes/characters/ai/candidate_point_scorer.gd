@@ -95,8 +95,12 @@ const W_PRESSURE := 0.4
 ## [param want_to_lose_marker] should only be true when a teammate has (or is
 ## about to receive) the ball — an off-ball run to shake a marker only makes
 ## sense as a realistic receiving option, not on every single tick.
-## [param is_defending] — true whenever a teammate isn't carrying the ball
-## (opponent has it, or it's loose). Every other term here (space, goal
+## [param is_defending] — true specifically when an OPPONENT is carrying
+## the ball, not merely "no teammate has it" (a loose/freeform ball is
+## deliberately excluded — see the call site in RoleAI._choose_off_ball_target
+## and docs/ai-overhaul.md Phase 6 for why treating a 50/50 scramble as
+## "defend" was pulling every non-presser player on both teams toward
+## the scrum). Every other term here (space, goal
 ## progression, goal angle/lane) is an attacking heuristic: "open" and
 ## "advanced" are good things to be when you might receive a pass, but for an
 ## unmarked defender covering a zone they mean "far from the opponent in my
