@@ -9,7 +9,7 @@ const BALL_TUMBLE_SPEED := 100.0
 var time_start_hurt := Time.get_ticks_msec()
 
 func _enter_tree() -> void:
-	animation_player.play("hurt")
+	player.play_anim("hurt")
 	time_start_hurt = Time.get_ticks_msec()
 	player.height_velocity = HURT_HEIGHT_VELOCITY
 	player.height = 0.05

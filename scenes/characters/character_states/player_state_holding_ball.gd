@@ -34,12 +34,12 @@ func _update_animation() -> void:
 	if player.velocity.length() < 1.0:
 		# Show the first hold frame and freeze — don't play idle (arms at sides)
 		if animation_player.current_animation != "walk_ball":
-			animation_player.play("walk_ball")
+			player.play_anim("walk_ball")
 			animation_player.seek(0.0, true)
 		animation_player.pause()
 	else:
 		if not animation_player.is_playing() or animation_player.current_animation != "walk_ball":
-			animation_player.play("walk_ball")
+			player.play_anim("walk_ball")
 
 func can_carry_ball() -> bool:
 	return true

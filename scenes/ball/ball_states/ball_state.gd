@@ -50,3 +50,6 @@ func move_and_bounce(delta: float) -> void:
 	if collision != null:
 		ball.velocity = ball.velocity.bounce(collision.get_normal()) * ball.BOUNCINESS
 		ball.switch_state(Ball.State.FREEFORM)
+		var obstacle := collision.get_collider() as Player
+		if obstacle != null and SpecialPlayerTypes.bounces_ball(obstacle.special_type):
+			obstacle.get_hurt(ball.global_position.direction_to(obstacle.global_position))

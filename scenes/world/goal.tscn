@@ -1,8 +1,11 @@
-[gd_scene load_steps=8 format=3 uid="uid://diwdrwxttjbp"]
+[gd_scene format=3 uid="uid://diwdrwxttjbp"]
 
 [ext_resource type="Script" uid="uid://chli8ygch43t6" path="res://scenes/world/goal.gd" id="1_w3gav"]
 [ext_resource type="Texture2D" uid="uid://bpvyvodhx66nk" path="res://assets/art/backgrounds/goal-bottom-v2.png" id="2_jvyg3"]
 [ext_resource type="Texture2D" uid="uid://cwihor0p8ykqc" path="res://assets/art/backgrounds/goal-top.png" id="2_w3gav"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_scoring"]
+size = Vector2(8, 100)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_w3gav"]
 size = Vector2(29, 2)
@@ -16,71 +19,82 @@ size = Vector2(6, 89)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jo0vh"]
 size = Vector2(30, 6)
 
-[node name="Goal" type="Node2D"]
+[node name="Goal" type="Node2D" unique_id=1193658104]
 y_sort_enabled = true
 script = ExtResource("1_w3gav")
 
-[node name="BottomFrameSprite" type="Sprite2D" parent="."]
+[node name="BottomFrameSprite" type="Sprite2D" parent="." unique_id=1131674629]
 texture = ExtResource("2_jvyg3")
 centered = false
 offset = Vector2(-23, -125)
 
-[node name="TopFrameSprite" type="Sprite2D" parent="."]
+[node name="TopFrameSprite" type="Sprite2D" parent="." unique_id=456513051]
 position = Vector2(0, -65)
 texture = ExtResource("2_w3gav")
 centered = false
 offset = Vector2(-23, -59)
 
-[node name="BackNetArea" type="Area2D" parent="."]
+[node name="BackNetArea" type="Area2D" parent="." unique_id=141812227]
 unique_name_in_owner = true
 collision_layer = 0
 collision_mask = 4
 monitorable = false
 
-[node name="BackNetCollision" type="CollisionPolygon2D" parent="BackNetArea"]
+[node name="BackNetCollision" type="CollisionPolygon2D" parent="BackNetArea" unique_id=1261988401]
+position = Vector2(3, 0)
 polygon = PackedVector2Array(-22, 20, -12, -66, -10, -66, -20, 20)
 
-[node name="BottomFrame" type="StaticBody2D" parent="."]
+[node name="ScoringArea" type="Area2D" parent="." unique_id=111222333]
+unique_name_in_owner = true
+collision_layer = 0
+collision_mask = 4
+monitorable = false
+
+[node name="ScoringCollision" type="CollisionShape2D" parent="ScoringArea" unique_id=444555666]
+position = Vector2(-1, -23)
+shape = SubResource("RectangleShape2D_scoring")
+
+[node name="BottomFrame" type="StaticBody2D" parent="." unique_id=1830200521]
 position = Vector2(-3, -1)
 collision_mask = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="BottomFrame"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BottomFrame" unique_id=488317023]
 position = Vector2(-1.5, 23)
 shape = SubResource("RectangleShape2D_w3gav")
 
-[node name="TopFrame" type="StaticBody2D" parent="."]
+[node name="TopFrame" type="StaticBody2D" parent="." unique_id=1160092265]
 position = Vector2(7, -67)
 collision_mask = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="TopFrame"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TopFrame" unique_id=180925741]
 position = Vector2(-1.5, 0)
 shape = SubResource("RectangleShape2D_jvyg3")
 
-[node name="Targets" type="Node2D" parent="."]
+[node name="Targets" type="Node2D" parent="." unique_id=1114829375]
 unique_name_in_owner = true
 
-[node name="TopTarget" type="Node2D" parent="Targets"]
+[node name="TopTarget" type="Node2D" parent="Targets" unique_id=1592273937]
 position = Vector2(22, -56)
 
-[node name="MiddleTarget" type="Node2D" parent="Targets"]
+[node name="MiddleTarget" type="Node2D" parent="Targets" unique_id=1092101168]
 position = Vector2(22, -27)
 
-[node name="BottomTarget" type="Node2D" parent="Targets"]
+[node name="BottomTarget" type="Node2D" parent="Targets" unique_id=1986413361]
 position = Vector2(22, 10)
 
-[node name="InvisibleWalls" type="StaticBody2D" parent="."]
+[node name="InvisibleWalls" type="StaticBody2D" parent="." unique_id=1267437368]
 collision_layer = 8
 collision_mask = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="InvisibleWalls"]
-position = Vector2(-12, -22.5)
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InvisibleWalls" unique_id=1298482410]
+position = Vector2(-16, -23)
 rotation = 0.109964274
 shape = SubResource("RectangleShape2D_aqdrf")
 
-[node name="CollisionShape2D2" type="CollisionShape2D" parent="InvisibleWalls"]
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="InvisibleWalls" unique_id=1752658393]
 position = Vector2(-2, 20)
 shape = SubResource("RectangleShape2D_jo0vh")
 
-[node name="CollisionShape2D3" type="CollisionShape2D" parent="InvisibleWalls"]
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="InvisibleWalls" unique_id=951723843]
 position = Vector2(5, -66)
 shape = SubResource("RectangleShape2D_jo0vh")

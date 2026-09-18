@@ -1,0 +1,110 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/referee.gd" id="1_refscript"]
+[ext_resource type="Texture2D" path="res://assets/art/characters/soccer-player.png" id="2_reftex"]
+[ext_resource type="Shader" path="res://shaders/referee_body.gdshader" id="3_refshader"]
+[ext_resource type="Texture2D" path="res://assets/art/palettes/skin-colors-palette.png" id="4_refskin"]
+[ext_resource type="Texture2D" path="res://assets/art/palettes/hair-colors-palette.png" id="5_refhair"]
+[ext_resource type="Texture2D" path="res://assets/art/palettes/teams-color-palette.png" id="6_refteam"]
+[ext_resource type="Texture2D" path="res://assets/art/characters/1p.png" id="7_refindicator"]
+[ext_resource type="Shader" path="res://shaders/referee_indicator.gdshader" id="8_refindshader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_referee"]
+resource_local_to_scene = true
+shader = ExtResource("3_refshader")
+shader_parameter/team_palette = ExtResource("6_refteam")
+shader_parameter/skin_palette = ExtResource("4_refskin")
+shader_parameter/hair_palette = ExtResource("5_refhair")
+shader_parameter/skin_color = 0
+shader_parameter/hair_color = 0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_referee_indicator"]
+resource_local_to_scene = true
+shader = ExtResource("8_refindshader")
+
+[sub_resource type="Animation" id="Animation_ref_idle"]
+resource_name = "idle"
+length = 0.6
+loop_mode = 1
+step = 0.15
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("RefereeSprite:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.15, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [0, 1, 2]
+}
+
+[sub_resource type="Animation" id="Animation_ref_run"]
+resource_name = "run"
+length = 0.6
+loop_mode = 1
+step = 0.1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("RefereeSprite:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [6, 7, 8, 9, 10, 11]
+}
+
+[sub_resource type="Animation" id="Animation_ref_walk"]
+resource_name = "walk"
+length = 0.9
+loop_mode = 1
+step = 0.15
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("RefereeSprite:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.15, 0.3, 0.45000002, 0.6, 0.75),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [12, 13, 14, 15, 16, 17]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_referee"]
+_data = {
+&"idle": SubResource("Animation_ref_idle"),
+&"run": SubResource("Animation_ref_run"),
+&"walk": SubResource("Animation_ref_walk")
+}
+
+[node name="Referee" type="Node2D"]
+script = ExtResource("1_refscript")
+
+[node name="RefereeSprite" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_referee")
+texture = ExtResource("2_reftex")
+centered = false
+offset = Vector2(-16, -32)
+hframes = 6
+vframes = 14
+
+[node name="RefereeIndicator" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_referee_indicator")
+texture_filter = 1
+texture = ExtResource("7_refindicator")
+offset = Vector2(0, -42)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+unique_name_in_owner = true
+libraries = {
+&"": SubResource("AnimationLibrary_referee")
+}
+autoplay = "idle"

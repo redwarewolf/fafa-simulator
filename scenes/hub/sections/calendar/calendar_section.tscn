@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/hub/sections/calendar/calendar_section.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="2"]
 
 [node name="CalendarSection" type="Control"]
 layout_mode = 3
@@ -11,15 +12,181 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="Label" type="Label" parent="."]
+[node name="HBox" type="HBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -60.0
-offset_top = -16.0
-offset_right = 60.0
-offset_bottom = 16.0
-text = "Calendar — Coming Soon"
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="FixturesPanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.3
+
+[node name="VBox" type="VBoxContainer" parent="HBox/FixturesPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HBox/FixturesPanel/VBox"]
+layout_mode = 2
+text = "CALENDARIO"
+
+[node name="FixturesTree" type="Tree" parent="HBox/FixturesPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 4
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+
+[node name="DetailPanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="HBox/DetailPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 8.0
+offset_right = -14.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+text = "PRÓXIMO PARTIDO"
+
+[node name="TopSeparator" type="HSeparator" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+
+[node name="CrestRow" type="HBoxContainer" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 20
+
+[node name="HomeSide" type="VBoxContainer" parent="HBox/DetailPanel/VBox/CrestRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Logo" type="TextureRect" parent="HBox/DetailPanel/VBox/CrestRow/HomeSide"]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="HBox/DetailPanel/VBox/CrestRow/HomeSide"]
+layout_mode = 2
+text = "Local"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Versus" type="Label" parent="HBox/DetailPanel/VBox/CrestRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 22
+text = "VS"
+
+[node name="AwaySide" type="VBoxContainer" parent="HBox/DetailPanel/VBox/CrestRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Logo" type="TextureRect" parent="HBox/DetailPanel/VBox/CrestRow/AwaySide"]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="HBox/DetailPanel/VBox/CrestRow/AwaySide"]
+layout_mode = 2
+text = "Visitante"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Kickoff" type="Label" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "2 de marzo de 2026"
+horizontal_alignment = 1
+
+[node name="Scoreline" type="Label" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "LOCAL"
+horizontal_alignment = 1
+
+[node name="CompareSeparator" type="HSeparator" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+
+[node name="CompareGrid" type="GridContainer" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 5
+columns = 3
+
+[node name="SquadsSeparator" type="HSeparator" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+
+[node name="SquadsTitle" type="Label" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+text = "JUGADORES CLAVE"
+
+[node name="SquadsScroll" type="ScrollContainer" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SquadsRow" type="HBoxContainer" parent="HBox/DetailPanel/VBox/SquadsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="HomePlayers" type="VBoxContainer" parent="HBox/DetailPanel/VBox/SquadsScroll/SquadsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="AwayPlayers" type="VBoxContainer" parent="HBox/DetailPanel/VBox/SquadsScroll/SquadsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="H2HSeparator" type="HSeparator" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+
+[node name="H2HTitle" type="Label" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+text = "HISTORIAL"
+
+[node name="H2HScroll" type="ScrollContainer" parent="HBox/DetailPanel/VBox"]
+custom_minimum_size = Vector2(0, 74)
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="H2HList" type="VBoxContainer" parent="HBox/DetailPanel/VBox/H2HScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[connection signal="item_selected" from="HBox/FixturesPanel/VBox/FixturesTree" to="." method="_on_fixture_selected"]

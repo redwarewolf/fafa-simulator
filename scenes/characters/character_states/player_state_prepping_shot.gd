@@ -6,7 +6,7 @@ const EASE_REWARD_FACTOR := 2.0
 var time_start_shot := Time.get_ticks_msec()
 
 func _enter_tree() -> void:
-	animation_player.play("prep_kick")
+	player.play_anim("prep_kick")
 	player.velocity = Vector2.ZERO
 	time_start_shot = Time.get_ticks_msec()
 

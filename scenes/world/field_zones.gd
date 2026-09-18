@@ -109,28 +109,6 @@ const ZONE_TABLE_LEFT: Array = [
 	[Zone.GOALIE_RIGHT,     Zone.GOALIE_RIGHT,      Zone.GOALIE_RIGHT],
 ]
 
-## Zone adjacency graph — each zone lists its direct neighbours.
-const ZONE_ADJACENCY: Dictionary = {
-	Zone.GOALIE_LEFT:       [Zone.LEFT_DEFENSE_TOP, Zone.LEFT_DEFENSE_BOT, Zone.LEFT_MID_MID],
-	Zone.LEFT_DEFENSE_TOP:  [Zone.GOALIE_LEFT,      Zone.LEFT_MID_TOP],
-	Zone.LEFT_DEFENSE_BOT:  [Zone.GOALIE_LEFT,      Zone.LEFT_MID_BOT],
-	Zone.LEFT_MID_TOP:      [Zone.LEFT_DEFENSE_TOP, Zone.LEFT_MID_MID,     Zone.LEFT_CENTER_TOP],
-	Zone.LEFT_MID_MID:      [Zone.GOALIE_LEFT,      Zone.LEFT_MID_TOP,     Zone.LEFT_MID_BOT,    Zone.LEFT_CENTER_MID],
-	Zone.LEFT_MID_BOT:      [Zone.LEFT_DEFENSE_BOT, Zone.LEFT_MID_MID,     Zone.LEFT_CENTER_BOT],
-	Zone.LEFT_CENTER_TOP:   [Zone.LEFT_MID_TOP,     Zone.LEFT_CENTER_MID,  Zone.RIGHT_CENTER_TOP],
-	Zone.LEFT_CENTER_MID:   [Zone.LEFT_MID_MID,     Zone.LEFT_CENTER_TOP,  Zone.LEFT_CENTER_BOT, Zone.RIGHT_CENTER_MID],
-	Zone.LEFT_CENTER_BOT:   [Zone.LEFT_MID_BOT,     Zone.LEFT_CENTER_MID,  Zone.RIGHT_CENTER_BOT],
-	Zone.RIGHT_CENTER_TOP:  [Zone.LEFT_CENTER_TOP,  Zone.RIGHT_CENTER_MID, Zone.RIGHT_MID_TOP],
-	Zone.RIGHT_CENTER_MID:  [Zone.LEFT_CENTER_MID,  Zone.RIGHT_CENTER_TOP, Zone.RIGHT_CENTER_BOT, Zone.RIGHT_MID_MID],
-	Zone.RIGHT_CENTER_BOT:  [Zone.LEFT_CENTER_BOT,  Zone.RIGHT_CENTER_MID, Zone.RIGHT_MID_BOT],
-	Zone.RIGHT_MID_TOP:     [Zone.RIGHT_CENTER_TOP, Zone.RIGHT_MID_MID,    Zone.RIGHT_DEFENSE_TOP],
-	Zone.RIGHT_MID_MID:     [Zone.GOALIE_RIGHT,     Zone.RIGHT_MID_TOP,    Zone.RIGHT_MID_BOT,   Zone.RIGHT_CENTER_MID],
-	Zone.RIGHT_MID_BOT:     [Zone.RIGHT_CENTER_BOT, Zone.RIGHT_MID_MID,    Zone.RIGHT_DEFENSE_BOT],
-	Zone.RIGHT_DEFENSE_TOP: [Zone.RIGHT_MID_TOP,    Zone.GOALIE_RIGHT],
-	Zone.RIGHT_DEFENSE_BOT: [Zone.RIGHT_MID_BOT,    Zone.GOALIE_RIGHT],
-	Zone.GOALIE_RIGHT:      [Zone.RIGHT_DEFENSE_TOP, Zone.RIGHT_DEFENSE_BOT, Zone.RIGHT_MID_MID],
-}
-
 # Approximate vertical center of the field in world space
 const FIELD_CENTER_Y := 608.0
 
@@ -139,8 +117,24 @@ var _polygon_cache: Dictionary = {}
 # Cached zone centers — keyed by Zone
 var _center_cache: Dictionary = {}
 
-func _ready() -> void:
+## Registered on ENTER, not on ready. Every RoleAI looks this node up by
+## group from its own _ready(), and _ready() runs bottom-up: because FieldZones
+## sits after ActorsContainer in world.tscn, the group was still empty when the
+## players asked for it, so every player ran the whole match with field_zones
+## null — no zones, no navigation, no anchor depth. _enter_tree() happens before
+## any _ready() in the scene, so the lookup can no longer lose the race.
+func _enter_tree() -> void:
 	add_to_group("field_zones")
+
+func _ready() -> void:
+	_build_cache()
+
+## Cached lazily as well as on ready: a player asking for a zone from its own
+## _ready() can arrive before ours. By then the whole subtree has entered the
+## tree, so the polygons' global transforms are already valid.
+func _build_cache() -> void:
+	if not _polygon_cache.is_empty():
+		return
 	for zone: Zone in ZONE_NODE_NAMES:
 		var area := get_node(ZONE_NODE_NAMES[zone]) as Area2D
 		if area == null:
@@ -163,6 +157,7 @@ func _ready() -> void:
 
 ## Returns which Zone contains [param world_position], or NONE if outside all zones.
 func get_zone(world_position: Vector2) -> Zone:
+	_build_cache()
 	for zone: Zone in _polygon_cache:
 		if Geometry2D.is_point_in_polygon(world_position, _polygon_cache[zone]):
 			return zone
@@ -170,6 +165,7 @@ func get_zone(world_position: Vector2) -> Zone:
 
 ## Returns the world-space centroid of the zone polygon.
 func get_zone_center(zone: Zone) -> Vector2:
+	_build_cache()
 	return _center_cache.get(zone, Vector2.ZERO)
 
 ## Returns the vertical row of a zone: -1=top, 0=mid/goalie, 1=bot.
@@ -199,28 +195,9 @@ func get_zone_at_depth(target_depth: int, ball_world_pos: Vector2, is_left_team:
 	var table: Array = ZONE_TABLE_LEFT if is_left_team else _get_zone_table_right()
 	return table[clamped_depth][row_index]
 
-## Returns the next zone along the shortest path from [param from] toward [param to].
-## Uses BFS on ZONE_ADJACENCY. Returns [param from] if already at destination or no path.
-func get_next_zone_toward(from: Zone, to: Zone) -> Zone:
-	if from == to or from == Zone.NONE or to == Zone.NONE:
-		return from
-	var visited := { from: true }
-	var queue: Array = [[from]]
-	while not queue.is_empty():
-		var path: Array = queue.pop_front()
-		var current: Zone = path[-1]
-		for neighbor: Zone in ZONE_ADJACENCY.get(current, []):
-			if neighbor == to:
-				return path[1] if path.size() > 1 else neighbor
-			if not visited.has(neighbor):
-				visited[neighbor] = true
-				var new_path := path.duplicate()
-				new_path.append(neighbor)
-				queue.append(new_path)
-	return from
-
 ## Returns the cached world-space polygon for a zone.
 func get_zone_polygon(zone: Zone) -> PackedVector2Array:
+	_build_cache()
 	return _polygon_cache.get(zone, PackedVector2Array())
 
 ## Returns the Area2D node for a zone.

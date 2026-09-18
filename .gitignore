@@ -21,3 +21,20 @@ mono_crash.*.json
 # User save data (runtime-generated, not source)
 # (lives in the OS user data folder, but guard against accidental copies)
 tactics.json
+
+# Build output / packaged binaries (regenerate via export, don't commit)
+build/
+*.exe
+*.rar
+
+# Claude Code local tool config (not project source)
+.claude/
+
+# Debug/dev screenshots taken while testing
+/screenshots/
+
+# Unrelated third-party reference project, not part of this game
+/soccer-course-main/
+
+# Stray root-level .import files left over from ad-hoc screenshot imports
+/*.png.import

@@ -14,12 +14,13 @@ func _init(p_name: String = "", p_template: String = "") -> void:
 	tactic_name = p_name
 	template    = p_template
 
-## Build slots from a raw Array[Vector2] of formation positions.
-## Called once when the tactic is first created from a preset template.
-func init_slots_from_positions(positions: Array) -> void:
+## Build slots from a preset template's anchors and the position each one asks
+## for. Called once when the tactic is first created.
+func init_slots_from_positions(positions: Array, roles: Array) -> void:
 	slots.clear()
-	for pos in positions:
-		slots.append(TacticSlotClass.new(pos))
+	for i in positions.size():
+		var role = roles[i] if i < roles.size() else Positions.Role.CM
+		slots.append(TacticSlotClass.new(positions[i], role))
 
 ## Return the position for slot i (falls back to Vector2.ZERO).
 func get_position(i: int) -> Vector2:

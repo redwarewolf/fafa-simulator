@@ -6,12 +6,20 @@ const DURATION_DIVE := 500
 var time_start_dive := Time.get_ticks_msec()
 
 func _enter_tree() -> void:
-	var target_dive := Vector2(player.spawn_position.x, ball.position.y)
+	# Predict where the ball will cross the goal line so the keeper dives to intercept,
+	# not just where the ball is right now.
+	var goal_x := player.spawn_position.x
+	var predicted_y := ball.position.y
+	if not is_zero_approx(ball.velocity.x):
+		var t := (goal_x - ball.position.x) / ball.velocity.x
+		if t > 0.0:
+			predicted_y = ball.position.y + ball.velocity.y * t
+	var target_dive := Vector2(goal_x, predicted_y)
 	var direction := player.position.direction_to(target_dive)
 	if direction.y > 0:
-		animation_player.play("dive_down")
+		player.play_anim("dive_down")
 	else:
-		animation_player.play("dive_up")
+		player.play_anim("dive_up")
 	player.velocity = direction * player.speed
 	time_start_dive = Time.get_ticks_msec()
 

@@ -8,8 +8,14 @@ var player: Player = null
 var time_since_last_ai_tick := Time.get_ticks_msec()
 var opponent_detection_area: Area2D = null
 
-var role_behavior: RoleBehavior = null
-var role_behavior_factory: AIBehaviorFactory = AIBehaviorFactory.new()
+var role_ai: RoleAI = null
+var role_ai_factory: AIBehaviorFactory = AIBehaviorFactory.new()
+
+## Cached each perform_ai_movement tick purely for SHOW_INTENT_LINES — what
+## point this player is currently steering toward, and why (press/mark/role),
+## so debug draw can show it every frame without recomputing.
+var _debug_intent_target: Vector2 = Vector2.ZERO
+var _debug_intent_kind: String = ""
 
 func _ready() -> void:
 	time_since_last_ai_tick = Time.get_ticks_msec() + randi_range(0, DURATION_AI_TICK_FREQUENCY)
@@ -18,13 +24,13 @@ func setup(context_player: Player, context_ball: Ball, context_opponent_detectio
 	player = context_player
 	ball = context_ball
 	opponent_detection_area = context_opponent_detection_area
-	setup_role_behavior()
+	setup_role_ai()
 
-func setup_role_behavior() -> void:
-	role_behavior = role_behavior_factory.get_role_behavior(player.role)
-	role_behavior.name = "RoleBehavior"
-	add_child(role_behavior)
-	role_behavior.setup(
+func setup_role_ai() -> void:
+	role_ai = role_ai_factory.get_role_ai(player.role)
+	role_ai.name = "RoleAI"
+	add_child(role_ai)
+	role_ai.setup(
 		player,
 		ball,
 		player.teammate_detection_area,
@@ -35,94 +41,86 @@ func setup_role_behavior() -> void:
 	)
 
 func process_ai() -> void:
+	if not SpecialPlayerTypes.movable(player.special_type):
+		return
 	if Time.get_ticks_msec() - time_since_last_ai_tick > DURATION_AI_TICK_FREQUENCY:
 		time_since_last_ai_tick = Time.get_ticks_msec()
-		if role_behavior:
-			role_behavior.update_zone_state()
 		perform_ai_movement()
 		perform_ai_decisions()
-	
+
+## player.pressing_rank/mark_target/mark_tightness/marked_by are written once
+## per team, per tick, by TeamTacticalState (see scenes/world/actors_container.gd)
+## — not recomputed independently here the way the old per-player pressing
+## rank was, which had no memory and could flip every tick.
 func perform_ai_movement() -> void:
-	var total_steering_force := Vector2.ZERO
+	# Restart taker (see Player.is_restart_taker): the only unfrozen player
+	# during a FOUL/KICKOFF, so pressing_rank/mark_target — team-wide state
+	# that ignores frozen players — can't be trusted to point them at the
+	# ball. Go straight there, unconditionally.
+	if player.is_restart_taker:
+		var restart_target := _press_target()
+		_debug_intent_target = restart_target
+		_debug_intent_kind = "press"
+		player.velocity = player.position.direction_to(restart_target) * player.speed
+		return
+	# Primary presser: close down the carrier/ball, bypassing formation and
+	# marking. Any outfield player can be the presser — role doesn't matter,
+	# only distance (and commitment — see TeamTacticalState).
+	if player.pressing_rank == 0:
+		var press_target := _press_target()
+		_debug_intent_target = press_target
+		_debug_intent_kind = "press"
+		player.velocity = player.position.direction_to(press_target) * player.speed
+		return
 
-	# 1. Role-specific positioning (Delegated)
-	if role_behavior:
-		total_steering_force += role_behavior.get_positioning_force()
+	var target := role_ai.get_target_position() if role_ai else player.position
+	_debug_intent_target = target
+	_debug_intent_kind = "mark" if player.mark_target != null else "role"
+	player.velocity = Locomotion.compute_velocity(player, target, ball, opponent_detection_area)
 
-	# 2. Universal behaviors (Applies to all roles)
-	total_steering_force += get_teammate_repulsion_force()
+## Leads the carrier by their current velocity instead of aiming at their
+## current position. A pure "chase the current position" presser can never
+## close the gap on a carrier moving away at comparable speed — it just
+## trails a fixed distance behind forever, which reads as "no one is even
+## trying to intercept." Aiming ahead lets the presser cut the angle instead.
+func _press_target() -> Vector2:
+	if ball.carrier == null:
+		return ball.position
+	var carrier := ball.carrier
+	var lead_time := clampf(player.position.distance_to(carrier.position) / maxf(player.speed, 1.0), 0.0, 1.0)
+	return carrier.position + carrier.velocity * lead_time
 
-	# 3. Carrier avoids nearby opponents so they don't walk straight into them
-	if player.has_ball():
-		total_steering_force += get_opponent_avoidance_force()
-
-	total_steering_force = total_steering_force.limit_length(1.0)
-
-	player.velocity = total_steering_force * player.speed
-
-func get_opponent_avoidance_force() -> Vector2:
-	var avoidance := Vector2.ZERO
-	# Use heading as the approximate travel direction
-	var travel_dir := player.heading
-
-	for body in opponent_detection_area.get_overlapping_bodies():
-		if body is Player:
-			var to_opponent := body.position - player.position
-			var dist := to_opponent.length()
-			if dist < 1.0 or dist >= 60.0:
-				continue
-			var to_opp_norm := to_opponent / dist
-			# Only react to opponents that are roughly ahead of us
-			var ahead_dot := travel_dir.dot(to_opp_norm)
-			if ahead_dot < 0.2:
-				continue
-			# Push perpendicular (90°) to our travel direction — steer around, not backward.
-			# Determine which side: if opponent is to our left (cross > 0) go right, else go left.
-			var perp := Vector2(-travel_dir.y, travel_dir.x)  # 90° left of travel
-			var cross := travel_dir.cross(to_opp_norm)
-			if cross > 0:
-				perp = -perp  # opponent is left of us, go right instead
-			var weight := (60.0 - dist) / 60.0
-			avoidance += perp * weight * 2.5  # Strong enough to meaningfully steer around
-
-	return avoidance
-
-func get_teammate_repulsion_force() -> Vector2:
-	var repulsion := Vector2.ZERO
-
-	for other in player.get_teammates():
-		if other == player:
-			continue
-
-		var dist := player.position.distance_to(other.position)
-
-		if dist < 60:
-			var push := (player.position - other.position).normalized() * (60 - dist)
-			repulsion += push
-
-	return repulsion
-
-	
 func perform_ai_decisions() -> void:
-	# Delegate decision making to role behavior
-	if role_behavior:
-		role_behavior.make_decisions()
+	if player.pressing_rank == 0:
+		# Only tackle when there is an opponent carrier to dispossess. For a
+		# loose ball, just reach it — the carry mechanic picks it up
+		# automatically. Triggering TACKLING on a loose ball causes an
+		# infinite loop (tackle → recover → repeat).
+		if ball.carrier != null and ball.carrier.team != player.team \
+				and not (ball.carrier.role == Positions.Role.GK \
+					and ball.carrier.current_state != null \
+					and ball.carrier.current_state.is_holding_ball()) \
+				and player.position.distance_to(ball.position) < RoleAI.TACKLE_DISTANCE:
+			player.switch_state(Player.State.TACKLING)
+		return  # Skip normal role decisions while pressing
+
+	if role_ai:
+		role_ai.make_decisions()
 
 func _process(_delta: float) -> void:
 	if not DebugDraw.ENABLED:
 		return
-	# Gray circle — fine-behavior activation radius (when zone proximity overrides zone navigation)
-	DebugDraw.circle(player.position, RoleBehavior.PROXIMITY_RADIUS, Color(0.7, 0.7, 0.7))
-
-## Reads the radius of the first CircleShape2D or CapsuleShape2D found on an Area2D.
-func _get_area_radius(area: Area2D) -> float:
-	if area == null:
-		return 0.0
-	for child in area.get_children():
-		if child is CollisionShape2D:
-			var s: Shape2D = child.shape
-			if s is CircleShape2D:
-				return s.radius
-			elif s is CapsuleShape2D:
-				return s.radius
-	return 0.0
+	if role_ai:
+		role_ai.draw_debug()
+	if DebugDraw.SHOW_PRESSING_LINES and player.pressing_rank == 0 and ball.carrier != null:
+		DebugDraw.line(player.position, ball.carrier.position, Color(1, 0, 0, 0.9))  # red — primary presser
+	if DebugDraw.SHOW_MARKING_LINES and player.mark_target != null:
+		DebugDraw.line(player.position, player.mark_target.position, Color(1, 1, 0, 0.7))  # yellow — marking assignment
+	if DebugDraw.SHOW_INTENT_LINES and _debug_intent_kind != "":
+		var color := Color.WHITE
+		match _debug_intent_kind:
+			"press": color = Color(1, 0, 0, 0.9)     # red — closing the carrier
+			"mark": color = Color(1, 1, 0, 0.9)       # yellow — tracking an assigned mark
+			"role": color = Color(0.2, 1, 0.4, 0.9)   # green — formation/off-ball positioning
+		DebugDraw.line(player.position, _debug_intent_target, color)
+		DebugDraw.cross(_debug_intent_target, color, 6.0)

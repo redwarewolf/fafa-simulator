@@ -1,13 +1,15 @@
 shader_type canvas_item;
 
 group_uniforms Palettes;
-uniform sampler2D team_palette;
-uniform sampler2D skin_palette;
+uniform sampler2D team_palette : filter_nearest;
+uniform sampler2D skin_palette : filter_nearest;
+uniform sampler2D hair_palette : filter_nearest;
 group_uniforms;
 
 uniform int team_color;
 
 uniform int skin_color : hint_enum("Light", "Medium", "Dark", "Radioactive", "Demonic", "Alien", "Robot");
+uniform int hair_color : hint_enum("Blonde", "LightRed", "Green", "Purple", "LightBrown", "DarkBrown", "Gray", "DarkRed", "Black", "DarkBlue", "LightBlue");
 
 vec2 px_to_uv(ivec2 pos, ivec2 tex_size) {
 	return vec2(
@@ -34,6 +36,9 @@ void fragment() {
 	// Called for every pixel the material is visible on.
 	COLOR = get_palette_color(COLOR, team_palette, team_color);
 	if(skin_color > 0) {
-		COLOR = get_palette_color(COLOR, skin_palette, skin_color );
+		COLOR = get_palette_color(COLOR, skin_palette, skin_color);
+	}
+	if(hair_color > 0) {
+		COLOR = get_palette_color(COLOR, hair_palette, hair_color);
 	}
 }

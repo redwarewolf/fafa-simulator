@@ -1,0 +1,173 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/hub/sections/club/training_panel.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/player_card.tscn" id="3"]
+
+[node name="TrainingPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="LockedFrame" parent="." instance=ExtResource("2")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LockedMessage" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Contratá un Centro de Entrenamiento para desbloquear el entrenamiento."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="SquadPanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="HBox/SquadPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HBox/SquadPanel/VBox"]
+layout_mode = 2
+text = "PLANTEL"
+
+[node name="SquadTree" type="Tree" parent="HBox/SquadPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 3
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+
+[node name="MidPanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.1
+
+[node name="VBox" type="VBoxContainer" parent="HBox/MidPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="PlayerCard" parent="HBox/MidPanel/VBox" instance=ExtResource("3")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="StatGrid" type="GridContainer" parent="HBox/MidPanel/VBox"]
+layout_mode = 2
+columns = 2
+
+[node name="PacButton" type="Button" parent="HBox/MidPanel/VBox/StatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Entrenar PAC"
+
+[node name="ShoButton" type="Button" parent="HBox/MidPanel/VBox/StatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Entrenar SHO"
+
+[node name="PasButton" type="Button" parent="HBox/MidPanel/VBox/StatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Entrenar PAS"
+
+[node name="DriButton" type="Button" parent="HBox/MidPanel/VBox/StatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Entrenar DRI"
+
+[node name="DefButton" type="Button" parent="HBox/MidPanel/VBox/StatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Entrenar DEF"
+
+[node name="PhyButton" type="Button" parent="HBox/MidPanel/VBox/StatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Entrenar PHY"
+
+[node name="RightPanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="HBox/RightPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HBox/RightPanel/VBox"]
+layout_mode = 2
+text = "CENTRO DE ENTRENAMIENTO"
+
+[node name="SessionsLabel" type="Label" parent="HBox/RightPanel/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "Sesiones usadas: 0 / 0"
+
+[node name="InfoLabel" type="Label" parent="HBox/RightPanel/VBox"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Cada sesión sube un stat de forma permanente en +6%, hasta el límite de sesiones de tu Centro de Entrenamiento. Podés gastar varias sesiones en el mismo stat para acumularlas, o repartirlas entre distintos stats."
+
+[connection signal="item_selected" from="HBox/SquadPanel/VBox/SquadTree" to="." method="_on_squad_tree_item_selected"]
+[connection signal="pressed" from="HBox/MidPanel/VBox/StatGrid/PacButton" to="." method="_on_train_pressed" binds= ["pac"]]
+[connection signal="pressed" from="HBox/MidPanel/VBox/StatGrid/ShoButton" to="." method="_on_train_pressed" binds= ["sho"]]
+[connection signal="pressed" from="HBox/MidPanel/VBox/StatGrid/PasButton" to="." method="_on_train_pressed" binds= ["pas"]]
+[connection signal="pressed" from="HBox/MidPanel/VBox/StatGrid/DriButton" to="." method="_on_train_pressed" binds= ["dri"]]
+[connection signal="pressed" from="HBox/MidPanel/VBox/StatGrid/DefButton" to="." method="_on_train_pressed" binds= ["def"]]
+[connection signal="pressed" from="HBox/MidPanel/VBox/StatGrid/PhyButton" to="." method="_on_train_pressed" binds= ["phy"]]

@@ -14,11 +14,11 @@ func _process(_delta: float) -> void:
 func set_movement_animation() -> void: #Configurar velocidad de animacion segun velocidad?
 	var vel_length := player.velocity.length()
 	if vel_length < 1:
-		animation_player.play("idle")
+		player.play_anim("idle")
 	elif vel_length < player.speed * WALK_ANIM_THRESHOLD:
-		animation_player.play("walk")
+		player.play_anim("walk")
 	else:
-		animation_player.play("run")
+		player.play_anim("run")
 
 func can_carry_ball() -> bool:
-	return player.role != Player.Role.GOALIE
+	return player.role != Positions.Role.GK

@@ -1,7 +1,7 @@
 # FAFA Simulator — AI Context Document
 
 ## Overview
-FAFA Simulator is a 2D football (soccer) club management game built with Godot 4.5 (GDScript). The tone is goofy and arcadey, not a realistic simulation. It is heavily inspired by Argentine football culture. The player takes the role of a football club director, responsible for both on-pitch decisions (squad, formation, tactics) and off-pitch management (finances, staff, transfers).
+FAFA Simulator is a 2D football (soccer) club management game built with Godot 4.5 (GDScript). The tone is goofy and arcadey, not a realistic simulation. It is heavily inspired by Argentine football culture. The player takes the role of a football club director, responsible for both on-pitch decisions (squad, formation, tactics) and off-pitch management (club, staff, transfers).
 
 ## Core Game Loop
 The player manages a club from Division E (lowest) up to Division A (highest). Each division has a tournament. Winning a tournament promotes the club to the next division. The game ends (in victory) by winning the Division A championship.
@@ -13,7 +13,7 @@ The game uses a day-by-day calendar. Each day may trigger events such as: match 
 ## Match System
 Matches are played in real-time using a custom 2D physics-based football engine. The world scene (`scenes/world.tscn`) is a 2350x1225 unit pitch with goals on both sides.
 
-Players have four roles: Goalie, Defense, Midfield, Offense. Each role uses a dedicated AI behavior class: `GoalieBehavior`, `DefenderBehavior`, `MidfielderBehavior`, `ForwardBehavior`.
+Players have four roles: Goalie, Defense, Midfield, Offense. Each role uses a dedicated AI class (`scenes/characters/ai/`): `GoalieAI`, `DefenderAI`, `MidfielderAI`, `ForwardAI`. A per-team `TeamTacticalState` assigns pressing and man-marking once per tick; each player then scores candidate target positions and on-ball actions (pass/shoot/dribble/hold) via `CandidatePointScorer`/`OnBallUtility`.
 
 Player state machine states: IDLE, MOVING, RECOVERING, TACKLING, PREPPING_SHOT, SHOOTING, PASSING, HEADER, BICYCLE_KICK, VOLLEY_KICK, CHEST_CONTROL, HURT.
 
@@ -41,7 +41,7 @@ The 6 base stats are the player's core attributes — visible on the player card
 - SHO (Shooting): affects shot power, accuracy, and finishing. Maps directly to PREPPING_SHOT, SHOOTING, VOLLEY_KICK, BICYCLE_KICK states.
 - PAS (Passing): affects pass accuracy and range. Maps to PASSING state.
 - DRI (Dribbling): affects ball control, agility, and reaction speed while carrying the ball. Maps to CARRIED ball state.
-- DEF (Defending): affects tackle success rate and defensive positioning. Maps to TACKLING state and DefenderBehavior / GoalieBehavior.
+- DEF (Defending): affects tackle success rate and defensive positioning. Maps to TACKLING state and DefenderAI / GoalieAI.
 - PHY (Physicality): affects strength in duels and header ability. Maps to HEADER state and HURT recovery time.
 
 Each role has a weighted formula to compute an `overall` rating (1–100):
@@ -71,7 +71,7 @@ Separate from base stats and quality, each player has hidden runtime attributes.
 - Scouts: hired to find players in the transfer market.
 - Coaches: affect training quality.
 
-### Finances
+### Club
 Revenue: match prizes, merchandising sales, sponsor deals, match fixing, underground bets (high risk/reward shady mechanics are explicitly part of the design).
 Expenses: player wages, staff salaries, stadium maintenance, transfer fees.
 
@@ -92,4 +92,4 @@ Squad data is defined in `assets/json/squads.json`. Pre-built national squads av
 - `utils/data_loader.gd` — DataLoader autoload
 
 ## Status
-Core match engine is functional. Club management layer (calendar, finances, transfers, scouts) is in progress.
+Core match engine is functional. Club management layer (calendar, club, transfers, scouts) is in progress.

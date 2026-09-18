@@ -1,0 +1,40 @@
+{ "frames": [
+   { "filename": "Sprite-0003 0", "frame": { "x": 0, "y": 0, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 1", "frame": { "x": 164, "y": 0, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 2", "frame": { "x": 328, "y": 0, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 3", "frame": { "x": 492, "y": 0, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 4", "frame": { "x": 656, "y": 0, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 5", "frame": { "x": 820, "y": 0, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 6", "frame": { "x": 984, "y": 0, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 7", "frame": { "x": 1148, "y": 0, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 8", "frame": { "x": 0, "y": 197, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 9", "frame": { "x": 164, "y": 197, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 10", "frame": { "x": 328, "y": 197, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 11", "frame": { "x": 492, "y": 197, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 12", "frame": { "x": 656, "y": 197, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 13", "frame": { "x": 820, "y": 197, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 14", "frame": { "x": 984, "y": 197, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 15", "frame": { "x": 1148, "y": 197, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 16", "frame": { "x": 0, "y": 394, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 17", "frame": { "x": 164, "y": 394, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 18", "frame": { "x": 328, "y": 394, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 19", "frame": { "x": 492, "y": 394, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 20", "frame": { "x": 656, "y": 394, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 21", "frame": { "x": 820, "y": 394, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 22", "frame": { "x": 984, "y": 394, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 },
+   { "filename": "Sprite-0003 23", "frame": { "x": 1148, "y": 394, "w": 164, "h": 197 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 164, "h": 197 }, "sourceSize": { "w": 164, "h": 197 }, "duration": 100 }
+ ],
+ "meta": {
+  "app": "https://github.com/LibreSprite/LibreSprite/",
+  "version": "1.1-dev",
+  "image": "C:\\Users\\pjara\\Documents\\FAFA Simulator\\fafa-simulator\\assets\\art\\club\\tribune-fans.png",
+  "format": "RGBA8888",
+  "size": { "w": 1312, "h": 591 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Layer 1", "opacity": 255, "blendMode": "normal" }
+  ]
+ }
+}

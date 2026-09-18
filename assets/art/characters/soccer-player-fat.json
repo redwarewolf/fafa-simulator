@@ -1,0 +1,24 @@
+{ "frames": {
+   "Sprite-0006": {
+    "frame": { "x": 0, "y": 0, "w": 192, "h": 448 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 448 },
+    "sourceSize": { "w": 192, "h": 448 },
+    "duration": 100
+   }
+ },
+ "meta": {
+  "app": "https://github.com/LibreSprite/LibreSprite/",
+  "version": "1.1-dev",
+  "image": "C:\\Users\\pjara\\Documents\\FAFA Simulator\\fafa-simulator\\assets\\art\\characters\\soccer-player-fat.png",
+  "format": "RGBA8888",
+  "size": { "w": 192, "h": 448 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Layer 1", "opacity": 255, "blendMode": "normal" }
+  ]
+ }
+}

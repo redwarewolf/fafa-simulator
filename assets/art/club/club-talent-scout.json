@@ -1,0 +1,40 @@
+{ "frames": {
+   "club-talent-scout 0.png": {
+    "frame": { "x": 0, "y": 0, "w": 213, "h": 465 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 213, "h": 465 },
+    "sourceSize": { "w": 213, "h": 465 },
+    "duration": 100
+   },
+   "club-talent-scout 1.png": {
+    "frame": { "x": 213, "y": 0, "w": 213, "h": 465 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 213, "h": 465 },
+    "sourceSize": { "w": 213, "h": 465 },
+    "duration": 100
+   },
+   "club-talent-scout 2.png": {
+    "frame": { "x": 426, "y": 0, "w": 213, "h": 465 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 213, "h": 465 },
+    "sourceSize": { "w": 213, "h": 465 },
+    "duration": 100
+   }
+ },
+ "meta": {
+  "app": "https://github.com/LibreSprite/LibreSprite/",
+  "version": "1.1-dev",
+  "image": "C:\\Users\\pjara\\Documents\\FAFA Simulator\\fafa-simulator\\assets\\art\\club\\club-talent-scout.png",
+  "format": "RGBA8888",
+  "size": { "w": 639, "h": 465 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Layer", "opacity": 255, "blendMode": "normal" }
+  ]
+ }
+}

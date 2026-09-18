@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/hub/sections/tournament/tournament_section.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="2"]
 
 [node name="TournamentSection" type="Control"]
 layout_mode = 3
@@ -11,15 +12,186 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="Label" type="Label" parent="."]
+[node name="HBox" type="HBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -60.0
-offset_top = -16.0
-offset_right = 60.0
-offset_bottom = 16.0
-text = "Tournament — Coming Soon"
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="LeftColumn" type="VBoxContainer" parent="HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.6
+theme_override_constants/separation = 0
+
+[node name="StandingsPanel" parent="HBox/LeftColumn" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="HBox/LeftColumn/StandingsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HBox/LeftColumn/StandingsPanel/VBox"]
+layout_mode = 2
+text = "TABLA DE POSICIONES"
+
+[node name="StandingsTree" type="Tree" parent="HBox/LeftColumn/StandingsPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 8
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+
+[node name="TopPlayersPanel" parent="HBox/LeftColumn" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="HBox/LeftColumn/TopPlayersPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HBox/LeftColumn/TopPlayersPanel/VBox"]
+layout_mode = 2
+text = "MEJORES DE LA LIGA"
+
+[node name="TopPlayersTree" type="Tree" parent="HBox/LeftColumn/TopPlayersPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 4
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+
+[node name="DetailPanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="HBox/DetailPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 8.0
+offset_right = -14.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+text = "CLUB"
+
+[node name="TopSeparator" type="HSeparator" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+
+[node name="HeaderRow" type="HBoxContainer" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ClubLogo" type="TextureRect" parent="HBox/DetailPanel/VBox/HeaderRow"]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Info" type="VBoxContainer" parent="HBox/DetailPanel/VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 6
+
+[node name="ClubName" type="Label" parent="HBox/DetailPanel/VBox/HeaderRow/Info"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Seleccioná un club"
+autowrap_mode = 2
+
+[node name="ClubDivision" type="Label" parent="HBox/DetailPanel/VBox/HeaderRow/Info"]
+layout_mode = 2
+text = ""
+
+[node name="ColorsRow" type="HBoxContainer" parent="HBox/DetailPanel/VBox/HeaderRow/Info"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PrimaryColor" type="ColorRect" parent="HBox/DetailPanel/VBox/HeaderRow/Info/ColorsRow"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+
+[node name="PrimaryLabel" type="Label" parent="HBox/DetailPanel/VBox/HeaderRow/Info/ColorsRow"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Primario"
+
+[node name="Gap" type="Control" parent="HBox/DetailPanel/VBox/HeaderRow/Info/ColorsRow"]
+custom_minimum_size = Vector2(12, 0)
+layout_mode = 2
+
+[node name="SecondaryColor" type="ColorRect" parent="HBox/DetailPanel/VBox/HeaderRow/Info/ColorsRow"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+
+[node name="SecondaryLabel" type="Label" parent="HBox/DetailPanel/VBox/HeaderRow/Info/ColorsRow"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Secundario"
+
+[node name="StatsSeparator" type="HSeparator" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+
+[node name="StatsGrid" type="GridContainer" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 6
+columns = 4
+
+[node name="SquadSeparator" type="HSeparator" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+
+[node name="SquadTitle" type="Label" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+text = "PLANTEL"
+
+[node name="SquadTree" type="Tree" parent="HBox/DetailPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 4
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+
+[connection signal="item_selected" from="HBox/LeftColumn/StandingsPanel/VBox/StandingsTree" to="." method="_on_club_selected"]
+[connection signal="item_selected" from="HBox/LeftColumn/TopPlayersPanel/VBox/TopPlayersTree" to="." method="_on_top_player_selected"]

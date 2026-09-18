@@ -1,42 +1,40 @@
 extends Control
 
-const QUALITY_COLORS : Array[Color] = [
-	Color("9e9e9e"),  # Common     – grey
-	Color("4caf50"),  # Uncommon   – green
-	Color("2196f3"),  # Rare       – blue
-	Color("9c27b0"),  # Epic       – purple
-	Color("ff9800"),  # Legendary  – gold
-]
-
 const COL_NAME := 0
-const COL_OVR  := 1
+const COL_POS  := 1
+const COL_OVR  := 2
+
+## Column layout, shared by the header setup and the per-row alignment.
+const ROSTER_COLUMNS : Array = [
+	{"title": "Nombre", "expand": true,  "align": HORIZONTAL_ALIGNMENT_LEFT},
+	{"title": "Pos",  "expand": false, "min_width": 46, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "OVR",  "expand": false, "min_width": 44, "align": HORIZONTAL_ALIGNMENT_CENTER},
+]
 
 # All available preset templates (cycled when pressing + New)
 const PRESET_TEMPLATES : Array[String] = ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1", "5-3-2", "3-4-3"]
 
 @onready var roster_tree   : Tree           = $HBox/LeftColumn/RosterPanel/VBox/RosterTree
-@onready var player_card   : Control        = $HBox/LeftColumn/PlayerCard
-@onready var tactics_list  : VBoxContainer  = $HBox/RightColumn/TacticsPanel/TacticsLayout/TacticsListColumn/TacticsScrollContainer/TacticsList
-@onready var tactics_scroll : ScrollContainer = $HBox/RightColumn/TacticsPanel/TacticsLayout/TacticsListColumn/TacticsScrollContainer
-@onready var rename_button : Button         = $HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn/RenameButton
-@onready var lock_button   : Button         = $HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn/LockButton
-@onready var delete_button : Button         = $HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn/DeleteTacticButton
-@onready var field_overlay : Control        = $HBox/RightColumn/FieldAspect/FieldBorder/FieldInnerMargin/FieldOverlay
+@onready var player_card   : Control        = $HBox/MiddleColumn/PlayerCard
+@onready var tactics_list  : VBoxContainer  = $HBox/TacticsPanel/TacticsLayout/TacticsListColumn/TacticsScrollContainer/TacticsList
+@onready var tactics_scroll : ScrollContainer = $HBox/TacticsPanel/TacticsLayout/TacticsListColumn/TacticsScrollContainer
+@onready var rename_button : Button         = $HBox/TacticsPanel/TacticsLayout/ButtonsColumn/RenameButton
+@onready var lock_button   : Button         = $HBox/TacticsPanel/TacticsLayout/ButtonsColumn/LockButton
+@onready var delete_button : Button         = $HBox/TacticsPanel/TacticsLayout/ButtonsColumn/DeleteTacticButton
+@onready var field_overlay : Control        = $HBox/MiddleColumn/FieldAspect/FieldBorder/FieldInnerMargin/FieldOverlay
 
 var players       : Array = []
-var _sort_col     : int   = COL_OVR
-var _sort_asc     : bool  = false
+## Sorted by position by default: the enum runs back-to-front, so the roster
+## already reads like a team sheet — keeper, then the back line, and so on.
+var _sort_col     : int   = COL_POS
+var _sort_asc     : bool  = true
 var _active_index : int   = 0  # local mirror of GameState.active_tactic_index
 
 # Player currently being dragged from the roster
 var _dragged_player : PlayerResource = null
 
 func _ready() -> void:
-	roster_tree.set_column_title(COL_NAME, "Name")
-	roster_tree.set_column_title(COL_OVR,  "OVR")
-	roster_tree.set_column_expand(COL_NAME, true)
-	roster_tree.set_column_expand(COL_OVR, false)
-	roster_tree.set_column_custom_minimum_width(COL_OVR, 48)
+	TreeStyle.setup_columns(roster_tree, ROSTER_COLUMNS)
 	# Forward drag events from the Tree back to this script
 	roster_tree.set_drag_forwarding(_tree_get_drag_data, _tree_can_drop_data, _tree_drop_data)
 	players = GameState.player_club.players
@@ -51,6 +49,14 @@ func _ready() -> void:
 		roster_tree.set_selected(first, COL_NAME)
 		_show_player(first.get_metadata(COL_NAME))
 
+func refresh() -> void:
+	_populate_tree()
+	field_overlay.set_tactic(GameState.get_active_tactic())
+	var first := roster_tree.get_root().get_first_child()
+	if first:
+		roster_tree.set_selected(first, COL_NAME)
+		_show_player(first.get_metadata(COL_NAME))
+
 # ── Roster tree ───────────────────────────────────────────────────────────────
 
 func _populate_tree() -> void:
@@ -58,25 +64,40 @@ func _populate_tree() -> void:
 	var root := roster_tree.create_item()
 
 	var sorted := players.duplicate()
-	if _sort_col == COL_NAME:
-		sorted.sort_custom(func(a, b):
-			return a.full_name < b.full_name if _sort_asc else a.full_name > b.full_name)
-	else:
-		sorted.sort_custom(func(a, b):
-			return a.overall() < b.overall() if _sort_asc else a.overall() > b.overall())
+	match _sort_col:
+		COL_NAME:
+			sorted.sort_custom(func(a, b):
+				return a.full_name < b.full_name if _sort_asc else a.full_name > b.full_name)
+		COL_POS:
+			# Same position → best first, so each line reads strongest down.
+			sorted.sort_custom(func(a, b):
+				if a.role != b.role:
+					return a.role < b.role if _sort_asc else a.role > b.role
+				return a.overall() > b.overall())
+		_:
+			sorted.sort_custom(func(a, b):
+				return a.overall() < b.overall() if _sort_asc else a.overall() > b.overall())
 
 	for p in sorted:
 		var item := roster_tree.create_item(root)
-		item.set_text(COL_NAME, p.full_name)
+		var name_text : String = p.full_name
+		if p.unavailable_matches > 0:
+			name_text += " (OUT %d)" % p.unavailable_matches
+		item.set_text(COL_NAME, name_text)
+		item.set_text(COL_POS,  Positions.label(p.role))
 		item.set_text(COL_OVR,  str(p.overall()))
-		item.set_text_alignment(COL_OVR, HORIZONTAL_ALIGNMENT_CENTER)
 		item.set_metadata(COL_NAME, p)
-		var qcolor : Color = QUALITY_COLORS[p.quality]
+		var qcolor : Color = QualityStyle.COLORS[p.quality]
 		item.set_custom_color(COL_NAME, qcolor)
 		item.set_custom_color(COL_OVR,  qcolor)
+		# The badge carries the line colour so the list and the pitch discs can
+		# be scanned against each other without reading a single word.
+		item.set_custom_bg_color(COL_POS, Positions.color(p.role))
+		item.set_custom_color(COL_POS, Positions.ink_on(p.role))
+		TreeStyle.align_row(item, ROSTER_COLUMNS)
 
 func _show_player(p: PlayerResource) -> void:
-	player_card.setup(p)
+	player_card.setup(p, GameState.player_club.team_key)
 
 func _on_roster_tree_item_selected() -> void:
 	var item := roster_tree.get_selected()
@@ -89,7 +110,8 @@ func _on_roster_tree_column_title_clicked(column: int, _mouse_button_index: int)
 		_sort_asc = !_sort_asc
 	else:
 		_sort_col = column
-		_sort_asc = (column == COL_NAME)
+		# Names and positions read best ascending, ratings best descending.
+		_sort_asc = (column != COL_OVR)
 	_populate_tree()
 	var first := roster_tree.get_root().get_first_child()
 	if first:
@@ -106,13 +128,15 @@ func _tree_get_drag_data(at_position: Vector2) -> Variant:
 	var player := item.get_metadata(COL_NAME) as PlayerResource
 	if player == null:
 		return null
+	if player.unavailable_matches > 0:
+		return null  # suspended by a random event — can't be fielded yet
 	_dragged_player = player
 
 	# Drag preview: styled panel with player name in quality colour
 	var preview := PanelContainer.new()
 	var label   := Label.new()
 	label.text = player.full_name
-	label.add_theme_color_override("font_color", QUALITY_COLORS[player.quality])
+	label.add_theme_color_override("font_color", QualityStyle.COLORS[player.quality])
 	label.add_theme_font_size_override("font_size", 11)
 	preview.add_child(label)
 	preview.custom_minimum_size = Vector2(120, 24)
@@ -193,12 +217,12 @@ func _on_rename_tactic_pressed() -> void:
 	if GameState.tactics.is_empty():
 		return
 	var dialog := AcceptDialog.new()
-	dialog.title = "Rename Tactic"
+	dialog.title = "Renombrar Táctica"
 	dialog.dialog_text = ""
 
 	var edit := LineEdit.new()
 	edit.text = GameState.tactics[_active_index].tactic_name
-	edit.placeholder_text = "Tactic name"
+	edit.placeholder_text = "Nombre de la táctica"
 	edit.select_all_on_focus = true
 	dialog.add_child(edit)
 

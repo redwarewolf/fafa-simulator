@@ -8,7 +8,7 @@ const BALL_HEIGHT_MIN := 10.0
 const BALL_HEIGHT_MAX := 30.0
 
 func _enter_tree() -> void:
-	animation_player.play("header")
+	player.play_anim("header")
 	player.height = HEIGHT_START
 	player.height_velocity = HEIGHT_VELOCITY
 	ball_detection_area.body_entered.connect(on_ball_entered.bind())

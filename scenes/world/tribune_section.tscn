@@ -1,0 +1,255 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/tribune_section.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://b17lso72gc1cx" path="res://assets/art/club/tribune-expansion.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://d3w1gvsli01n" path="res://assets/art/club/tribune-fans.png" id="3"]
+
+[node name="TribuneSection" type="Sprite2D"]
+scale = Vector2(0.48, 0.48)
+texture = ExtResource("2")
+script = ExtResource("1")
+
+[node name="Seat1" type="Sprite2D" parent="."]
+position = Vector2(-185.4165, -93.74994)
+scale = Vector2(0.3999999, 0.3999999)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat2" type="Sprite2D" parent="."]
+position = Vector2(-185.4165, -43.75)
+scale = Vector2(0.39999992, 0.39999992)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat3" type="Sprite2D" parent="."]
+position = Vector2(-185.4165, 4.166626)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat4" type="Sprite2D" parent="."]
+position = Vector2(-185.4165, 49.99997)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat5" type="Sprite2D" parent="."]
+position = Vector2(-184.89575, 100.78124)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat6" type="Sprite2D" parent="."]
+position = Vector2(-129.69995, -93.93335)
+scale = Vector2(0.3999999, 0.3999999)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat7" type="Sprite2D" parent="."]
+position = Vector2(-129.69995, -43.93329)
+scale = Vector2(0.39999992, 0.39999992)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat8" type="Sprite2D" parent="."]
+position = Vector2(-129.69983, 3.983307)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat9" type="Sprite2D" parent="."]
+position = Vector2(-129.69995, 49.816605)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat10" type="Sprite2D" parent="."]
+position = Vector2(-129.17908, 100.597885)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat11" type="Sprite2D" parent="."]
+position = Vector2(-71.36658, -93.93335)
+scale = Vector2(0.3999999, 0.3999999)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat12" type="Sprite2D" parent="."]
+position = Vector2(-71.36658, -43.93329)
+scale = Vector2(0.39999992, 0.39999992)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat13" type="Sprite2D" parent="."]
+position = Vector2(-71.3667, 3.983307)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat14" type="Sprite2D" parent="."]
+position = Vector2(-71.3667, 49.816605)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat15" type="Sprite2D" parent="."]
+position = Vector2(-70.8457, 100.597885)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat16" type="Sprite2D" parent="."]
+position = Vector2(-10.950012, -93.93335)
+scale = Vector2(0.3999999, 0.3999999)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat17" type="Sprite2D" parent="."]
+position = Vector2(-10.950012, -43.93329)
+scale = Vector2(0.39999992, 0.39999992)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat18" type="Sprite2D" parent="."]
+position = Vector2(-10.94989, 3.983307)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat19" type="Sprite2D" parent="."]
+position = Vector2(-10.950012, 49.816605)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat20" type="Sprite2D" parent="."]
+position = Vector2(-10.429199, 100.597885)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat21" type="Sprite2D" parent="."]
+position = Vector2(49.466736, -93.93335)
+scale = Vector2(0.3999999, 0.3999999)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat22" type="Sprite2D" parent="."]
+position = Vector2(49.466736, -43.93329)
+scale = Vector2(0.39999992, 0.39999992)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat23" type="Sprite2D" parent="."]
+position = Vector2(49.466736, 3.983307)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat24" type="Sprite2D" parent="."]
+position = Vector2(49.466736, 49.816605)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat25" type="Sprite2D" parent="."]
+position = Vector2(49.98755, 100.597885)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat26" type="Sprite2D" parent="."]
+position = Vector2(111.96655, -93.93335)
+scale = Vector2(0.3999999, 0.3999999)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat27" type="Sprite2D" parent="."]
+position = Vector2(111.96655, -43.93329)
+scale = Vector2(0.39999992, 0.39999992)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat28" type="Sprite2D" parent="."]
+position = Vector2(111.96661, 3.983307)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat29" type="Sprite2D" parent="."]
+position = Vector2(111.96661, 49.816605)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat30" type="Sprite2D" parent="."]
+position = Vector2(112.48761, 100.597885)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat31" type="Sprite2D" parent="."]
+position = Vector2(174.46661, -93.93335)
+scale = Vector2(0.3999999, 0.3999999)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat32" type="Sprite2D" parent="."]
+position = Vector2(174.46661, -43.93329)
+scale = Vector2(0.39999992, 0.39999992)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat33" type="Sprite2D" parent="."]
+position = Vector2(174.46661, 3.983307)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat34" type="Sprite2D" parent="."]
+position = Vector2(174.46661, 49.816605)
+scale = Vector2(0.39999995, 0.39999995)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)
+
+[node name="Seat35" type="Sprite2D" parent="."]
+position = Vector2(174.98755, 100.597885)
+scale = Vector2(0.4, 0.4)
+texture = ExtResource("3")
+region_enabled = true
+region_rect = Rect2(0, 0, 164, 197)

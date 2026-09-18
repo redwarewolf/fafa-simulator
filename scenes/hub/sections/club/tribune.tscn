@@ -1,0 +1,50 @@
+[gd_scene format=3 uid="uid://bkfbg81cebsna"]
+
+[ext_resource type="Texture2D" uid="uid://bwjw1il6x622i" path="res://assets/art/club/tribune.png" id="1"]
+[ext_resource type="Texture2D" uid="uid://b17lso72gc1cx" path="res://assets/art/club/tribune-expansion.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://bbr61yp4xubtc" path="res://assets/art/club/club-trainer.png" id="3"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tr_0"]
+atlas = ExtResource("3")
+region = Rect2(0, 0, 364, 473)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tr_1"]
+atlas = ExtResource("3")
+region = Rect2(364, 0, 364, 473)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_Trainer"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tr_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tr_1")
+}],
+"loop": true,
+"name": &"default",
+"speed": 3.4
+}]
+
+[node name="Tribune" type="Node2D" unique_id=1429906837]
+
+[node name="TribuneBase" type="Sprite2D" parent="." unique_id=1811816333]
+texture = ExtResource("1")
+
+[node name="ExpansionMiddle" type="Sprite2D" parent="." unique_id=1690118807]
+position = Vector2(73, 76)
+texture = ExtResource("2")
+
+[node name="ExpansionRight" type="Sprite2D" parent="." unique_id=343648097]
+position = Vector2(536, 75)
+texture = ExtResource("2")
+
+[node name="Trainer" type="AnimatedSprite2D" parent="." unique_id=1044238460]
+position = Vector2(-556, 215.99998)
+scale = Vector2(0.55, 0.55)
+sprite_frames = SubResource("SpriteFrames_Trainer")
+autoplay = "default"
+visible = false
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=643437103]
+zoom = Vector2(0.22, 0.22)

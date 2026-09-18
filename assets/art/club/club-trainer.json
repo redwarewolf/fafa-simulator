@@ -1,0 +1,32 @@
+{ "frames": {
+   "Sprite-0004 0.": {
+    "frame": { "x": 0, "y": 0, "w": 364, "h": 473 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 364, "h": 473 },
+    "sourceSize": { "w": 364, "h": 473 },
+    "duration": 100
+   },
+   "Sprite-0004 1.": {
+    "frame": { "x": 364, "y": 0, "w": 364, "h": 473 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 364, "h": 473 },
+    "sourceSize": { "w": 364, "h": 473 },
+    "duration": 100
+   }
+ },
+ "meta": {
+  "app": "https://github.com/LibreSprite/LibreSprite/",
+  "version": "1.1-dev",
+  "image": "C:\\Users\\pjara\\Documents\\FAFA Simulator\\fafa-simulator\\assets\\art\\club\\club-trainer.png",
+  "format": "RGBA8888",
+  "size": { "w": 728, "h": 473 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Layer 1", "opacity": 255, "blendMode": "normal" }
+  ]
+ }
+}

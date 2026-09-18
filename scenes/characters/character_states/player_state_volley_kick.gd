@@ -6,7 +6,7 @@ const BALL_HEIGHT_MIN := 5.0
 const BALL_HEIGHT_MAX := 25.0
 
 func _enter_tree() -> void:
-	animation_player.play("volley_kick")
+	player.play_anim("volley_kick")
 	ball_detection_area.body_entered.connect(on_ball_entered.bind())
 	
 func on_ball_entered(contact_ball: Ball) -> void:

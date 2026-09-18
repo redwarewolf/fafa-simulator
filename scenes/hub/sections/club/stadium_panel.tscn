@@ -1,0 +1,161 @@
+[gd_scene load_steps=6 format=3 uid="uid://c5nxh8qb74toi"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="2"]
+[ext_resource type="Script" path="res://scenes/hub/sections/club/stadium_panel.gd" id="4"]
+[ext_resource type="PackedScene" uid="uid://di1iesiwd2q1r" path="res://scenes/hub/sections/club/club.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://bkfbg81cebsna" path="res://scenes/hub/sections/club/tribune.tscn" id="6"]
+[ext_resource type="Script" path="res://scenes/ui/art_viewport.gd" id="7"]
+
+[node name="StadiumPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4")
+
+[node name="Background" parent="." instance=ExtResource("2")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="ArtRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="ClubAspect" type="AspectRatioContainer" parent="VBox/ArtRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.5
+ratio = 1.5
+stretch_mode = 2
+
+[node name="ClubFrame" parent="VBox/ArtRow/ClubAspect" instance=ExtResource("2")]
+layout_mode = 2
+clip_contents = true
+
+[node name="ClubViewportContainer" type="SubViewportContainer" parent="VBox/ArtRow/ClubAspect/ClubFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 6.0
+offset_right = -6.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+script = ExtResource("7")
+content_size = Vector2(1536, 1024)
+cover = true
+
+[node name="ClubViewport" type="SubViewport" parent="VBox/ArtRow/ClubAspect/ClubFrame/ClubViewportContainer"]
+size = Vector2i(384, 256)
+transparent_bg = true
+render_target_update_mode = 4
+
+[node name="Club" parent="VBox/ArtRow/ClubAspect/ClubFrame/ClubViewportContainer/ClubViewport" instance=ExtResource("5")]
+
+[node name="ClubCaption" type="Label" parent="VBox/ArtRow/ClubAspect/ClubFrame"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = -28.0
+offset_right = 200.0
+offset_bottom = -8.0
+grow_vertical = 0
+mouse_filter = 2
+text = "SEDE DEL CLUB"
+
+[node name="TribuneAspect" type="AspectRatioContainer" parent="VBox/ArtRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.7745
+ratio = 1.7745
+stretch_mode = 2
+
+[node name="TribuneFrame" parent="VBox/ArtRow/TribuneAspect" instance=ExtResource("2")]
+layout_mode = 2
+clip_contents = true
+
+[node name="TribuneViewportContainer" type="SubViewportContainer" parent="VBox/ArtRow/TribuneAspect/TribuneFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 6.0
+offset_right = -6.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+script = ExtResource("7")
+content_size = Vector2(1574, 887)
+cover = true
+
+[node name="TribuneViewport" type="SubViewport" parent="VBox/ArtRow/TribuneAspect/TribuneFrame/TribuneViewportContainer"]
+size = Vector2i(393, 221)
+transparent_bg = true
+render_target_update_mode = 4
+
+[node name="Tribune" parent="VBox/ArtRow/TribuneAspect/TribuneFrame/TribuneViewportContainer/TribuneViewport" instance=ExtResource("6")]
+
+[node name="TribuneCaption" type="Label" parent="VBox/ArtRow/TribuneAspect/TribuneFrame"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = -28.0
+offset_right = 200.0
+offset_bottom = -8.0
+grow_vertical = 0
+mouse_filter = 2
+text = "TRIBUNA"
+
+[node name="ActionsPanel" parent="VBox" instance=ExtResource("2")]
+custom_minimum_size = Vector2(0, 281)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+
+[node name="ActionsLayout" type="VBoxContainer" parent="VBox/ActionsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="UpgradesTitle" type="Label" parent="VBox/ActionsPanel/ActionsLayout"]
+layout_mode = 2
+text = "MEJORAS"
+
+[node name="UpgradeRow" type="HBoxContainer" parent="VBox/ActionsPanel/ActionsLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14

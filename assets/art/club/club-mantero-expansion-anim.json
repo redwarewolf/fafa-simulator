@@ -1,0 +1,52 @@
+{ "frames": [
+   {
+    "filename": "club_mantero_expansion1 0.png",
+    "frame": { "x": 0, "y": 0, "w": 785, "h": 495 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 785, "h": 495 },
+    "sourceSize": { "w": 785, "h": 495 },
+    "duration": 300
+   },
+   {
+    "filename": "club_mantero_expansion1 1.png",
+    "frame": { "x": 785, "y": 0, "w": 785, "h": 495 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 785, "h": 495 },
+    "sourceSize": { "w": 785, "h": 495 },
+    "duration": 300
+   },
+   {
+    "filename": "club_mantero_expansion1 2.png",
+    "frame": { "x": 1570, "y": 0, "w": 785, "h": 495 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 785, "h": 495 },
+    "sourceSize": { "w": 785, "h": 495 },
+    "duration": 300
+   },
+   {
+    "filename": "club_mantero_expansion1 3.png",
+    "frame": { "x": 2355, "y": 0, "w": 785, "h": 495 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 785, "h": 495 },
+    "sourceSize": { "w": 785, "h": 495 },
+    "duration": 300
+   }
+ ],
+ "meta": {
+  "app": "https://github.com/LibreSprite/LibreSprite/",
+  "version": "1.1-dev",
+  "image": "C:\\Users\\pjara\\Documents\\FAFA Simulator\\fafa-simulator\\assets\\art\\club\\club_mantero_expansion1-sheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 3140, "h": 495 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Layer 1", "opacity": 255, "blendMode": "normal" }
+  ]
+ }
+}

@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://nxtypc8end8n"]
+[gd_scene load_steps=12 format=3 uid="uid://nxtypc8end8n"]
 
 [ext_resource type="Script" uid="uid://fbkrub5gbgqr" path="res://scenes/hub/sections/squad/squad_section.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="2"]
@@ -9,6 +9,10 @@
 [ext_resource type="Texture2D" uid="uid://d1cokhq5bj2ju" path="res://assets/art/ui/spritesheet/UI_Palette.png" id="7"]
 [ext_resource type="Texture2D" uid="uid://5xafpt6843yw" path="res://assets/art/ui/spritesheet/UI_Frame.png" id="8"]
 [ext_resource type="Script" path="res://scenes/hub/sections/squad/field_aspect_sizer.gd" id="9"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pitch"]
+atlas = ExtResource("4")
+region = Rect2(0, 0, 2350, 1225)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_field"]
 shader = ExtResource("6")
@@ -61,28 +65,23 @@ theme_override_constants/separation = 6
 
 [node name="Title" type="Label" parent="HBox/LeftColumn/RosterPanel/VBox"]
 layout_mode = 2
-text = "SQUAD"
+text = "PLANTEL"
 
 [node name="RosterTree" type="Tree" parent="HBox/LeftColumn/RosterPanel/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-columns = 2
+columns = 3
 column_titles_visible = true
 hide_root = true
 select_mode = 1
 
-[node name="PlayerCard" parent="HBox/LeftColumn" instance=ExtResource("3")]
+[node name="MiddleColumn" type="VBoxContainer" parent="HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_constants/separation = 0
 
-[node name="RightColumn" type="VBoxContainer" parent="HBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_constants/separation = 4
-
-[node name="FieldAspect" type="AspectRatioContainer" parent="HBox/RightColumn"]
+[node name="FieldAspect" type="AspectRatioContainer" parent="HBox/MiddleColumn"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
@@ -90,7 +89,7 @@ ratio = 1.9184
 stretch_mode = 2
 script = ExtResource("9")
 
-[node name="FieldBorder" type="NinePatchRect" parent="HBox/RightColumn/FieldAspect"]
+[node name="FieldBorder" type="NinePatchRect" parent="HBox/MiddleColumn/FieldAspect"]
 material = SubResource("ShaderMaterial_field")
 layout_mode = 2
 size_flags_horizontal = 3
@@ -103,7 +102,7 @@ patch_margin_bottom = 16
 axis_stretch_horizontal = 1
 axis_stretch_vertical = 1
 
-[node name="FieldInnerMargin" type="MarginContainer" parent="HBox/RightColumn/FieldAspect/FieldBorder"]
+[node name="FieldInnerMargin" type="MarginContainer" parent="HBox/MiddleColumn/FieldAspect/FieldBorder"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -115,24 +114,30 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="FieldTexture" type="TextureRect" parent="HBox/RightColumn/FieldAspect/FieldBorder/FieldInnerMargin"]
+[node name="FieldTexture" type="TextureRect" parent="HBox/MiddleColumn/FieldAspect/FieldBorder/FieldInnerMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-texture = ExtResource("4")
+texture = SubResource("AtlasTexture_pitch")
 expand_mode = 1
 
-[node name="FieldOverlay" parent="HBox/RightColumn/FieldAspect/FieldBorder/FieldInnerMargin" instance=ExtResource("5")]
+[node name="FieldOverlay" parent="HBox/MiddleColumn/FieldAspect/FieldBorder/FieldInnerMargin" instance=ExtResource("5")]
 layout_mode = 2
 
-[node name="TacticsPanel" parent="HBox/RightColumn" instance=ExtResource("2")]
-custom_minimum_size = Vector2(0, 60)
+[node name="PlayerCard" parent="HBox/MiddleColumn" instance=ExtResource("3")]
+layout = 1
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="TacticsPanel" parent="HBox" instance=ExtResource("2")]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_horizontal = 0
 size_flags_vertical = 3
 clip_contents = true
 
-[node name="TacticsLayout" type="HBoxContainer" parent="HBox/RightColumn/TacticsPanel"]
+[node name="TacticsLayout" type="HBoxContainer" parent="HBox/TacticsPanel"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -146,18 +151,18 @@ grow_vertical = 2
 clip_contents = true
 theme_override_constants/separation = 6
 
-[node name="TacticsListColumn" type="VBoxContainer" parent="HBox/RightColumn/TacticsPanel/TacticsLayout"]
+[node name="TacticsListColumn" type="VBoxContainer" parent="HBox/TacticsPanel/TacticsLayout"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 clip_contents = true
 theme_override_constants/separation = 4
 
-[node name="TacticsLabel" type="Label" parent="HBox/RightColumn/TacticsPanel/TacticsLayout/TacticsListColumn"]
+[node name="TacticsLabel" type="Label" parent="HBox/TacticsPanel/TacticsLayout/TacticsListColumn"]
 layout_mode = 2
-text = "Tactic:"
+text = "Táctica:"
 
-[node name="TacticsScrollContainer" type="ScrollContainer" parent="HBox/RightColumn/TacticsPanel/TacticsLayout/TacticsListColumn"]
+[node name="TacticsScrollContainer" type="ScrollContainer" parent="HBox/TacticsPanel/TacticsLayout/TacticsListColumn"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -165,53 +170,53 @@ clip_contents = true
 scroll_horizontal_enabled = false
 scroll_vertical_enabled = true
 
-[node name="TacticsList" type="VBoxContainer" parent="HBox/RightColumn/TacticsPanel/TacticsLayout/TacticsListColumn/TacticsScrollContainer"]
+[node name="TacticsList" type="VBoxContainer" parent="HBox/TacticsPanel/TacticsLayout/TacticsListColumn/TacticsScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 theme_override_constants/separation = 4
 
-[node name="ButtonsColumn" type="VBoxContainer" parent="HBox/RightColumn/TacticsPanel/TacticsLayout"]
+[node name="ButtonsColumn" type="VBoxContainer" parent="HBox/TacticsPanel/TacticsLayout"]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
-[node name="RenameButton" type="Button" parent="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn"]
+[node name="RenameButton" type="Button" parent="HBox/TacticsPanel/TacticsLayout/ButtonsColumn"]
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Rename selected tactic"
-text = "Rename"
+tooltip_text = "Renombrar la táctica seleccionada"
+text = "Renombrar"
 
-[node name="LockButton" type="Button" parent="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn"]
+[node name="LockButton" type="Button" parent="HBox/TacticsPanel/TacticsLayout/ButtonsColumn"]
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Lock/unlock dot positions"
+tooltip_text = "Bloquear/desbloquear las posiciones"
 toggle_mode = true
-text = "Lock"
+text = "Bloquear"
 
-[node name="AddTacticButton" type="Button" parent="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn"]
+[node name="AddTacticButton" type="Button" parent="HBox/TacticsPanel/TacticsLayout/ButtonsColumn"]
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Add new tactic"
-text = "+ New"
+tooltip_text = "Agregar nueva táctica"
+text = "+ Nueva"
 
-[node name="SaveTacticButton" type="Button" parent="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn"]
+[node name="SaveTacticButton" type="Button" parent="HBox/TacticsPanel/TacticsLayout/ButtonsColumn"]
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Save current tactic positions"
-text = "Save"
+tooltip_text = "Guardar las posiciones actuales"
+text = "Guardar"
 
-[node name="DeleteTacticButton" type="Button" parent="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn"]
+[node name="DeleteTacticButton" type="Button" parent="HBox/TacticsPanel/TacticsLayout/ButtonsColumn"]
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Delete selected tactic"
-text = "Delete"
+tooltip_text = "Eliminar la táctica seleccionada"
+text = "Eliminar"
 
 [connection signal="column_title_clicked" from="HBox/LeftColumn/RosterPanel/VBox/RosterTree" to="." method="_on_roster_tree_column_title_clicked"]
 [connection signal="item_selected" from="HBox/LeftColumn/RosterPanel/VBox/RosterTree" to="." method="_on_roster_tree_item_selected"]
-[connection signal="pressed" from="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn/RenameButton" to="." method="_on_rename_tactic_pressed"]
-[connection signal="toggled" from="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn/LockButton" to="." method="_on_lock_toggled"]
-[connection signal="pressed" from="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn/AddTacticButton" to="." method="_on_add_tactic_pressed"]
-[connection signal="pressed" from="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn/SaveTacticButton" to="." method="_on_save_tactic_pressed"]
-[connection signal="pressed" from="HBox/RightColumn/TacticsPanel/TacticsLayout/ButtonsColumn/DeleteTacticButton" to="." method="_on_delete_tactic_pressed"]
+[connection signal="pressed" from="HBox/TacticsPanel/TacticsLayout/ButtonsColumn/RenameButton" to="." method="_on_rename_tactic_pressed"]
+[connection signal="toggled" from="HBox/TacticsPanel/TacticsLayout/ButtonsColumn/LockButton" to="." method="_on_lock_toggled"]
+[connection signal="pressed" from="HBox/TacticsPanel/TacticsLayout/ButtonsColumn/AddTacticButton" to="." method="_on_add_tactic_pressed"]
+[connection signal="pressed" from="HBox/TacticsPanel/TacticsLayout/ButtonsColumn/SaveTacticButton" to="." method="_on_save_tactic_pressed"]
+[connection signal="pressed" from="HBox/TacticsPanel/TacticsLayout/ButtonsColumn/DeleteTacticButton" to="." method="_on_delete_tactic_pressed"]
