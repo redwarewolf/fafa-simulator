@@ -57,15 +57,23 @@ func _ready() -> void:
 
 ## When a season fixture is pending, override the scene's default teams
 ## with the scheduled home/away clubs instead of the hardcoded test match.
+## Falls back to GameState.test_match_teams (set by the Hub's dev "Test
+## Match" button) so that shortcut also resolves to real clubs instead of
+## the scene's hardcoded legacy team keys, which predate the procedural
+## club system and resolve to no ClubResource at all.
 func _apply_pending_fixture_teams() -> void:
-	if SeasonManager == null or SeasonManager.pending_player_fixture.is_empty():
+	if SeasonManager != null and not SeasonManager.pending_player_fixture.is_empty():
+		var f := SeasonManager.pending_player_fixture
+		var home := DataLoader.get_club(f["home_id"])
+		var away := DataLoader.get_club(f["away_id"])
+		if home != null and away != null:
+			team_left  = home.team_key
+			team_right = away.team_key
 		return
-	var f := SeasonManager.pending_player_fixture
-	var home := DataLoader.get_club(f["home_id"])
-	var away := DataLoader.get_club(f["away_id"])
-	if home != null and away != null:
-		team_left  = home.team_key
-		team_right = away.team_key
+	if GameState != null and GameState.test_match_teams.size() == 2:
+		team_left  = GameState.test_match_teams[0]
+		team_right = GameState.test_match_teams[1]
+		GameState.test_match_teams = []  # consumed — don't leak into a later unrelated scene load
 
 func _any_slot_assigned(tactic) -> bool:
 	for s in tactic.slots:

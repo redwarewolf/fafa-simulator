@@ -263,5 +263,16 @@ func _maybe_narrate_hub_event() -> void:
 		_section_instances[_active_section].refresh()
 	GameState.save_career()
 
+## Picks the player's own club plus a random other real club (if any exist)
+## so the test match shows correct crests/rosters instead of the scene's
+## hardcoded legacy team keys — see GameState.test_match_teams.
 func _on_test_match_pressed() -> void:
+	GameState.test_match_teams = []
+	var player_club := GameState.player_club
+	if player_club != null and DataLoader != null:
+		var opponents : Array = DataLoader.clubs.values().filter(
+			func(c: ClubResource) -> bool: return c.id != player_club.id)
+		if not opponents.is_empty():
+			var opponent : ClubResource = opponents.pick_random()
+			GameState.test_match_teams = [player_club.team_key, opponent.team_key]
 	get_tree().change_scene_to_file("res://scenes/world/world.tscn")

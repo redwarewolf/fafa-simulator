@@ -70,6 +70,17 @@ func _save_locale() -> void:
 # Club
 var player_club : ClubResource = null  ## The club the player manages
 
+## Transient, never persisted — [home_team_key, away_team_key] set by the
+## Hub's dev "Test Match" shortcut so ActorsContainer spawns two real
+## DataLoader clubs (correct crests, rosters, stats) instead of falling
+## back to the scene's hardcoded legacy team keys, which predate the
+## procedural club system and resolve to no ClubResource at all (both
+## sides then landed on the SAME fallback tactic/roster and ClubLogo
+## rendered the default portrait for both). Deliberately NOT routed
+## through SeasonManager.pending_player_fixture — that would make a dev
+## test match record a real season result. See docs/ai-overhaul.md Phase 6.
+var test_match_teams : Array = []
+
 # Calendar
 var day : int = 1
 var month : int = 3
