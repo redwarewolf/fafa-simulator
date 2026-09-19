@@ -52,9 +52,16 @@ var preset: TacticPreset = null
 
 ## own_team is defending (marks/presses opposing_team); is_left_team is
 ## own_team's side, used for ball-depth-based mark tightness.
-func recompute(own_team: Array[Player], opposing_team: Array[Player], ball: Ball, field_zones: FieldZones, is_left_team: bool) -> void:
+## [param manual_mentality_mode]/[param score_diff]/[param
+## time_fraction_remaining] feed TacticPreset.update() — see
+## docs/ai-overhaul.md Phase 8. manual_mentality_mode is AUTO for every
+## team except the human player's, which MatchHUD's mentality button can
+## pin to a fixed mode live.
+func recompute(own_team: Array[Player], opposing_team: Array[Player], ball: Ball, field_zones: FieldZones, is_left_team: bool,
+		manual_mentality_mode: int = TacticPreset.ManualMode.AUTO, score_diff: int = 0, time_fraction_remaining: float = 1.0) -> void:
 	if preset == null:
 		preset = TacticPreset.from_roster(own_team)
+	preset.update(manual_mentality_mode, score_diff, time_fraction_remaining)
 	_recompute_pressing(own_team, ball)
 	_recompute_marking(own_team, opposing_team, ball, field_zones, is_left_team)
 	_recompute_cover_presser(own_team, opposing_team, ball)

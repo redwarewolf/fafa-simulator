@@ -12,6 +12,7 @@ extends CanvasLayer
 @onready var foul_label          := %FoulLabel as Label
 @onready var speed_label         := %SpeedLabel as Label
 @onready var cam_mode_button     := %CamModeButton as Button
+@onready var mentality_button    := %MentalityButton as Button
 
 const SPEED_STEPS := [1.0, 2.0, 4.0, 8.0]
 const SPEED_ICONS := [">", ">>", ">>>", ">>>>"
@@ -19,6 +20,11 @@ const SPEED_ICONS := [">", ">>", ">>>", ">>>>"
 const PAUSE_ICON := "||"
 var _speed_index := 0
 var _paused := false
+
+## Cycles AUTO -> DEFENSIVE -> NEUTRAL -> AGGRESSIVE -> AUTO. Index-matched
+## to TacticPreset.ManualMode. A live in-match manager control — see
+## docs/ai-overhaul.md Phase 8.
+const MENTALITY_LABELS := ["MODO: AUTO", "MODO: DEFENSIVO", "MODO: NEUTRAL", "MODO: AGRESIVO"]
 
 var _world: MatchWorld
 var _actors_container: ActorsContainer
@@ -38,6 +44,7 @@ func _ready() -> void:
 	goal_scorer_label.modulate.a = 0.0
 	score_info_label.modulate.a = 0.0
 	_update_cam_mode_button()
+	mentality_button.text = tr(MENTALITY_LABELS[TacticPreset.ManualMode.AUTO])
 
 	GameEvents.ball_possessed.connect(_on_ball_possessed)
 	GameEvents.ball_released.connect(_on_ball_released)
@@ -47,6 +54,7 @@ func _ready() -> void:
 	GameEvents.game_over.connect(_on_game_over)
 	GameEvents.foul_called.connect(_on_foul_called)
 	cam_mode_button.pressed.connect(_on_cam_mode_button_pressed)
+	mentality_button.pressed.connect(_on_mentality_button_pressed)
 
 func _on_cam_mode_button_pressed() -> void:
 	_camera.toggle_mode()
@@ -54,6 +62,14 @@ func _on_cam_mode_button_pressed() -> void:
 
 func _update_cam_mode_button() -> void:
 	cam_mode_button.text = tr("CÁM: LIBRE") if _camera.mode == Camera.Mode.FREE else tr("CÁM: BALÓN")
+
+## Cycles the human player's own team's mentality (whichever side
+## is_player_team_left says that is — the AI opponent is never affected).
+## See docs/ai-overhaul.md Phase 8.
+func _on_mentality_button_pressed() -> void:
+	var next_mode := (_actors_container.player_manual_mentality_mode + 1) % MENTALITY_LABELS.size()
+	_actors_container.player_manual_mentality_mode = next_mode
+	mentality_button.text = tr(MENTALITY_LABELS[next_mode])
 
 ## Load club crest textures for both teams.
 func _load_logos() -> void:

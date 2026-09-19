@@ -31,9 +31,24 @@ var time_since_last_tactical_refresh := Time.get_ticks_msec()
 var _field_zones : FieldZones = null
 var _team_tactical_left := TeamTacticalState.new()
 var _team_tactical_right := TeamTacticalState.new()
+## This scene's own parent is always the match root — see MatchHUD's
+## identical get_parent() lookup for score/time. Used to feed live
+## scoreline/time-remaining into TacticPreset.update() every tick.
+var _match_world : MatchWorld = null
+## True when the human-managed club ended up as team_left this match (a
+## season fixture's home/away can put them on either side — see
+## _apply_pending_fixture_teams). Computed once in _ready(). MatchHUD reads
+## this to know which side its mentality button should actually control.
+var is_player_team_left : bool = true
+## Set by MatchHUD's mentality button — AUTO everywhere else. Only ever
+## applied to whichever side is_player_team_left says is the human's team;
+## the opponent (AI-controlled, on either side) always stays AUTO. See
+## docs/ai-overhaul.md Phase 8.
+var player_manual_mentality_mode : int = TacticPreset.ManualMode.AUTO
 
 func _ready() -> void:
 	_apply_pending_fixture_teams()
+	_match_world = get_parent() as MatchWorld
 
 	# Tell each goal which team defends it, so ScoringArea can emit team_scored correctly.
 	goal_left.team  = team_left
@@ -47,6 +62,9 @@ func _ready() -> void:
 	for player in right_team:
 		player.teammates = right_team
 		player.opponents = left_team
+
+	if GameState != null and GameState.player_club != null:
+		is_player_team_left = GameState.player_club.team_key == team_left
 
 	GameEvents.team_scored.connect(_on_team_scored)
 	GameEvents.team_reset.connect(_on_team_reset)
@@ -164,8 +182,19 @@ const DEBUG_PITCH_CONTROL_CELL := 110.0
 func _process(_delta: float) -> void:
 	if Time.get_ticks_msec() - time_since_last_tactical_refresh > DURATION_TACTICAL_REFRESH:
 		time_since_last_tactical_refresh = Time.get_ticks_msec()
-		_team_tactical_left.recompute(left_team, right_team, ball, _field_zones, true)
-		_team_tactical_right.recompute(right_team, left_team, ball, _field_zones, false)
+		var time_fraction_remaining := 1.0
+		var score_left := 0
+		var score_right := 0
+		if _match_world != null:
+			time_fraction_remaining = clampf(1.0 - _match_world.match_time / _match_world.MATCH_DURATION, 0.0, 1.0)
+			score_left = _match_world.score_left
+			score_right = _match_world.score_right
+		var left_mode := player_manual_mentality_mode if is_player_team_left else TacticPreset.ManualMode.AUTO
+		var right_mode := player_manual_mentality_mode if not is_player_team_left else TacticPreset.ManualMode.AUTO
+		_team_tactical_left.recompute(left_team, right_team, ball, _field_zones, true,
+			left_mode, score_left - score_right, time_fraction_remaining)
+		_team_tactical_right.recompute(right_team, left_team, ball, _field_zones, false,
+			right_mode, score_right - score_left, time_fraction_remaining)
 	if DebugDraw.ENABLED and DebugDraw.SHOW_PITCH_CONTROL:
 		_draw_pitch_control_debug()
 
