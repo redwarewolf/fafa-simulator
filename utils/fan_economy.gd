@@ -32,12 +32,12 @@ const ATTENDANCE_RATE_MIN := 0.50
 const ATTENDANCE_RATE_MAX := 0.75
 
 ## Per-item merch price scales with the "merchandise_sales" upgrade level.
-const MERCH_PRICE_BY_LEVEL := {1: 3, 2: 5, 3: 8}
+const MERCH_PRICE_BY_LEVEL := {1: 300, 2: 500, 3: 800}
 const MERCH_RATE_MIN := 0.02
 const MERCH_RATE_MAX := 0.08
 
 ## Per-item food/drink price scales with the "food_sales" upgrade level.
-const FOOD_PRICE_BY_LEVEL := {1: 4, 2: 7, 3: 12}
+const FOOD_PRICE_BY_LEVEL := {1: 60, 2: 100, 3: 140}
 const FOOD_RATE_MIN := 0.03
 const FOOD_RATE_MAX := 0.10
 

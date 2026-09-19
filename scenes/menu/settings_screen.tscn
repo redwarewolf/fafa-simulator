@@ -57,6 +57,19 @@ custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 text = "English"
 
+[node name="Spacer2" type="Control" parent="Center/VBox"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+
+[node name="TutorialCheckRow" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="DisableTutorialCheckBox" type="CheckBox" parent="Center/VBox/TutorialCheckRow"]
+layout_mode = 2
+text = "Desactivar Tutorial"
+
 [node name="BackButton" type="Button" parent="."]
 layout_mode = 1
 offset_left = 16.0
@@ -67,4 +80,5 @@ text = "< Volver"
 
 [connection signal="pressed" from="Center/VBox/LocaleRow/SpanishButton" to="." method="_on_spanish_pressed"]
 [connection signal="pressed" from="Center/VBox/LocaleRow/EnglishButton" to="." method="_on_english_pressed"]
+[connection signal="toggled" from="Center/VBox/TutorialCheckRow/DisableTutorialCheckBox" to="." method="_on_disable_tutorial_toggled"]
 [connection signal="pressed" from="BackButton" to="." method="_on_back_pressed"]

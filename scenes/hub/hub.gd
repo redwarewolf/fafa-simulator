@@ -5,6 +5,7 @@ extends Control
 @onready var date_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/Date
 @onready var budget_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Budget
 @onready var fans_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Fans
+@onready var capacity_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Capacity
 @onready var division_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Division
 @onready var content : Control = $Content
 @onready var music : AudioStreamPlayer = $Music
@@ -183,6 +184,7 @@ func _update_header() -> void:
 	division_label.text = tr("División %s") % GameState.player_club.division
 	budget_label.text = "$%s" % MoneyFormat.format(GameState.player_club.budget)
 	fans_label.text = tr("%s hinchas") % MoneyFormat.format(GameState.player_club.fans)
+	capacity_label.text = tr("Capacidad: %s") % MoneyFormat.format(GameState.player_club.get_stadium_capacity())
 	var phase_text := ""
 	match SeasonManager.phase:
 		SeasonManager.Phase.PRE_SEASON: phase_text = tr("Pretemporada")

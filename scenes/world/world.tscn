@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/match_hud.tscn" id="match_hud_scene"]
 [ext_resource type="PackedScene" path="res://scenes/ui/minimap.tscn" id="minimap_scene"]
 [ext_resource type="PackedScene" path="res://scenes/world/referee.tscn" id="referee_scene"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="pause_menu_scene"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_grass"]
 shader = ExtResource("grass_variation_shader")
@@ -377,6 +378,8 @@ offset_top = -56.0
 offset_right = 80.0
 offset_bottom = -20.0
 text = "Volver al Hub"
+
+[node name="PauseMenu" parent="." instance=ExtResource("pause_menu_scene")]
 
 [node name="FieldAreas" type="Node2D" parent="." unique_id=6876827]
 script = ExtResource("field_zones_gd")

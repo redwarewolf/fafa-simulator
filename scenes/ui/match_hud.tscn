@@ -276,6 +276,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="Mask" type="ColorRect" parent="UIContainer"]
 modulate = Color(1, 1, 1, 0)
@@ -285,6 +286,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(0, 0, 0, 1)
 
 [node name="TopBar" type="ColorRect" parent="UIContainer"]
@@ -297,6 +299,7 @@ offset_top = 0.0
 offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 1
+mouse_filter = 2
 color = Color(0.133333, 0.133333, 0.133333, 0.9)
 
 [node name="HBoxContainer" type="HBoxContainer" parent="UIContainer/TopBar"]
@@ -371,6 +374,7 @@ offset_top = 24.0
 offset_right = -8.0
 offset_bottom = 48.0
 grow_horizontal = 0
+focus_mode = 0
 text = "CÁM: BALÓN"
 
 [node name="MentalityButton" type="Button" parent="UIContainer"]
@@ -386,6 +390,7 @@ offset_top = 52.0
 offset_right = -8.0
 offset_bottom = 76.0
 grow_horizontal = 0
+focus_mode = 0
 text = "MODO: AUTO"
 
 [node name="GoalTexture" type="TextureRect" parent="UIContainer"]

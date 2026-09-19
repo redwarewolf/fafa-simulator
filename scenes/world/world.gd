@@ -39,6 +39,7 @@ const KICKOFF_APPROACH_OFFSET := 40.0
 @onready var game_over_overlay := %GameOverOverlay
 @onready var game_over_label   := %GameOverLabel
 @onready var summary_label     := %SummaryLabel
+@onready var pause_menu        := $PauseMenu as PauseMenu
 
 ## Dev "Test Match" fallback (no season fixture): show every stand and a
 ## mid-range crowd instead of rolling real attendance against a real club.
@@ -304,6 +305,7 @@ func _transition(new_state: MatchState) -> void:
 			_show_game_over(match_result)
 
 func _show_game_over(match_result: Dictionary) -> void:
+	pause_menu.enabled = false
 	game_over_overlay.visible = true
 	var score_str := "%d - %d" % [score_left, score_right]
 	if score_left > score_right:

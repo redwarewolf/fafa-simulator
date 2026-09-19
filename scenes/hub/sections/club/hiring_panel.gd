@@ -5,6 +5,11 @@ extends Control
 ## GameState.refresh_scout_pool() (on first hire and on every month rollover)
 ## — this panel only reads GameState.player_club.scouted_players.
 
+## Scouted players are a steal compared to the open market — 75% off their
+## estimated transfer value — since the scout already did the work of
+## finding them before any other club noticed.
+const SCOUT_DISCOUNT := 0.25
+
 const COL_NAME    := 0
 const COL_ROLE    := 1
 const COL_AGE     := 2
@@ -63,6 +68,11 @@ func _populate_pool_tree() -> void:
 		item.set_metadata(0, p)
 
 
+## Discounted hiring price for a scouted player (see SCOUT_DISCOUNT).
+func _price_for(p: PlayerResource) -> int:
+	return maxi(0, roundi(PlayerValue.estimate(p) * SCOUT_DISCOUNT))
+
+
 func _on_pool_tree_item_selected() -> void:
 	var item := pool_tree.get_selected()
 	if item == null:
@@ -72,7 +82,7 @@ func _on_pool_tree_item_selected() -> void:
 	_selected_player = p
 	player_card.setup(p)
 
-	var price := PlayerValue.estimate(p)
+	var price := _price_for(p)
 	var can_hire := GameState.player_club.budget >= price
 	if can_hire:
 		action_button.text = tr("FICHAR — $%s") % MoneyFormat.format(price)
@@ -86,7 +96,7 @@ func _on_action_pressed() -> void:
 		return
 	var p := _selected_player
 	var club := GameState.player_club
-	var price := PlayerValue.estimate(p)
+	var price := _price_for(p)
 	if club.budget < price:
 		return
 

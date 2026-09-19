@@ -13,16 +13,16 @@ const UPGRADES := {
 		"label": "Venta de Comida",
 		"levels": [
 			{"cost":  10_000, "requires": {}},
-			{"cost": 100_000, "requires": {"building": 1}},
-			{"cost": 500_000, "requires": {"building": 1}},
+			{"cost": 40_000, "requires": {"building": 1}},
+			{"cost": 200_000, "requires": {"building": 1}},
 		],
 	},
 	"merchandise_sales": {
 		"label": "Venta de Merchandising",
 		"levels": [
-			{"cost":  10_000, "requires": {}},
+			{"cost":  30_000, "requires": {}},
 			{"cost": 100_000, "requires": {"building": 1}},
-			{"cost": 500_000, "requires": {"building": 1}},
+			{"cost": 550_000, "requires": {"building": 1}},
 		],
 	},
 	"tribune": {
@@ -43,7 +43,16 @@ const PIP_EMPTY := Color(0.10, 0.16, 0.21, 1.0)
 const CARD_BG     := Color(0.05, 0.13, 0.17, 1.0)
 const CARD_BORDER := Color(0.0, 0.0, 0.0, 0.45)
 
-@onready var upgrade_row : HBoxContainer = $VBox/ActionsPanel/ActionsLayout/UpgradeRow
+@onready var upgrade_row      : HBoxContainer  = $VBox/ActionsPanel/ActionsLayout/UpgradeRow
+@onready var _hover_timer     : Timer          = $HoverTimer
+@onready var _tooltip_panel   : PanelContainer = $UpgradeTooltip
+@onready var _tooltip_label   : Label          = $UpgradeTooltip/UpgradeTooltipLabel
+
+## Cards with a hover explanation (see _tooltip_text_for()) — just the two
+## passive-income upgrades, whose per-level rates aren't visible anywhere else.
+const TOOLTIP_KEYS := ["food_sales", "merchandise_sales"]
+
+var _hover_key : String = ""
 
 var _capacity_label : Label = null
 
@@ -70,6 +79,7 @@ func _ready() -> void:
 	_exp_right    = tribune_root.get_node("ExpansionRight")
 	_talent_scout = club_root.get_node("TalentScout")
 	_trainer      = tribune_root.get_node("Trainer")
+	_hover_timer.timeout.connect(_on_hover_timer_timeout)
 	_build_cards()
 	refresh()
 
@@ -93,6 +103,10 @@ func _build_cards() -> void:
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.add_theme_stylebox_override("panel", _card_style())
 		upgrade_row.add_child(panel)
+
+		if key in TOOLTIP_KEYS:
+			panel.mouse_entered.connect(_on_card_mouse_entered.bind(key))
+			panel.mouse_exited.connect(_on_card_mouse_exited)
 
 		var card := VBoxContainer.new()
 		card.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -225,3 +239,85 @@ func _on_buy_pressed(key: String) -> void:
 	GameState.budget_changed.emit()
 	GameState.save_upgrades()
 	refresh()
+
+
+# ── hover tooltip (food_sales / merchandise_sales cards) ────────────────────
+
+func _on_card_mouse_entered(key: String) -> void:
+	_hover_key = key
+	_hover_timer.start()
+
+
+func _on_card_mouse_exited() -> void:
+	_hide_tooltip()
+
+
+func _hide_tooltip() -> void:
+	_tooltip_panel.visible = false
+	_hover_timer.stop()
+	_hover_key = ""
+
+
+func _on_hover_timer_timeout() -> void:
+	if _hover_key.is_empty():
+		return
+	_tooltip_label.text = _tooltip_text_for(_hover_key)
+	_tooltip_panel.visible = true
+	_tooltip_panel.reset_size()
+	await get_tree().process_frame  # let PanelContainer measure itself
+	var tip_pos := get_local_mouse_position() + Vector2(16.0, 16.0)
+	var tip_size := _tooltip_panel.size
+	tip_pos.x = clampf(tip_pos.x, 0.0, size.x - tip_size.x)
+	tip_pos.y = clampf(tip_pos.y, 0.0, size.y - tip_size.y)
+	_tooltip_panel.position = tip_pos
+
+
+## Full breakdown of a passive-income upgrade: the daily buyer rate, what that
+## means in $ with the club's current fan count, and the price at every level
+## (see FanEconomy.roll_food_revenue()/roll_merchandise_revenue()).
+func _tooltip_text_for(key: String) -> String:
+	var club := GameState.player_club
+	var cur_lvl : int = club.upgrades.get(key, 0)
+
+	var title : String
+	var verb  : String
+	var rate_min : float
+	var rate_max : float
+	var price_by_level : Dictionary
+	match key:
+		"food_sales":
+			title = tr("VENTA DE COMIDA")
+			verb  = tr("compran comida o bebida")
+			rate_min = FanEconomy.FOOD_RATE_MIN
+			rate_max = FanEconomy.FOOD_RATE_MAX
+			price_by_level = FanEconomy.FOOD_PRICE_BY_LEVEL
+		"merchandise_sales":
+			title = tr("VENTA DE MERCHANDISING")
+			verb  = tr("compran un producto")
+			rate_min = FanEconomy.MERCH_RATE_MIN
+			rate_max = FanEconomy.MERCH_RATE_MAX
+			price_by_level = FanEconomy.MERCH_PRICE_BY_LEVEL
+		_:
+			return ""
+
+	var lines : Array[String] = [title]
+	lines.append(tr("Cada día que pasa, entre un %d%% y un %d%% de tus hinchas %s.") %
+		[roundi(rate_min * 100.0), roundi(rate_max * 100.0), verb])
+
+	if cur_lvl > 0:
+		var buyers_min := roundi(club.fans * rate_min)
+		var buyers_max := roundi(club.fans * rate_max)
+		var price : int = price_by_level.get(cur_lvl, price_by_level[1])
+		lines.append(tr("Con tus %s hinchas actuales, eso son %d-%d compradores por día: $%s-$%s por día.") %
+			[MoneyFormat.format(club.fans), buyers_min, buyers_max,
+			MoneyFormat.format(buyers_min * price), MoneyFormat.format(buyers_max * price)])
+	else:
+		lines.append(tr("Sin comprar el Nivel 1, esta mejora todavía no genera ingresos."))
+
+	lines.append("")
+	lines.append(tr("Precio por unidad según nivel:"))
+	for lvl in price_by_level:
+		var current_marker := tr("  ← nivel actual") if lvl == cur_lvl else ""
+		lines.append("  %s: $%s%s" % [tr("Nivel %d") % lvl, MoneyFormat.format(price_by_level[lvl]), current_marker])
+
+	return "\n".join(lines)

@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="3"]
 [ext_resource type="Texture2D" uid="uid://b2f8cuo5cvm3h" path="res://assets/art/football_club_logos/fc_portrait.png" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="6"]
 
 [node name="Hub" type="Control" unique_id=1848374641]
 layout_mode = 3
@@ -114,6 +115,10 @@ text = "$50,000"
 layout_mode = 2
 text = "500 hinchas"
 
+[node name="Capacity" type="Label" parent="Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision"]
+layout_mode = 2
+text = "Capacidad: 75"
+
 [node name="Division" type="Label" parent="Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision" unique_id=667291156]
 layout_mode = 2
 text = "División E"
@@ -161,4 +166,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="PauseMenu" parent="." instance=ExtResource("6")]
 

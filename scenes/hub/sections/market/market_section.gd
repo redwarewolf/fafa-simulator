@@ -192,6 +192,11 @@ func _buy_selected() -> void:
 		return
 
 	source.players.erase(p)
+	# AI clubs have no transfer market of their own to replace who they sell —
+	# backfill with a fresh same-role player so their squad never shrinks below
+	# what they need to field a team. Mirrors the retirement backfill in
+	# season_manager.gd's _age_and_retire_players().
+	source.players.append(PlayerFactory.generate_player(ClubFactory.ai_odds_for(source.division), p.role))
 	club.players.append(p)
 	club.budget -= price
 	GameState.budget_changed.emit()

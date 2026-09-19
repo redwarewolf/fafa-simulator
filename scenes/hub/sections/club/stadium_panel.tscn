@@ -159,3 +159,17 @@ text = "MEJORAS"
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 14
+
+[node name="HoverTimer" type="Timer" parent="."]
+wait_time = 1.0
+one_shot = true
+
+[node name="UpgradeTooltip" type="PanelContainer" parent="."]
+visible = false
+mouse_filter = 2
+z_index = 10
+
+[node name="UpgradeTooltipLabel" type="Label" parent="UpgradeTooltip"]
+custom_minimum_size = Vector2(360, 0)
+text = ""
+autowrap_mode = 3

@@ -29,9 +29,15 @@ const DEFAULT_LOCALE      := "es"
 ## "New Game"/"Load Game" the same way the OS remembers a display resolution.
 var locale : String = DEFAULT_LOCALE
 
+## Dev/debugging convenience — when true, every tutorial (Grandi Tapir's
+## debt speech and every Pepito Perinola tab/sub-tab walkthrough) is treated
+## as already seen instead of being replayed. Also app-wide, not per-save;
+## see settings_screen.gd's "Desactivar Tutorial" checkbox.
+var tutorials_disabled : bool = false
+
 func _ready() -> void:
 	TranslationServer.add_translation(LocaleENClass.build())
-	_load_locale()
+	_load_settings()
 	TranslationServer.set_locale(locale)
 
 ## Switches the UI language and persists the choice. Callers should reload
@@ -43,9 +49,15 @@ func set_locale(new_locale: String) -> void:
 		return
 	locale = new_locale
 	TranslationServer.set_locale(locale)
-	_save_locale()
+	_save_settings()
 
-func _load_locale() -> void:
+func set_tutorials_disabled(disabled: bool) -> void:
+	if disabled == tutorials_disabled:
+		return
+	tutorials_disabled = disabled
+	_save_settings()
+
+func _load_settings() -> void:
 	if not FileAccess.file_exists(SETTINGS_SAVE_PATH):
 		return
 	var file := FileAccess.open(SETTINGS_SAVE_PATH, FileAccess.READ)
@@ -58,13 +70,14 @@ func _load_locale() -> void:
 	file.close()
 	var data : Dictionary = json.data
 	locale = data.get("locale", DEFAULT_LOCALE)
+	tutorials_disabled = data.get("tutorials_disabled", false)
 
-func _save_locale() -> void:
+func _save_settings() -> void:
 	var file := FileAccess.open(SETTINGS_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		printerr("GameState: could not open %s for writing" % SETTINGS_SAVE_PATH)
 		return
-	file.store_string(JSON.stringify({"locale": locale}, "\t"))
+	file.store_string(JSON.stringify({"locale": locale, "tutorials_disabled": tutorials_disabled}, "\t"))
 	file.close()
 
 # Club
@@ -97,6 +110,8 @@ var active_tactic_index : int = 0
 var tutorials_seen : Dictionary = {}
 
 func has_seen_tutorial(key: String) -> bool:
+	if tutorials_disabled:
+		return true
 	return tutorials_seen.get(key, false)
 
 func mark_tutorial_seen(key: String) -> void:
