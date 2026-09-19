@@ -99,12 +99,41 @@ Each phase is independently shippable and playtestable before starting the next.
 - `SeasonManager._recover_stamina()` (called from `resolve_day()`, i.e. any day that isn't itself a pending player-match day) fully recovers every club's roster — deliberately simple (full recovery on a rest day) rather than a partial-recovery curve, to avoid unpredictable fatigue compounding across a season; flagged as a tuning candidate if a slower curve feels better once there's more season-level playtesting.
 - **Verified** (2026-09-18): live-logged one player's stamina every 5s during a test match — declined smoothly and monotonically (~99.5 → ~91 over 45s for an active outfield player, keeper decaying slower as expected from lower activity). Field names for the write-back/recovery paths (`ClubResource.players`, `PlayerResource.stamina`) confirmed correct by source inspection; the full end-of-match write-back and rest-day recovery paths compiled clean (rescan) but weren't observed end-to-end in a full 6-minute match this session — worth a glance next time a full match is played out.
 
-### Phase 6 — Tuning & final polish 🔄 IN PROGRESS
+### Phase 6 — Tuning & final polish ✅ DONE (2026-09-18)
 Detailed write-ups for everything below live in the Findings & known issues log above (numbered) — this section is just the phase-status index.
 - ✅ `GoalieAI.DEBUG_LOG_DISTRIBUTION` flipped back to `false` (was hardcoded `true` since before this overhaul).
 - ✅ Findings #3 (defensive-transition gap), #6 (test-match team resolution), #7 (loose-ball clumping, two passes), #8 (wing-backs pinned wide), #9 (pause key), #10 (sprint boost, then widened to all non-carriers), #11 (role-behavior audit: CDM run-support + DEFENSE-group traits), #12 (A/B-verified modeling fix for passing) — all investigated/fixed this phase, see above for each.
 - Findings #4 (straight-line dribble when uncontested) and #5 (cover-presser midpoint interpose) remain open, unscheduled polish candidates.
-- New open question from #8's investigation: a ~10-player scrum observed in the box during ordinary open play (not a restart) — not yet investigated, may be a separate clustering mechanism from the loose-ball one already fixed.
+- The ~10-player scrum observed in the box during open play (noted under #8) turned out to be Round 2 Phase 7's territory — see there.
+
+## Round 2 — Team Coordination Deep Dive
+
+Despite Round 1 fixing 12+ verified issues, the user's playtesting verdict was still "doesn't feel like it's working well, needs a real overhaul" — a signal that the gap wasn't another loose constant but something structural: every Round 1 fix improved a *single player's* decision quality, none addressed how 11 players organize as a *unit*. Round 2 researched team coordination specifically:
+
+- **Positional play (`juego de posición`)** — the real coaching methodology behind Guardiola/Cruyff teams: a **hard zonal-occupancy constraint** (cap players per vertical lane AND per horizontal/depth line) exists specifically to prevent the individualistic, clumped look the user described. A rule-based team constraint, not a tuning knob.
+- **Multi-agent RL research on Google Research Football**: *"it has proven difficult to create human-like, emergent, representative team-based behavior via hand-crafted and scripted methods"* even with RL — validates that no amount of tuning a purely-local, per-player utility score produces team coordination, because nothing in that model represents "the team." A team-level constraint layer is required, not optional polish.
+- **Football Manager's mentality system**: one mentality axis drives press/line-height/tempo *together* and **changes during the match** based on scoreline/time (Match Plans). Our `TacticPreset` (Round 1) is computed once from roster composition and never updates.
+- **EA FC's Build-Up/Chance-Creation/Width instructions**: confirms team-level *style* is a distinct layer above individual roles in another game's design.
+- **Scope discovery**: grepped for corner/throw-in/set-piece handling — none exists (no `CORNER`/`THROW_IN` state anywhere, ball just bounces off boundary walls). The "10-player scrum" from Round 1 wasn't a missing set-piece routine, it was open-play congestion — pointing straight at the zonal-occupancy gap above. Confirmed out of scope for Round 2 (a match-flow feature, not an AI one — same category as offside in Round 1).
+
+### Phase 7 — Zonal occupancy constraint ✅ DONE (2026-09-18)
+- `CandidatePointScorer._zonal_occupancy_penalty()`: counts how many teammates share a candidate's vertical lane (5 coarse Y-axis bands) and how many share its depth band (5 coarse X-axis bands), penalizing beyond a cap of 2 per axis (5 lanes × cap 2 = 10 outfield players — the equilibrium is literally "use the whole width"). Deliberately coarse inline bucketing, not new `FieldZones` scene geometry.
+- First landed lane-only (width axis). A live screenshot immediately showed the *other* half of the real positional-play rule was still missing: players correctly spread across lanes but all still collapsed into the same deep band simultaneously. Added the depth-band axis alongside it in the same pass, before ever committing lane-only.
+- This is additive to every Round 1 fix, not a replacement — same `count_teammates_near`/`CROWD_PENALTY_PER_TEAMMATE` local check still runs too; this catches the crowding that local 50px checks structurally can't (two players 200px apart, both still in the same lane as everyone else).
+- **Verified live**: two before/after screenshots during normal play. Before the depth-band axis: ten players correctly spread across lanes but visibly collapsed into one deep band near their own goal. After: a full match screenshot showed a genuinely staggered, coherent shape on both teams simultaneously — defenders back, midfield staggered, attackers advanced, no clumping — the clearest visual improvement of the whole overhaul so far. No script errors.
+
+### Phase 8 — Dynamic, game-state-aware team mentality
+Status: not started.
+- Extend `TacticPreset`/`TeamTacticalState` so mentality reacts to scoreline and match-time-remaining (`MatchWorld.match_time`/`MATCH_DURATION`) instead of being computed once from roster composition and frozen — losing late pushes mentality/press-intensity up, protecting a lead late pulls them down and leans on the existing retention bonus (Round 1 Phase 3) instead of risk.
+- Reuses existing hooks end-to-end (`team_line_bias` already reads `preset.mentality`, press takeover margin already reads `preset.press_intensity`) — this is about making the inputs reactive, not new machinery.
+- Validate: use the pause key (`0`) to freeze near full-time with a manufactured scoreline and compare shape/press against an early 0-0 freeze.
+
+### Phase 9 — Give-and-go / wall-pass trigger
+Status: not started.
+- After a player passes, if they're in space, bias their next off-ball target toward running forward past where they just were to offer a return ball — the classic 1-2. Same shape as `run_support_weight()` but triggered by "I just passed" rather than "a teammate is carrying with pace." Lower priority than Phase 8 — only after that's shipped and playtested.
+
+### Out of scope this round — corner/throw-in restarts
+User confirmed: leave out. Genuinely absent from the game today (see scope discovery above), meaningfully bigger than Phases 7-9 combined. Revisit as its own separate task later.
 
 ## Verification approach (applies to every phase)
 

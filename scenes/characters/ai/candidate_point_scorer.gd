@@ -64,6 +64,59 @@ static func count_teammates_near(point: Vector2, teammates: Array[Player], radiu
 			count += 1
 	return count
 
+## Positional-play-inspired zonal occupancy — real teams built around
+## juego de posición cap how many players share the same vertical LANE
+## (width, e.g. "no more than ~2 in the left half-space") AND the same
+## HORIZONTAL LINE (depth band, e.g. "don't stack the whole midfield at
+## the same height") specifically to keep passing lanes open on both axes.
+## The existing count_teammates_near() crowd penalty is LOCAL (50px) — two
+## players can be 200px apart and still both be sitting in the same
+## crowded lane or depth band as everyone else, which the local check
+## never catches. First landed lane-only; a live screenshot immediately
+## showed the OTHER half of the same rule was still missing — ten players
+## correctly spread across lanes but all still collapsed into the same
+## deep band at once — so both axes are checked together. Deliberately
+## coarse inline bucketing, not new FieldZones scene geometry (hand-
+## editing Area2D nodes for this would be real risk for no behavioral
+## gain over a simple band split). See docs/ai-overhaul.md Phase 7.
+const LANE_COUNT := 5
+const DEPTH_BAND_COUNT := 5
+const ZONAL_OCCUPANCY_CAP := 2
+const ZONAL_OCCUPANCY_PENALTY_PER_EXTRA := 40.0
+
+static func _lane_index(y: float) -> int:
+	var t := clampf((y - ActorsContainer.FIELD_TOP) / (ActorsContainer.FIELD_BOTTOM - ActorsContainer.FIELD_TOP), 0.0, 0.999)
+	return int(t * LANE_COUNT)
+
+## Absolute world-X bucketing — doesn't need attacking direction, since this
+## only ever compares a candidate against this player's OWN teammates, who
+## all share the same attacking direction anyway.
+static func _depth_band_index(x: float) -> int:
+	var t := clampf((x - ActorsContainer.FIELD_LEFT) / (ActorsContainer.FIELD_RIGHT - ActorsContainer.FIELD_LEFT), 0.0, 0.999)
+	return int(t * DEPTH_BAND_COUNT)
+
+## How far over ZONAL_OCCUPANCY_CAP the candidate's lane and depth band
+## already are, counting every OTHER teammate currently standing in each
+## (not [param player] themselves, so scoring your own current zone isn't
+## penalized for your own presence in it). Lane and depth overflow are
+## independent and additive — a candidate can be over-crowded on one axis,
+## the other, or both.
+static func _zonal_occupancy_penalty(point: Vector2, player: Player, teammates: Array[Player]) -> float:
+	var lane := _lane_index(point.y)
+	var depth_band := _depth_band_index(point.x)
+	var lane_count := 0
+	var depth_count := 0
+	for t in teammates:
+		if t == player:
+			continue
+		if _lane_index(t.position.y) == lane:
+			lane_count += 1
+		if _depth_band_index(t.position.x) == depth_band:
+			depth_count += 1
+	var lane_over := maxf(0.0, lane_count - ZONAL_OCCUPANCY_CAP)
+	var depth_over := maxf(0.0, depth_count - ZONAL_OCCUPANCY_CAP)
+	return (lane_over + depth_over) * ZONAL_OCCUPANCY_PENALTY_PER_EXTRA
+
 ## 0..100 — how wide a slice of the goal mouth is visible from [param point],
 ## regardless of distance. A spot square behind the keeper on the byline can
 ## be wide open and still be a useless place to receive the ball; this is
@@ -121,10 +174,11 @@ static func score_off_ball_candidate(
 ) -> float:
 	var crowd := count_teammates_near(point, teammates, CROWD_RADIUS) * CROWD_PENALTY_PER_TEAMMATE
 	var sticky := STICKY_BONUS if point.distance_to(last_target) < STICKY_RADIUS else 0.0
+	var lane_occupancy := _zonal_occupancy_penalty(point, player, teammates)
 
 	if is_defending:
 		var pressure := SPACE_SATURATION_RADIUS - opponent_reach_space(point, opponents)
-		return W_PRESSURE * pressure - crowd + sticky
+		return W_PRESSURE * pressure - crowd + sticky - lane_occupancy
 
 	var space := opponent_reach_space(point, opponents)
 	var goal_pos := target_goal.get_center_target_position()
@@ -138,4 +192,4 @@ static func score_off_ball_candidate(
 	var goal_lane := _goal_lane_penalty(point, opponents, target_goal)
 
 	return W_SPACE * space + W_PROGRESSION * progression + W_LOSE_MARK * lose_mark_gain \
-		+ W_GOAL_ANGLE * goal_angle - goal_lane - crowd + sticky
+		+ W_GOAL_ANGLE * goal_angle - goal_lane - crowd + sticky - lane_occupancy
