@@ -136,6 +136,12 @@ func _decide_on_ball() -> void:
 			player.switch_state(Player.State.SHOOTING, data)
 		OnBallUtility.ActionKind.PASS:
 			player.switch_state(Player.State.PASSING)
+			# Give-and-go trigger — see _give_and_go_target(). The ball is
+			# loose (in flight) for the next moment, not "carried by a
+			# teammate", so this can't reuse _apply_run_support's own
+			# is_ball_carried_by_teammate() gate — it needs its own
+			# independent timestamp window. See docs/ai-overhaul.md Phase 9.
+			player.give_and_go_until_ms = Time.get_ticks_msec() + GIVE_AND_GO_WINDOW_MS
 		_:
 			pass  # DRIBBLE/HOLD — keep moving toward the carrier target, no state change
 
@@ -239,6 +245,8 @@ func _off_ball_base_position() -> Vector2:
 		var shape_offset := ball.carrier.anchor_position - player.anchor_position
 		var mirrored := ball.carrier.position - shape_offset * support_shape_factor()
 		return _apply_run_support(mirrored)
+	if Time.get_ticks_msec() < player.give_and_go_until_ms:
+		return _give_and_go_target()
 	return _ball_depth_base_position()
 
 ## Generalizes what used to be ForwardAI's own run-ahead-of-the-shape
@@ -264,6 +272,30 @@ func _apply_run_support(mirrored: Vector2) -> Vector2:
 	if _holds_flank:
 		run_point.y = lerpf(run_point.y, _anchor_y, 0.5)
 	return mirrored.lerp(run_point, weight)
+
+## Give-and-go / wall-pass: the classic "pass then sprint past your marker
+## into the space you just vacated" combination — the instant a player
+## passes (see the PASS branch of _decide_on_ball()), they get a brief
+## window where their off-ball target is biased forward from wherever they
+## currently are, same shape as _apply_run_support's run point (and gated
+## by the same role/trait eagerness — a centre-back playing a safety-first
+## pass out of the back has no business also bombing forward for the
+## return ball). The return pass itself needs no new code: if the run is
+## genuinely good, OnBallUtility's existing advancement/openness scoring
+## already favors passing back to them on its own. See
+## docs/ai-overhaul.md Phase 9.
+const GIVE_AND_GO_WINDOW_MS := 1500
+const GIVE_AND_GO_RUN_DISTANCE := 180.0
+
+func _give_and_go_target() -> Vector2:
+	var weight := clampf(run_support_weight() + PlayerTraits.run_support_delta(_trait), 0.0, 1.0)
+	var base := _ball_depth_base_position()
+	if weight <= 0.0:
+		return base
+	var run_point := player.position + player.position.direction_to(target_goal.get_center_target_position()) * GIVE_AND_GO_RUN_DISTANCE
+	if _holds_flank:
+		run_point.y = lerpf(run_point.y, _anchor_y, 0.5)
+	return base.lerp(run_point, weight)
 
 ## Leads the marked opponent by their current velocity, same as
 ## AIBehavior._press_target does for the ball carrier — a shadow point pinned

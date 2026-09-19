@@ -134,6 +134,13 @@ var cover_shadow_point: Vector2 = Vector2.ZERO
 ## role players independently computing the same depth formula off the same
 ## ball position. Written once per team tick by TeamTacticalState.
 var team_line_bias: float = 0.0
+## Time.get_ticks_msec() this player's give-and-go run window expires — set
+## by RoleAI._decide_on_ball() the instant they pass, read by
+## RoleAI._off_ball_base_position() to bias their off-ball target forward
+## for a brief window afterward (the classic 1-2). 0 (the default) is
+## always in the past, so a player who's never passed simply never
+## triggers it. See docs/ai-overhaul.md Phase 9.
+var give_and_go_until_ms: int = 0
 ## True only for the single player MatchWorld leaves unfrozen during a FOUL
 ## or KICKOFF restart (see MatchWorld._free_kick_taker/_kickoff_taker). Makes
 ## AIBehavior steer straight at the ball regardless of pressing_rank/marking,
