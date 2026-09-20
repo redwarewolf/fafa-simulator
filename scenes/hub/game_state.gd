@@ -166,26 +166,6 @@ func remove_tactic(index: int) -> void:
 	active_tactic_index = clampi(active_tactic_index, 0, tactics.size() - 1)
 	save_tactics()
 
-const MONTH_NAMES := [
-	"", "enero", "febrero", "marzo", "abril", "mayo", "junio",
-	"julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-]
-
-func get_date_string() -> String:
-	return format_date(day, month, year)
-
-## Locale-aware date formatting — Spanish and English don't just use different
-## month names, they order day/month/year differently ("1 de marzo de 2026"
-## vs "March 1, 2026"), so this branches on locale directly rather than
-## routing through a %-template tr() key, whose positional args can't be
-## reordered by a translation alone. Shared by every screen that prints a
-## fixture/calendar date (see calendar_section.gd) so the two never drift.
-func format_date(p_day: int, p_month: int, p_year: int, include_year: bool = true) -> String:
-	var month_name := tr(MONTH_NAMES[p_month])
-	if locale == "en":
-		return ("%s %d, %d" % [month_name, p_day, p_year]) if include_year else ("%s %d" % [month_name, p_day])
-	return ("%d de %s de %d" % [p_day, month_name, p_year]) if include_year else ("%d de %s" % [p_day, month_name])
-
 func advance_day() -> void:
 	day += 1
 	var days_in_month := _days_in_month(month, year)
@@ -285,7 +265,22 @@ func load_career() -> bool:
 	year = int(cal.get("year", 2026))
 
 	SeasonManager.phase = SeasonManager.phase_from_name(data.get("phase", ""))
-	SeasonManager.phase_dates_remaining = int(data.get("phase_dates_remaining", 0))
+	if data.has("phase_day"):
+		SeasonManager.phase_day = int(data.get("phase_day", 1))
+		SeasonManager.phase_length = int(data.get("phase_length", SeasonManager.PRE_SEASON_LENGTH + 1))
+	elif data.has("phase_dates_remaining"):
+		# Migrates a save from before the phase_day/phase_length counter existed.
+		# FIRST_HALF/SECOND_HALF just keep the phase-start defaults set by
+		# _start_first_half()/_start_second_half() — phase_dates_remaining was
+		# already meaningless there.
+		var legacy_remaining : int = int(data["phase_dates_remaining"])
+		match SeasonManager.phase:
+			SeasonManager.Phase.PRE_SEASON:
+				SeasonManager.phase_length = SeasonManager.PRE_SEASON_LENGTH + 1
+				SeasonManager.phase_day = SeasonManager.PRE_SEASON_LENGTH - legacy_remaining + 1
+			SeasonManager.Phase.MID_SEASON_BREAK:
+				SeasonManager.phase_length = SeasonManager.MID_SEASON_BREAK_LENGTH + 1
+				SeasonManager.phase_day = SeasonManager.MID_SEASON_BREAK_LENGTH - legacy_remaining + 1
 
 	tutorials_seen = data.get("tutorials_seen", {})
 
@@ -321,7 +316,8 @@ func save_career() -> void:
 		"division_e_clubs": division_e_data,
 		"fixtures": SeasonManager.fixtures,
 		"phase": SeasonManager.phase_name(SeasonManager.phase),
-		"phase_dates_remaining": SeasonManager.phase_dates_remaining,
+		"phase_day": SeasonManager.phase_day,
+		"phase_length": SeasonManager.phase_length,
 		"tutorials_seen": tutorials_seen,
 	}
 	var file := FileAccess.open(CAREER_SAVE_PATH, FileAccess.WRITE)
@@ -527,6 +523,13 @@ func _on_month_start() -> void:
 	refresh_scout_pool()
 	save_staff()
 
+## Chance any single scouted slot turns up a youth-academy-age kid (see
+## YouthAcademy) instead of an ordinary adult find — the scout finds both,
+## mixed into the one pool (see hiring_panel.gd, which routes a purchased
+## kid to the academy instead of the senior roster via
+## PlayerResource.is_youth_prospect).
+const SCOUT_KID_FIND_CHANCE := 0.2
+
 func refresh_scout_pool() -> void:
 	var scout_lvl : int = player_club.upgrades.get("scout", 0)
 	if scout_lvl <= 0:
@@ -535,29 +538,24 @@ func refresh_scout_pool() -> void:
 	player_club.scouted_players.clear()
 	var odds : Array = PlayerFactory.QUALITY_ODDS[clampi(scout_lvl - 1, 0, PlayerFactory.QUALITY_ODDS.size() - 1)]
 	for i in pool_size:
-		player_club.scouted_players.append(PlayerFactory.generate_player(odds))
+		if randf() < SCOUT_KID_FIND_CHANCE:
+			player_club.scouted_players.append(YouthAcademy.generate_youth_player(odds))
+		else:
+			player_club.scouted_players.append(PlayerFactory.generate_player(odds, -1, true))
 	player_club.scouted_pool_month = month
 	player_club.scouted_pool_year = year
 	player_club.scout_unseen = pool_size
 	pool_badges_changed.emit()
 
-## Tops up the youth academy pool to its current level's capacity — unlike
-## refresh_scout_pool(), existing prospects are kept (they persist across
-## years until they graduate or are released), only empty slots are filled.
-## Called once on first hire and once per year from SeasonManager.start_pre_season().
-func refresh_youth_pool() -> void:
+## Current youth-academy capacity from StaffData, 0 if not hired. Prospects
+## no longer auto-fill to this — they only arrive one at a time through
+## narrated sign-up events (see YouthEvents/YouthSignupFlow), which use this
+## as the "are we full" gate.
+func get_youth_academy_cap() -> int:
 	var academy_lvl : int = player_club.upgrades.get("academy", 0)
 	if academy_lvl <= 0:
-		return
-	var pool_size : int = StaffData.STAFF["academy"]["levels"][academy_lvl - 1]["pool_size"]
-	var before : int = player_club.youth_players.size()
-	while player_club.youth_players.size() < pool_size:
-		player_club.youth_players.append(YouthAcademy.generate_youth_player())
-	var added : int = player_club.youth_players.size() - before
-	if added > 0:
-		player_club.youth_unseen += added
-		pool_badges_changed.emit()
-	save_staff()
+		return 0
+	return StaffData.STAFF["academy"]["levels"][academy_lvl - 1]["pool_size"]
 
 ## Clears the scout-pool badge — called when the player opens the Hiring panel.
 func mark_scout_seen() -> void:
@@ -586,12 +584,27 @@ func clear_player_from_tactics(p: PlayerResource) -> void:
 				slot.clear()
 	save_tactics()
 
+## This date's cost/income breakdown, refreshed by every advance_day() call
+## (_tick_costs()/_tick_passive_income() below) — read by the match preview/
+## summary popups (hub.gd, world.gd) to show wages/staff/merch/food alongside
+## that day's match revenue, since all of it already landed on the budget
+## before a match-day popup ever shows (advance_day() runs before
+## SeasonManager.resolve_day() sets pending_player_fixture — see hub.gd).
+## Keys: wage_cost, staff_upkeep_cost, merchandise_revenue, food_revenue.
+var last_day_ledger : Dictionary = {
+	"wage_cost": 0, "staff_upkeep_cost": 0, "merchandise_revenue": 0, "food_revenue": 0,
+}
+
 ## Wages + hired-staff upkeep, deducted on every calendar day-advance ("Next
 ## Date" press) — see ClubResource.get_wage_cost()/get_staff_upkeep_cost().
 func _tick_costs() -> void:
 	if player_club == null:
 		return
-	var cost := player_club.get_staff_upkeep_cost() + player_club.get_wage_cost()
+	var wage_cost := player_club.get_wage_cost()
+	var staff_cost := player_club.get_staff_upkeep_cost()
+	last_day_ledger["wage_cost"] = wage_cost
+	last_day_ledger["staff_upkeep_cost"] = staff_cost
+	var cost := wage_cost + staff_cost
 	if cost > 0:
 		player_club.budget -= cost
 		budget_changed.emit()
@@ -602,7 +615,11 @@ func _tick_costs() -> void:
 func _tick_passive_income() -> void:
 	if player_club == null:
 		return
-	var income := FanEconomy.roll_merchandise_revenue(player_club) + FanEconomy.roll_food_revenue(player_club)
+	var merch_revenue := FanEconomy.roll_merchandise_revenue(player_club)
+	var food_revenue := FanEconomy.roll_food_revenue(player_club)
+	last_day_ledger["merchandise_revenue"] = merch_revenue
+	last_day_ledger["food_revenue"] = food_revenue
+	var income := merch_revenue + food_revenue
 	if income > 0:
 		player_club.budget += income
 		budget_changed.emit()
@@ -623,6 +640,7 @@ func save_staff() -> void:
 		"youth_players": youth,
 		"scout_unseen": player_club.scout_unseen,
 		"youth_unseen": player_club.youth_unseen,
+		"organs": player_club.organs,
 	}
 	var file := FileAccess.open(STAFF_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -656,3 +674,14 @@ func _load_staff() -> void:
 		player_club.youth_players.append(PlayerResource.from_dict(pd))
 	player_club.scout_unseen = int(data.get("scout_unseen", 0))
 	player_club.youth_unseen = int(data.get("youth_unseen", 0))
+
+	player_club.organs.clear()
+	for od : Dictionary in data.get("organs", []):
+		player_club.organs.append({
+			"id": int(od["id"]),
+			"stat": String(od["stat"]),
+			"value": int(od["value"]),
+			"donor_name": String(od["donor_name"]),
+			"donor_quality": int(od["donor_quality"]),
+			"donor_age": int(od["donor_age"]),
+		})

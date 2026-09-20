@@ -33,10 +33,18 @@ signal season_ended(promoted: bool, new_division: String, position: int)
 
 var phase : int = Phase.PRE_SEASON
 
-## Counts down "Next Date" presses during PRE_SEASON / MID_SEASON_BREAK.
-## Unused (and meaningless) during FIRST_HALF / SECOND_HALF, which instead
-## end when their fixtures are all played — see _leg_fully_played().
-var phase_dates_remaining : int = 0
+## 1-indexed day counter within the active phase — what the player sees
+## instead of a real date. See phase_length below; the real day/month/year
+## calendar (GameState) still exists internally for fixture scheduling.
+var phase_day : int = 1
+
+## Total days in the active phase (the "N" in "Día X de N") — display only,
+## the transition checks below compare phase_day against the *_LENGTH
+## constants directly instead. It's one more than *_LENGTH because the
+## transition-triggering day itself (phase_day > *_LENGTH) still resolves
+## that day's fixtures before flipping phase, so a fixture landing exactly
+## on the last day needs phase_day == phase_length, not phase_length + 1.
+var phase_length : int = PRE_SEASON_LENGTH + 1
 
 ## Flat list of fixture dictionaries:
 ## {type, division, matchday, home_id, away_id, day, month, year, played, home_score, away_score}
@@ -56,12 +64,11 @@ var pending_player_fixture : Dictionary = {}
 ## again every time a season ends (see _end_season()).
 func start_pre_season() -> void:
 	phase = Phase.PRE_SEASON
-	phase_dates_remaining = PRE_SEASON_LENGTH
+	phase_day = 1
+	phase_length = PRE_SEASON_LENGTH + 1
 	fixtures.clear()
 	pending_player_fixture = {}
 	_generate_pre_season_friendlies()
-	if GameState.player_club != null:
-		GameState.refresh_youth_pool()
 
 
 ## Restores a previously-generated schedule from a save file, instead of
@@ -92,6 +99,44 @@ static func phase_from_name(s: String) -> int:
 	return Phase.FIRST_HALF
 
 
+## Untranslated (Spanish) player-facing label per phase — tr() at the call
+## site. Single source of truth shared by the Hub header and the Calendar.
+static func phase_label_key(p: int) -> String:
+	match p:
+		Phase.PRE_SEASON: return "Pretemporada"
+		Phase.FIRST_HALF: return "1ª Mitad"
+		Phase.MID_SEASON_BREAK: return "Receso de Temporada"
+		Phase.SECOND_HALF: return "2ª Mitad"
+	return "1ª Mitad"
+
+
+## Which phase a given fixture (in `fixtures`) was scheduled during —
+## friendlies only ever happen in pre-season; league fixtures carry a leg.
+func phase_for_fixture(f: Dictionary) -> int:
+	if f["type"] == "friendly":
+		return Phase.PRE_SEASON
+	return Phase.FIRST_HALF if f.get("leg", 1) == 1 else Phase.SECOND_HALF
+
+
+## Builds the "Día X de N  ·  Fase" counter string shown in place of a real
+## calendar date everywhere in the UI.
+func phase_date_string(p_phase_day: int, p_phase_length: int, p_phase: int) -> String:
+	return "%s  ·  %s" % [tr("Día %d de %d") % [p_phase_day, p_phase_length], tr(phase_label_key(p_phase))]
+
+
+## The live counter for whatever phase is currently active — used by the Hub header.
+func current_phase_date_string() -> String:
+	return phase_date_string(phase_day, phase_length, phase)
+
+
+## A specific fixture's own phase-day counter — used by the Calendar screen,
+## which lists fixtures from phases that may no longer be active. Falls back
+## gracefully (Día 1 de 1) for fixtures saved before phase_day/phase_length
+## existed on the fixture dict.
+func fixture_date_string(f: Dictionary) -> String:
+	return phase_date_string(f.get("phase_day", 1), f.get("phase_length", 1), phase_for_fixture(f))
+
+
 func _generate_pre_season_friendlies() -> void:
 	var player_club := GameState.player_club
 	if player_club == null:
@@ -116,6 +161,8 @@ func _generate_pre_season_friendlies() -> void:
 			"day": date[0],
 			"month": date[1],
 			"year": date[2],
+			"phase_day": FRIENDLY_DAYS_BETWEEN * (i + 1) + 1,
+			"phase_length": PRE_SEASON_LENGTH + 1,
 			"played": false,
 			"home_score": 0,
 			"away_score": 0,
@@ -136,15 +183,22 @@ func _current_division_rounds() -> Array:
 	return _round_robin_rounds(clubs)
 
 
-func _generate_first_half_fixtures() -> void:
-	var rounds := _current_division_rounds()
+## Total days a round-robin leg spans, from its first matchday (tomorrow) to
+## its last — see _append_leg_fixtures()'s day-offset math. Also used as the
+## "N" in phase_day's display counter for FIRST_HALF/SECOND_HALF.
+func _leg_length_days(rounds: Array) -> int:
+	if rounds.is_empty():
+		return 1
+	return 1 + (rounds.size() - 1) * DAYS_BETWEEN_MATCHDAYS
+
+
+func _generate_first_half_fixtures(rounds: Array) -> void:
 	if rounds.is_empty():
 		return
 	_append_leg_fixtures(GameState.player_club.division, rounds, 1, 0)
 
 
-func _generate_second_half_fixtures() -> void:
-	var rounds := _current_division_rounds()
+func _generate_second_half_fixtures(rounds: Array) -> void:
 	if rounds.is_empty():
 		return
 	_append_leg_fixtures(GameState.player_club.division, rounds, 2, rounds.size())
@@ -154,13 +208,14 @@ func _generate_second_half_fixtures() -> void:
 ## dated starting tomorrow, DAYS_BETWEEN_MATCHDAYS apart. leg 2 reverses
 ## home/away from the pairing leg 1 would produce from the same rounds.
 func _append_leg_fixtures(division: String, rounds: Array, leg: int, matchday_offset: int) -> void:
+	var leg_length := _leg_length_days(rounds)
 	var matchday := matchday_offset
 	for round_pairs in rounds:
 		# Start tomorrow: resolve_day() only ever checks dates *after*
 		# GameState.advance_day() has moved forward, so a fixture dated
 		# "today" would be permanently skipped.
-		var date := GameState.advance_date(GameState.day, GameState.month, GameState.year,
-			1 + (matchday - matchday_offset) * DAYS_BETWEEN_MATCHDAYS)
+		var day_offset := 1 + (matchday - matchday_offset) * DAYS_BETWEEN_MATCHDAYS
+		var date := GameState.advance_date(GameState.day, GameState.month, GameState.year, day_offset)
 		for pair in round_pairs:
 			var home : ClubResource = pair[0] if leg == 1 else pair[1]
 			var away : ClubResource = pair[1] if leg == 1 else pair[0]
@@ -174,6 +229,8 @@ func _append_leg_fixtures(division: String, rounds: Array, leg: int, matchday_of
 				"day": date[0],
 				"month": date[1],
 				"year": date[2],
+				"phase_day": day_offset + 1,
+				"phase_length": leg_length + 1,
 				"played": false,
 				"home_score": 0,
 				"away_score": 0,
@@ -210,8 +267,7 @@ func resolve_day() -> void:
 
 	_recover_stamina()
 
-	if phase == Phase.PRE_SEASON or phase == Phase.MID_SEASON_BREAK:
-		phase_dates_remaining -= 1
+	phase_day += 1
 
 	var player_id := GameState.player_club.id if GameState.player_club != null else ""
 	for f in fixtures:
@@ -256,10 +312,12 @@ func _leg_fully_played(leg: int) -> bool:
 func _check_phase_transition() -> void:
 	match phase:
 		Phase.PRE_SEASON:
-			if phase_dates_remaining <= 0:
+			# Compares against PRE_SEASON_LENGTH directly, not phase_length
+			# (which is PRE_SEASON_LENGTH + 1 for display — see its doc comment).
+			if phase_day > PRE_SEASON_LENGTH:
 				_start_first_half()
 		Phase.MID_SEASON_BREAK:
-			if phase_dates_remaining <= 0:
+			if phase_day > MID_SEASON_BREAK_LENGTH:
 				_start_second_half()
 		Phase.FIRST_HALF:
 			if _leg_fully_played(1):
@@ -271,17 +329,24 @@ func _check_phase_transition() -> void:
 
 func _start_first_half() -> void:
 	phase = Phase.FIRST_HALF
-	_generate_first_half_fixtures()
+	phase_day = 1
+	var rounds := _current_division_rounds()
+	phase_length = _leg_length_days(rounds) + 1
+	_generate_first_half_fixtures(rounds)
 
 
 func _start_mid_season_break() -> void:
 	phase = Phase.MID_SEASON_BREAK
-	phase_dates_remaining = MID_SEASON_BREAK_LENGTH
+	phase_day = 1
+	phase_length = MID_SEASON_BREAK_LENGTH + 1
 
 
 func _start_second_half() -> void:
 	phase = Phase.SECOND_HALF
-	_generate_second_half_fixtures()
+	phase_day = 1
+	var rounds := _current_division_rounds()
+	phase_length = _leg_length_days(rounds) + 1
+	_generate_second_half_fixtures(rounds)
 
 
 ## Checks the player's final standing, promotes their club a division if they
@@ -381,23 +446,10 @@ func _simulate_fixture(f: Dictionary) -> void:
 
 ## Expected goals driven by squad-quality difference, with a small home
 ## advantage, sampled from a Poisson distribution for a natural score spread.
+## See MatchOdds — same model the player's own match preview/simulate flow uses.
 func _simulate_goals(club: ClubResource, opponent: ClubResource, is_home: bool) -> int:
 	var diff := club.get_squad_overall() - opponent.get_squad_overall()
-	var expected := 1.3 + diff / 25.0 + (0.2 if is_home else 0.0)
-	expected = clampf(expected, 0.2, 4.0)
-	return _poisson_sample(expected)
-
-
-func _poisson_sample(lambda: float) -> int:
-	var l := exp(-lambda)
-	var k := 0
-	var p := 1.0
-	while true:
-		k += 1
-		p *= randf()
-		if p <= l:
-			break
-	return k - 1
+	return MatchOdds.poisson_sample(MatchOdds.expected_goals(diff, is_home))
 
 
 func _apply_result(home: ClubResource, away: ClubResource, home_score: int, away_score: int) -> void:
@@ -482,6 +534,133 @@ func report_player_match_result(home_score: int, away_score: int) -> Dictionary:
 	pending_player_fixture = {}
 	_check_phase_transition()
 	return result
+
+
+## Presentational data for the pre-match popup (hub.gd) — the true (unpenalized)
+## odds for the player's own club plus what they'd become under the "Simular"
+## penalty, and both clubs for the crest/overall comparison. Empty Dictionary
+## if there's no pending player fixture. Never mutates state — see
+## simulate_pending_player_match() for actually resolving one.
+func get_pending_match_preview() -> Dictionary:
+	var f := pending_player_fixture
+	if f.is_empty():
+		return {}
+	var home := DataLoader.get_club(f["home_id"])
+	var away := DataLoader.get_club(f["away_id"])
+	if home == null or away == null:
+		return {}
+	var player_club := GameState.player_club
+	var is_own_home := player_club != null and player_club.id == home.id
+	var home_odds := _home_win_draw_loss(home, away)
+	var own_odds := home_odds if is_own_home else MatchOdds.flip_odds(home_odds)
+	return {
+		"home": home,
+		"away": away,
+		"is_own_home": is_own_home,
+		"own_odds": own_odds,
+		"simulate_odds": MatchOdds.apply_simulate_penalty(own_odds),
+		"fixture_type": f.get("type", "league"),
+	}
+
+
+func _home_win_draw_loss(home: ClubResource, away: ClubResource) -> Dictionary:
+	var diff := home.get_squad_overall() - away.get_squad_overall()
+	var home_expected := MatchOdds.expected_goals(diff, true)
+	var away_expected := MatchOdds.expected_goals(-diff, false)
+	return MatchOdds.win_draw_loss(home_expected, away_expected)
+
+
+## Resolves the pending player fixture without loading the World scene: rolls
+## a scoreline conditioned on an outcome drawn from the simulate-penalized
+## odds (see MatchOdds.apply_simulate_penalty()/sample_scoreline_for_outcome()),
+## invents goal scorers from each club's roster, then applies it exactly like
+## a played match — standings, fan swing, gate revenue — via
+## report_player_match_result(). Returns that call's result Dictionary plus
+## {home_score, away_score, scorers, simulated: true}; empty Dictionary if
+## there's no pending player fixture.
+func simulate_pending_player_match() -> Dictionary:
+	var f := pending_player_fixture
+	if f.is_empty():
+		return {}
+	var home := DataLoader.get_club(f["home_id"])
+	var away := DataLoader.get_club(f["away_id"])
+	if home == null or away == null:
+		return {}
+
+	var diff := home.get_squad_overall() - away.get_squad_overall()
+	var home_expected := MatchOdds.expected_goals(diff, true)
+	var away_expected := MatchOdds.expected_goals(-diff, false)
+	var home_odds := MatchOdds.win_draw_loss(home_expected, away_expected)
+
+	var player_club := GameState.player_club
+	var is_own_home := player_club != null and player_club.id == home.id
+	var own_odds := home_odds if is_own_home else MatchOdds.flip_odds(home_odds)
+	var own_outcome := MatchOdds.pick_outcome(MatchOdds.apply_simulate_penalty(own_odds))
+	var home_outcome := own_outcome if is_own_home else MatchOdds.flip_outcome(own_outcome)
+
+	# Same "roll attendance for the home club, at kickoff" world.gd does for a
+	# played match (see world.gd's _setup_stadium()) — report_player_match_result()
+	# below reuses whatever's stashed here for gate revenue instead of rolling twice.
+	f["attendance"] = FanEconomy.roll_attendance(home)
+
+	var scoreline := MatchOdds.sample_scoreline_for_outcome(home_expected, away_expected, home_outcome)
+	var home_score : int = scoreline[0]
+	var away_score : int = scoreline[1]
+
+	var scorers := _invent_scorers(home, home_score) + _invent_scorers(away, away_score)
+	scorers.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["_seconds"] < b["_seconds"])
+	for s in scorers:
+		s.erase("_seconds")
+
+	var result := report_player_match_result(home_score, away_score)
+	result["home_score"] = home_score
+	result["away_score"] = away_score
+	result["scorers"] = scorers
+	result["simulated"] = true
+	return result
+
+
+## Invents [param count] goal scorers for [param club], weighted toward its
+## better outfield players (goalkeepers essentially never score) — same
+## shape world.gd's own _scorers log uses ({player, team, time_str}), plus a
+## private "_seconds" sort key stripped before the Dictionary is handed back.
+func _invent_scorers(club: ClubResource, count: int) -> Array[Dictionary]:
+	var scorers : Array[Dictionary] = []
+	if count <= 0 or club == null or club.players.is_empty():
+		return scorers
+	var pool : Array[PlayerResource] = club.players.filter(
+		func(p: PlayerResource) -> bool: return p.role != Positions.Role.GK)
+	if pool.is_empty():
+		pool = club.players.duplicate()
+	for i in count:
+		var scorer := _pick_weighted_scorer(pool)
+		var seconds := randf_range(0.0, MatchWorld.MATCH_DURATION)
+		scorers.append({
+			"player": scorer.full_name,
+			"team": club.display_name,
+			"time_str": "%d:%02d" % [int(seconds) / 60, int(seconds) % 60],
+			"_seconds": seconds,
+		})
+	return scorers
+
+
+## Weighted-random pick favoring higher-overall players — exponential so a
+## squad's stars score noticeably more often than its bench, without ever
+## making a low-overall player's goal impossible.
+func _pick_weighted_scorer(pool: Array[PlayerResource]) -> PlayerResource:
+	var weights : Array[float] = []
+	var total := 0.0
+	for p in pool:
+		var w := pow(2.0, float(p.overall()) / 20.0)
+		weights.append(w)
+		total += w
+	var r := randf() * total
+	var acc := 0.0
+	for i in pool.size():
+		acc += weights[i]
+		if r <= acc:
+			return pool[i]
+	return pool[pool.size() - 1]
 
 
 ## Fixtures involving the given club id, sorted chronologically.

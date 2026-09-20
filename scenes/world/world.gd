@@ -33,13 +33,11 @@ const KICKOFF_TAKER_ROLES := [Positions.Role.ST, Positions.Role.LW, Positions.Ro
 ## direction) so they visibly walk up and strike it, rather than starting on it.
 const KICKOFF_APPROACH_OFFSET := 40.0
 
-@onready var actors_container  := $ActorsContainer as ActorsContainer
-@onready var tribunes          := $Tribunes as Tribunes
-@onready var referee           := $ActorsContainer/Referee as Referee
-@onready var game_over_overlay := %GameOverOverlay
-@onready var game_over_label   := %GameOverLabel
-@onready var summary_label     := %SummaryLabel
-@onready var pause_menu        := $PauseMenu as PauseMenu
+@onready var actors_container   := $ActorsContainer as ActorsContainer
+@onready var tribunes           := $Tribunes as Tribunes
+@onready var referee            := $ActorsContainer/Referee as Referee
+@onready var match_summary_popup := $MatchSummaryPopup as MatchSummaryPopup
+@onready var pause_menu         := $PauseMenu as PauseMenu
 
 ## Dev "Test Match" fallback (no season fixture): show every stand and a
 ## mid-range crowd instead of rolling real attendance against a real club.
@@ -75,7 +73,7 @@ func _ready() -> void:
 	GameEvents.kickoff_ready.connect(_on_kickoff_ready)
 	GameEvents.ball_possessed.connect(_on_ball_possessed)
 	GameEvents.foul_called.connect(_on_foul_called)
-	game_over_overlay.visible = false
+	match_summary_popup.continue_pressed.connect(_on_back_to_hub_pressed)
 	_setup_stadium()
 	# Opening kickoff: a proper restart, same as after a goal, just with a
 	# randomly chosen team instead of the conceding one.
@@ -304,36 +302,20 @@ func _transition(new_state: MatchState) -> void:
 				GameState.save_career()
 			_show_game_over(match_result)
 
+## Builds the same Dictionary shape hub.gd's "Simular" flow does (see
+## MatchSummaryData) from own/opponent perspective, using ActorsContainer.
+## is_player_team_left to tell which literal side (team_left/team_right) is
+## the human club's — needed since the fixture's home club isn't always the
+## player's (see world.gd's _resolve_home_club() doc comment).
 func _show_game_over(match_result: Dictionary) -> void:
 	pause_menu.enabled = false
-	game_over_overlay.visible = true
-	var score_str := "%d - %d" % [score_left, score_right]
-	if score_left > score_right:
-		game_over_label.text = tr("¡GANÓ %s!\n%s") % [actors_container.team_left, score_str]
-	elif score_right > score_left:
-		game_over_label.text = tr("¡GANÓ %s!\n%s") % [actors_container.team_right, score_str]
-	else:
-		game_over_label.text = tr("EMPATE\n%s") % score_str
-
-	if match_result.is_empty():
-		summary_label.visible = false  # e.g. Hub's dev "Test Match" button — no season fixture involved
-		return
-
-	summary_label.visible = true
-	var lines : Array[String] = []
-	var fans_delta : int = match_result.get("fans_delta", 0)
-	lines.append(tr("Hinchas: %s%d  (ahora %s)") % [
-		"+" if fans_delta >= 0 else "", fans_delta, MoneyFormat.format(GameState.player_club.fans)])
-	var ticket_revenue : int = match_result.get("ticket_revenue", 0)
-	if ticket_revenue > 0:
-		lines.append(tr("Ingresos por Entradas: $%s  (%s asistentes)") % [
-			MoneyFormat.format(ticket_revenue), MoneyFormat.format(match_result.get("attendance", 0))])
-	if not _scorers.is_empty():
-		lines.append("")
-		lines.append(tr("Goleadores:"))
-		for s in _scorers:
-			lines.append(tr("%s  %s (%s)") % [s["time_str"], s["player"], s["team"]])
-	summary_label.text = "\n".join(lines)
+	var is_player_left := actors_container.is_player_team_left
+	var own_name := actors_container.team_left if is_player_left else actors_container.team_right
+	var opp_name := actors_container.team_right if is_player_left else actors_container.team_left
+	var own_score := score_left if is_player_left else score_right
+	var opp_score := score_right if is_player_left else score_left
+	var data := MatchSummaryData.build(own_name, opp_name, own_score, opp_score, _scorers, false, match_result)
+	match_summary_popup.show_result(data)
 
 ## Persists each player's depleted in-match Player.stamina back onto their
 ## PlayerResource — otherwise it's just discarded when this scene unloads.

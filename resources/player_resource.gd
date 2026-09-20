@@ -47,6 +47,23 @@ var teamplay : int = randi_range(20, 80)
 ## to field a player while this is > 0.
 var unavailable_matches : int = 0
 
+## True for a youth-academy prospect signed via YouthEventPool's "cash_signup"
+## category (a mom paying the club to get her kid a spot) — the family's
+## payment "reserves" the spot, so he can't be released from the academy
+## until YouthAcademy.GRADUATION_AGE (early promotion to the senior roster is
+## still fine). Enforced in youth_section.gd and youth_signup_flow.gd's
+## make-room prompt, both of which disable the release action while this is
+## true. Persisted — see to_dict/from_dict.
+var reserved : bool = false
+
+## True for any youth-academy-age prospect (see YouthAcademy), whether he
+## arrived via a narrated sign-up event or was found by the talent scout
+## (GameState.refresh_scout_pool()) — lets hiring_panel.gd tell a kid apart
+## from an ordinary adult scouted player sharing the same pool/list, since
+## age alone overlaps with PlayerFactory's own age band. Persisted — see
+## to_dict/from_dict.
+var is_youth_prospect : bool = false
+
 ## General-purpose stat modifiers — permanent boosts (youth academy tenure,
 ## Training Facility sessions) and temporary debuffs (random events). Each
 ## entry: {"id": String, "label": String, "stat": String, "pct": float,
@@ -218,6 +235,8 @@ func to_dict() -> Dictionary:
 		"unavailable_matches": unavailable_matches,
 		"modifiers": modifiers,
 		"training_sessions_used": training_sessions_used,
+		"reserved": reserved,
+		"is_youth_prospect": is_youth_prospect,
 	}
 
 static func from_dict(d: Dictionary) -> PlayerResource:
@@ -238,4 +257,6 @@ static func from_dict(d: Dictionary) -> PlayerResource:
 	for m : Dictionary in d.get("modifiers", []) as Array:
 		p.modifiers.append(m)
 	p.training_sessions_used = int(d.get("training_sessions_used", 0))
+	p.reserved = bool(d.get("reserved", false))
+	p.is_youth_prospect = bool(d.get("is_youth_prospect", false))
 	return p

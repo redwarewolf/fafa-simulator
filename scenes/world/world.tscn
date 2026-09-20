@@ -17,6 +17,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/minimap.tscn" id="minimap_scene"]
 [ext_resource type="PackedScene" path="res://scenes/world/referee.tscn" id="referee_scene"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="pause_menu_scene"]
+[ext_resource type="PackedScene" path="res://scenes/ui/match_summary_popup.tscn" id="match_summary_popup_scene"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_grass"]
 shader = ExtResource("grass_variation_shader")
@@ -327,57 +328,7 @@ actors_container = NodePath("../../ActorsContainer")
 
 [node name="MatchHUD" parent="HUD" unique_id=1312172797 instance=ExtResource("match_hud_scene")]
 
-[node name="GameOverOverlay" type="CanvasLayer" parent="." unique_id=900000006]
-unique_name_in_owner = true
-layer = 10
-visible = false
-
-[node name="Background" type="ColorRect" parent="GameOverOverlay" unique_id=900000007]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-color = Color(0, 0, 0, 0.78)
-
-[node name="GameOverLabel" type="Label" parent="GameOverOverlay" unique_id=900000008]
-unique_name_in_owner = true
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -60.0
-offset_right = 180.0
-offset_bottom = 10.0
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="SummaryLabel" type="Label" parent="GameOverOverlay" unique_id=900000010]
-unique_name_in_owner = true
-clip_contents = true
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -220.0
-offset_top = 20.0
-offset_right = 220.0
-offset_bottom = 290.0
-horizontal_alignment = 1
-autowrap_mode = 3
-
-[node name="BackToHubButton" type="Button" parent="GameOverOverlay" unique_id=900000009]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -80.0
-offset_top = -56.0
-offset_right = 80.0
-offset_bottom = -20.0
-text = "Volver al Hub"
+[node name="MatchSummaryPopup" parent="." instance=ExtResource("match_summary_popup_scene")]
 
 [node name="PauseMenu" parent="." instance=ExtResource("pause_menu_scene")]
 
@@ -578,5 +529,3 @@ position = Vector2(1908.0001, 80)
 
 [node name="TribuneSection10" parent="Tribunes" unique_id=791138353 instance=ExtResource("14_tribunesection")]
 position = Vector2(2116.0002, 80)
-
-[connection signal="pressed" from="GameOverOverlay/BackToHubButton" to="." method="_on_back_to_hub_pressed"]

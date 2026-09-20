@@ -1,0 +1,249 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/hub/sections/lab/lab_section.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/player_card.tscn" id="3"]
+
+[node name="LabSection" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="LockedFrame" parent="." instance=ExtResource("2")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LockedMessage" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Contratá a un Carnicero para desbloquear el Laboratorio."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="SacrificePanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.1
+
+[node name="VBox" type="VBoxContainer" parent="HBox/SacrificePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HBox/SacrificePanel/VBox"]
+layout_mode = 2
+text = "SACRIFICAR"
+
+[node name="SquadTree" type="Tree" parent="HBox/SacrificePanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 4
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+
+[node name="PreviewPanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.8
+
+[node name="VBox" type="VBoxContainer" parent="HBox/PreviewPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="PreviewTitle" type="Label" parent="HBox/PreviewPanel/VBox"]
+layout_mode = 2
+text = "VISTA PREVIA"
+
+[node name="PlayerCard" parent="HBox/PreviewPanel/VBox" instance=ExtResource("3")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="StatsGrid" type="GridContainer" parent="HBox/PreviewPanel/VBox"]
+layout_mode = 2
+columns = 3
+
+[node name="PacCheck" type="CheckBox" parent="HBox/PreviewPanel/VBox/StatsGrid"]
+layout_mode = 2
+text = "PAC"
+
+[node name="ShoCheck" type="CheckBox" parent="HBox/PreviewPanel/VBox/StatsGrid"]
+layout_mode = 2
+text = "SHO"
+
+[node name="PasCheck" type="CheckBox" parent="HBox/PreviewPanel/VBox/StatsGrid"]
+layout_mode = 2
+text = "PAS"
+
+[node name="DriCheck" type="CheckBox" parent="HBox/PreviewPanel/VBox/StatsGrid"]
+layout_mode = 2
+text = "DRI"
+
+[node name="DefCheck" type="CheckBox" parent="HBox/PreviewPanel/VBox/StatsGrid"]
+layout_mode = 2
+text = "DEF"
+
+[node name="PhyCheck" type="CheckBox" parent="HBox/PreviewPanel/VBox/StatsGrid"]
+layout_mode = 2
+text = "PHY"
+
+[node name="SacrificeButton" type="Button" parent="HBox/PreviewPanel/VBox"]
+layout_mode = 2
+disabled = true
+text = "SELECCIONÁ UN JUGADOR"
+
+[node name="AssemblePanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.3
+
+[node name="VBox" type="VBoxContainer" parent="HBox/AssemblePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HBox/AssemblePanel/VBox"]
+layout_mode = 2
+text = "ENSAMBLAR"
+
+[node name="OrgansTree" type="Tree" parent="HBox/AssemblePanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 3
+column_titles_visible = true
+hide_root = true
+
+[node name="SlotsGrid" type="GridContainer" parent="HBox/AssemblePanel/VBox"]
+layout_mode = 2
+columns = 2
+
+[node name="PacLabel" type="Label" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+text = "PAC"
+
+[node name="PacSlot" type="OptionButton" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ShoLabel" type="Label" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+text = "SHO"
+
+[node name="ShoSlot" type="OptionButton" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PasLabel" type="Label" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+text = "PAS"
+
+[node name="PasSlot" type="OptionButton" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DriLabel" type="Label" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+text = "DRI"
+
+[node name="DriSlot" type="OptionButton" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DefLabel" type="Label" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+text = "DEF"
+
+[node name="DefSlot" type="OptionButton" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PhyLabel" type="Label" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+text = "PHY"
+
+[node name="PhySlot" type="OptionButton" parent="HBox/AssemblePanel/VBox/SlotsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NameRow" type="HBoxContainer" parent="HBox/AssemblePanel/VBox"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="HBox/AssemblePanel/VBox/NameRow"]
+layout_mode = 2
+text = "Nombre"
+
+[node name="NameEdit" type="LineEdit" parent="HBox/AssemblePanel/VBox/NameRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Zombie sin nombre"
+max_length = 30
+
+[node name="RoleRow" type="HBoxContainer" parent="HBox/AssemblePanel/VBox"]
+layout_mode = 2
+
+[node name="RoleLabel" type="Label" parent="HBox/AssemblePanel/VBox/RoleRow"]
+layout_mode = 2
+text = "Posición"
+
+[node name="RoleOption" type="OptionButton" parent="HBox/AssemblePanel/VBox/RoleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AssembleButton" type="Button" parent="HBox/AssemblePanel/VBox"]
+layout_mode = 2
+text = "ENSAMBLAR"
+
+[connection signal="item_selected" from="HBox/SacrificePanel/VBox/SquadTree" to="." method="_on_squad_tree_item_selected"]
+[connection signal="pressed" from="HBox/PreviewPanel/VBox/SacrificeButton" to="." method="_on_sacrifice_pressed"]
+[connection signal="pressed" from="HBox/AssemblePanel/VBox/AssembleButton" to="." method="_on_assemble_pressed"]

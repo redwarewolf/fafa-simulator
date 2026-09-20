@@ -51,20 +51,6 @@ const MESSAGES := {
 	"Tu Club": "Your Club",
 	"EMPEZAR CARRERA": "START CAREER",
 
-	# ── Month names (GameState.MONTH_NAMES / format_date) ──────────────────
-	"enero": "January",
-	"febrero": "February",
-	"marzo": "March",
-	"abril": "April",
-	"mayo": "May",
-	"junio": "June",
-	"julio": "July",
-	"agosto": "August",
-	"septiembre": "September",
-	"octubre": "October",
-	"noviembre": "November",
-	"diciembre": "December",
-
 	# ── Hub header / nav ───────────────────────────────────────────────────
 	"Plantel": "Squad",
 	"Mercado": "Market",
@@ -78,6 +64,7 @@ const MESSAGES := {
 	"1ª Mitad": "1st Half",
 	"Receso de Temporada": "Mid-season Break",
 	"2ª Mitad": "2nd Half",
+	"Día %d de %d": "Day %d of %d",
 	"División %s": "Division %s",
 	"%s hinchas": "%s fans",
 
@@ -247,14 +234,32 @@ const MESSAGES := {
 	# ── Match / world ───────────────────────────────────────────────────────
 	"Volver al Hub": "Back to Hub",
 	"¡FALTA!": "FOUL!",
-	"¡GANÓ %s!\n%s": "%s WINS!\n%s",
-	"EMPATE\n%s": "DRAW\n%s",
 	"EMPATE  %d - %d": "DRAW  %d - %d",
 	"%s GANA  %d - %d": "%s LEADS  %d - %d",
 	"¡GOL DE %s!": "%s SCORED!",
-	"Hinchas: %s%d  (ahora %s)": "Fans: %s%d  (now %s)",
-	"Ingresos por Entradas: $%s  (%s asistentes)": "Ticket Revenue: $%s  (%s attended)",
-	"Goleadores:": "Scorers:",
+
+	# ── Match preview / summary popups ────────────────────────────────────
+	"Jugar": "Play",
+	"Simular": "Simulate",
+	"Continuar": "Continue",
+	"TU EQUIPO": "YOUR TEAM",
+	"Tus probabilidades — Victoria %d%%  ·  Empate %d%%  ·  Derrota %d%%":
+		"Your odds — Win %d%%  ·  Draw %d%%  ·  Loss %d%%",
+	"Si simulás (–10%% en Victoria) — Victoria %d%%  ·  Empate %d%%  ·  Derrota %d%%":
+		"If you simulate (–10%% Win) — Win %d%%  ·  Draw %d%%  ·  Loss %d%%",
+	"¡GANASTE!": "YOU WON!",
+	"PERDISTE": "YOU LOST",
+	"EMPATE": "DRAW",
+	"(Partido simulado)": "(Simulated match)",
+	"GOLEADORES": "SCORERS",
+	"GASTOS": "EXPENSES",
+	"Hinchas": "Fans",
+	"Entradas (%s asistentes)": "Tickets (%s attendees)",
+	"Merchandising": "Merchandise",
+	"Comida y Bebida": "Food & Drink",
+	"Sueldos del plantel": "Squad wages",
+	"Personal contratado": "Hired staff",
+	"NETO: %s$%s": "NET: %s$%s",
 
 	# ── Player card / misc UI ───────────────────────────────────────────────
 	"Personaje": "Speaker",

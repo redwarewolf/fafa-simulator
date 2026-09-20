@@ -27,6 +27,7 @@ SeasonManager="*res://scenes/hub/season_manager.gd"
 DebugDraw="*res://utils/debug_draw.gd"
 GameEvents="*res://utils/game_events.gd"
 ClubTrainer="*res://scenes/ui/club_trainer.tscn"
+YouthSignupFlow="*res://scenes/ui/youth_signup_flow.tscn"
 
 [debug]
 

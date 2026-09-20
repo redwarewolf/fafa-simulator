@@ -14,6 +14,8 @@ extends Control
 @onready var dialogue_box : DialogueBox = $DialogueBox
 @onready var club_nav_button : Button = $Header/HeaderLayout/NavSection/ClubButton
 @onready var youth_nav_button : Button = $Header/HeaderLayout/NavSection/YouthButton
+@onready var match_preview_popup : MatchPreviewPopup = $MatchPreviewPopup
+@onready var match_summary_popup : MatchSummaryPopup = $MatchSummaryPopup
 
 ## Musica de fondo del Hub. Apagada mientras trabajamos en la UI.
 @export var music_enabled : bool = false
@@ -34,6 +36,7 @@ const SECTIONS := {
 	"calendar": preload("res://scenes/hub/sections/calendar/calendar_section.tscn"),
 	"tournament": preload("res://scenes/hub/sections/tournament/tournament_section.tscn"),
 	"youth": preload("res://scenes/hub/sections/youth/youth_section.tscn"),
+	"lab": preload("res://scenes/hub/sections/lab/lab_section.tscn"),
 }
 
 ## Pepito Perinola's one-shot walkthrough for each tab, keyed the same as
@@ -64,6 +67,10 @@ const TAB_TUTORIALS := {
 		"Esta es la Academia Juvenil. Acá aparecen las promesas que va formando el club — subilas al primer equipo cuando quieras.",
 		"Pero no tengas tanto apuro: cada año que un pibe se queda en la Academia sin subir, gana un +3% permanente en TODOS sus atributos, para siempre. Cuanto más lo dejes madurar ahí, mejor te llega al primer equipo.",
 	],
+	"lab": [
+		"Bienvenido al Laboratorio. Acá el Carnicero saca 1 o 2 stats de un jugador — el resto, se pierde para siempre.",
+		"Con esos 'órganos' después armás un jugador nuevo, bien verde. No preguntes de dónde salió el resto del cuerpo.",
+	],
 }
 
 var _section_instances : Dictionary = {}
@@ -90,6 +97,8 @@ func _ready() -> void:
 	GameState.budget_changed.connect(_update_header)
 	GameState.pool_badges_changed.connect(_update_nav_badges)
 	SeasonManager.season_ended.connect(_on_season_ended)
+	match_preview_popup.play_pressed.connect(_on_match_preview_play)
+	match_preview_popup.simulate_pressed.connect(_on_match_preview_simulate)
 	_update_nav_badges()
 	_start_music()
 	_connect_button_sounds()
@@ -185,13 +194,7 @@ func _update_header() -> void:
 	budget_label.text = "$%s" % MoneyFormat.format(GameState.player_club.budget)
 	fans_label.text = tr("%s hinchas") % MoneyFormat.format(GameState.player_club.fans)
 	capacity_label.text = tr("Capacidad: %s") % MoneyFormat.format(GameState.player_club.get_stadium_capacity())
-	var phase_text := ""
-	match SeasonManager.phase:
-		SeasonManager.Phase.PRE_SEASON: phase_text = tr("Pretemporada")
-		SeasonManager.Phase.FIRST_HALF: phase_text = tr("1ª Mitad")
-		SeasonManager.Phase.MID_SEASON_BREAK: phase_text = tr("Receso de Temporada")
-		SeasonManager.Phase.SECOND_HALF: phase_text = tr("2ª Mitad")
-	date_label.text = "%s  ·  %s" % [GameState.get_date_string(), phase_text]
+	date_label.text = SeasonManager.current_phase_date_string()
 	_apply_club_logo(club_portrait, GameState.player_club)
 
 func _apply_club_logo(target: TextureRect, club: ClubResource) -> void:
@@ -235,35 +238,89 @@ func _on_nav_pressed(section: String) -> void:
 
 func _on_next_day_pressed() -> void:
 	if not SeasonManager.pending_player_fixture.is_empty():
-		get_tree().change_scene_to_file("res://scenes/world/world.tscn")
+		_show_match_preview()
 		return
 	GameState.advance_day()
 	SeasonManager.resolve_day()
 	_update_header()
 	GameState.save_career()
 	if not SeasonManager.pending_player_fixture.is_empty():
+		_show_match_preview()
+		return
+	# Sequenced, not parallel — both flows narrate through the same shared
+	# ClubTrainer dialogue box, and a second say()/say_with_choice() call
+	# while one is already showing would stomp it. _maybe_narrate_hub_event()
+	# awaits its own line to completion before this moves on.
+	await _maybe_narrate_hub_event()
+	await YouthSignupFlow.run_daily_signup(GameState.player_club)
+	_update_header()
+	_update_nav_badges()
+	if _active_section != "" and _section_instances[_active_section].has_method("refresh"):
+		_section_instances[_active_section].refresh()
+	GameState.save_career()
+
+## Shows the Jugar/Simular popup for today's scheduled fixture instead of
+## routing straight into World — see MatchPreviewPopup / SeasonManager.
+## get_pending_match_preview(). Falls back to the old direct-to-World route
+## if the fixture's clubs can't be resolved (data integrity edge case only),
+## so a bad fixture can't soft-lock the Hub behind an empty popup.
+func _show_match_preview() -> void:
+	var preview := SeasonManager.get_pending_match_preview()
+	if preview.is_empty():
 		get_tree().change_scene_to_file("res://scenes/world/world.tscn")
 		return
-	_maybe_narrate_hub_event()
+	match_preview_popup.show_for_fixture(preview)
+
+func _on_match_preview_play() -> void:
+	get_tree().change_scene_to_file("res://scenes/world/world.tscn")
+
+## Resolves the pending match instantly (SeasonManager.simulate_pending_player_match())
+## and shows the same MatchSummaryPopup a played match's GAMEOVER screen uses.
+## Reads the fixture's clubs from get_pending_match_preview() BEFORE simulating —
+## simulate_pending_player_match() clears pending_player_fixture as part of
+## resolving it, same as a played match does.
+func _on_match_preview_simulate() -> void:
+	var preview := SeasonManager.get_pending_match_preview()
+	var result := SeasonManager.simulate_pending_player_match()
+	GameState.save_career()
+	if preview.is_empty() or result.is_empty():
+		_after_match_day()
+		return
+	var is_own_home : bool = preview.get("is_own_home", true)
+	var home : ClubResource = preview["home"]
+	var away : ClubResource = preview["away"]
+	var own_name := home.display_name if is_own_home else away.display_name
+	var opp_name := away.display_name if is_own_home else home.display_name
+	var own_score : int = result["home_score"] if is_own_home else result["away_score"]
+	var opp_score : int = result["away_score"] if is_own_home else result["home_score"]
+	var data := MatchSummaryData.build(own_name, opp_name, own_score, opp_score, result["scorers"], true, result)
+	match_summary_popup.continue_pressed.connect(_after_match_day, CONNECT_ONE_SHOT)
+	match_summary_popup.show_result(data)
+
+## Tail shared by both the "Simular" flow and (via a fresh Hub scene reload)
+## a played match — refreshes the header/badges/active section and saves,
+## same as the ordinary non-match "Next Date" flow's tail. Deliberately skips
+## _maybe_narrate_hub_event()/YouthSignupFlow — match days already skip those
+## for a played match too (see the early-return branches above).
+func _after_match_day() -> void:
+	_update_header()
+	_update_nav_badges()
+	if _active_section != "" and _section_instances[_active_section].has_method("refresh"):
+		_section_instances[_active_section].refresh()
+	GameState.save_career()
 
 ## Rolled only on days that don't send the player straight into a match —
 ## see the early returns above. Applying the event's effect (inside
 ## maybe_trigger_hub_event) happens synchronously, before the dialogue is
-## even shown, so re-saving here is what actually persists it — the regular
-## save_career() call in _on_next_day_pressed() already ran for this date
-## before this function was called.
+## even shown; awaiting ClubTrainer.finished here just makes sure this
+## flow's dialogue is fully done before _on_next_day_pressed() moves on to
+## roll the (separate) youth sign-up event on the same shared dialogue box.
 func _maybe_narrate_hub_event() -> void:
 	var line := RandomEvents.maybe_trigger_hub_event(GameState.player_club)
 	if line.is_empty():
 		return
 	ClubTrainer.say(line)
-	_update_header()
-	# An event may have mutated the roster/tactics (e.g. a suspension benching
-	# a player) — refresh whichever section is showing so it doesn't display
-	# stale data until the player happens to switch tabs.
-	if _active_section != "" and _section_instances[_active_section].has_method("refresh"):
-		_section_instances[_active_section].refresh()
-	GameState.save_career()
+	await ClubTrainer.finished
 
 ## Picks the player's own club plus a random other real club (if any exist)
 ## so the test match shows correct crests/rosters instead of the scene's

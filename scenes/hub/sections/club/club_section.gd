@@ -42,12 +42,16 @@ const SUB_TUTORIALS := {
 }
 
 @onready var sub_content : Control = $HBox/SubContent
+@onready var sidebar : Control = $HBox/Sidebar
+@onready var sidebar_layout : Control = $HBox/Sidebar/SidebarLayout
 @onready var hiring_button : Button = $HBox/Sidebar/SidebarLayout/HiringButton
 
 var _panel_instances : Dictionary = {}
 var _active_panel : String = ""
+var _sidebar_floor_width : float = 0.0
 
 func _ready() -> void:
+	_sidebar_floor_width = sidebar.custom_minimum_size.x
 	for key in SUB_SECTIONS:
 		var instance := _make_panel(key)
 		instance.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -59,12 +63,26 @@ func _ready() -> void:
 	GameState.pool_badges_changed.connect(_update_hiring_badge)
 	_update_hiring_badge()
 
+## The sidebar's width is tuned to fit the English nav labels ("Training",
+## "Hiring", ...) but Spanish equivalents ("Entrenamiento", "Contrataciones")
+## are wider and would spill into SubContent at that fixed width. Widen the
+## sidebar here — after every button already has its translated text — so it
+## fits whichever language is active instead of hardcoding a per-locale width.
+func _resize_sidebar_for_locale() -> void:
+	var widest := 0.0
+	for child in sidebar_layout.get_children():
+		if child is Button:
+			widest = max(widest, child.get_minimum_size().x)
+	var side_padding : float = sidebar_layout.offset_left - sidebar_layout.offset_right
+	sidebar.custom_minimum_size.x = max(_sidebar_floor_width, widest + side_padding)
+
 ## Mirrors hub.gd's nav badge on the "Club" tab itself — this is the button
 ## that actually reveals the scout pool once the player is inside the tab.
 func _update_hiring_badge() -> void:
 	var unseen : int = GameState.player_club.scout_unseen
 	var hiring_label := tr(HIRING_LABEL)
 	hiring_button.text = "%s (%d)" % [hiring_label, unseen] if unseen > 0 else hiring_label
+	_resize_sidebar_for_locale()
 
 ## Called by hub.gd when the Club tab itself is (re)shown, so the currently
 ## active sub-panel picks up state changed elsewhere (budget, squad, etc.).

@@ -35,6 +35,17 @@ const HIGH_PASS_SPEED_CORRECTION := 1.08
 const TUMBLE_HEIGHT_VELOCITY := 3.0
 const LONG_KICK_ARC_MULTIPLIER := 3.0
 
+@onready var _kick_sound : AudioStreamPlayer = %KickSound
+
+@export_group("Kick sound")
+@export var kick_sound_volume_db : float = 0.0
+## Random pitch jitter (+/-) applied each time the ball is launched — shots,
+## passes, long kicks, and balls won off a tackle (see Player.on_tackle_player)
+## all go through play_kick_sound(), so without this every one of those would
+## play back the exact same clip. Same trick as DialogueBox's talk sound.
+@export var kick_sound_pitch_variance : float = 0.15
+@export var kick_sound_volume_variance_db : float = 3.0
+
 ## BallState.process_gravity() adds height_velocity to height every physics
 ## tick without scaling it by delta (height += height_velocity, not
 ## height_velocity * delta) — a quirk shared with Player's own gravity, and
@@ -117,10 +128,20 @@ func flip_sprites() -> void:
 	elif heading == Vector2.LEFT:
 		ball_sprite.flip_h = true
 		
+## Randomizes pitch/volume around their exported base values and (re)plays
+## the kick sound. A single shared player means a kick that lands while the
+## previous one is still tailing off cuts it short — fine here since there's
+## only ever one ball, so only one kick can ever be "in flight" at a time.
+func play_kick_sound() -> void:
+	_kick_sound.pitch_scale = 1.0 + randf_range(-kick_sound_pitch_variance, kick_sound_pitch_variance)
+	_kick_sound.volume_db = kick_sound_volume_db + randf_range(-kick_sound_volume_variance_db, kick_sound_volume_variance_db)
+	_kick_sound.play()
+
 func shoot(shot_velocity : Vector2) -> void:
 	velocity = shot_velocity
 	carrier = null
 	switch_state(Ball.State.SHOT)
+	play_kick_sound()
 	
 func tumble(tumble_velocity: Vector2) -> void:
 	carrier = null
@@ -145,6 +166,7 @@ func pass_to(destination: Vector2) -> void:
 		height_velocity = 0.0  # Short pass stays on the ground — clear any residual velocity
 	carrier = null
 	switch_state(Ball.State.FREEFORM)
+	play_kick_sound()
 
 ## Goalkeeper long distribution — a high-arc inverted parabola.
 ## Uses air friction for the horizontal component so the ball carries far,
@@ -177,6 +199,7 @@ func long_kick(destination: Vector2) -> void:
 	velocity = intensity * direction
 	carrier = null
 	switch_state(Ball.State.FREEFORM)
+	play_kick_sound()
 
 ## Predicts how long (seconds) a pass_to() kick over `distance` takes to
 ## arrive, using the same speed-sizing math pass_to() itself uses. A grounded

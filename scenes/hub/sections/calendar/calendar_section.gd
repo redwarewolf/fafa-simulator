@@ -150,7 +150,7 @@ func _show_fixture(f: Dictionary) -> void:
 	home_name.text = home.display_name if home != null else "?"
 	away_name.text = away.display_name if away != null else "?"
 
-	kickoff_label.text = GameState.format_date(f["day"], f["month"], f["year"])
+	kickoff_label.text = SeasonManager.fixture_date_string(f)
 
 	if f["played"]:
 		score_label.text = "%d  -  %d" % [f["home_score"], f["away_score"]]
@@ -249,7 +249,7 @@ func _build_head_to_head(home: ClubResource, away: ClubResource) -> void:
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 func _date_string(f: Dictionary) -> String:
-	return GameState.format_date(f["day"], f["month"], f["year"], false)
+	return SeasonManager.fixture_date_string(f)
 
 func _clear(container: Node) -> void:
 	for child in container.get_children():

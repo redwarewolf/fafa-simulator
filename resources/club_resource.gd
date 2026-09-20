@@ -54,6 +54,13 @@ const TRIBUNE_CAPACITY_PER_LEVEL := 75
 @export var scout_unseen : int = 0
 @export var youth_unseen : int = 0
 
+## Organs harvested from sacrificed players, waiting to be stitched into a
+## zombie — see ZombieFactory. Each entry: {"id": int, "stat": String,
+## "value": int, "donor_name": String, "donor_quality": int, "donor_age":
+## int}. Empty until the "butcher" staff upgrade is hired. Persisted via
+## GameState.save_staff().
+@export var organs : Array[Dictionary] = []
+
 
 func _init(
 		p_id                : String = "",
@@ -92,7 +99,7 @@ func get_squad_overall() -> int:
 ## figures — charged in full each date for now, pending a rebalance pass.
 func get_staff_upkeep_cost() -> int:
 	var total := 0
-	for key in ["trainer", "scout", "academy"]:
+	for key in ["trainer", "scout", "academy", "butcher"]:
 		var lvl : int = upgrades.get(key, 0)
 		if lvl > 0:
 			total += StaffData.STAFF[key]["levels"][lvl - 1]["monthly"]

@@ -33,6 +33,12 @@ enum State { MOVING, TACKLING, RECOVERING, PREPPING_SHOT, SHOOTING,
 	CELEBRATING, MOURNING, DISPOSSESSED }
 
 enum SkinColor { LIGHT, MEDIUM, DARK, RADIOACTIVE, DEMONIC, ALIEN, ROBOT }
+## The ordinary human tones — every player PlayerFactory rolls for the player's
+## own club (initial roster, scouting pool, youth academy) is restricted to
+## these. The rest (RADIOACTIVE, DEMONIC, ALIEN, ROBOT) are reserved for
+## special types like the lab's zombies (see ZombieFactory) and are otherwise
+## free to appear on AI-controlled clubs.
+const NORMAL_SKIN_COLORS : Array = [SkinColor.LIGHT, SkinColor.MEDIUM, SkinColor.DARK]
 enum HairColor { BLONDE, LIGHT_RED, GREEN, PURPLE, LIGHT_BROWN, DARK_BROWN, GRAY, DARK_RED, BLACK, DARK_BLUE, LIGHT_BLUE }
 const TEAMS := [ "DEFAULT", "SACA CHISPAS", "LOS FULBOS FC", "CLUB ATLETICO PIÑATA", "DEPORTIVO LADRILLO", "UNION PATADURAS", "ATLÉTICO GAMBETA", "SAN LORENZO DE NADA", "RACING DE LA ESQUINA" ]
 
@@ -362,6 +368,7 @@ func on_tackle_player(player_hit : Player) -> void:
 		if not _wins_tackle_duel(player_hit):
 			player_hit.dodge_hop()  # Tackle whiffs — carrier hops away and keeps the ball
 			return
+		ball.play_kick_sound()  # Won the duel — the ball changes feet, same as any other kick
 		if randf() < FOUL_CHANCE_ON_TACKLE_WIN:
 			var incident_position := player_hit.position
 			player_hit.get_hurt(position.direction_to(player_hit.position))

@@ -1,9 +1,10 @@
 extends Control
 
 ## Browse the youth academy's current prospect pool. Locked until the
-## "academy" staff upgrade is hired. The pool is generated/topped up by
-## GameState.refresh_youth_pool() (on first hire and once per year at
-## SeasonManager.start_pre_season()) — this screen only reads/mutates
+## "academy" staff upgrade is hired. Prospects arrive one at a time through
+## narrated sign-up events (see utils/youth_events.gd and
+## scenes/ui/youth_signup_flow.gd) — a guaranteed one on first hire, then an
+## 80%-chance roll per day advanced — this screen only reads/mutates
 ## GameState.player_club.youth_players.
 ##
 ## Unlike the scouted-player pool (hiring_panel.gd), promoting or releasing a
@@ -23,6 +24,7 @@ const POOL_COLUMNS : Array = [
 
 @onready var locked_message  : Label        = $LockedMessage
 @onready var hbox            : HBoxContainer = $HBox
+@onready var pool_count_label : Label       = $HBox/PoolPanel/VBox/PoolCountLabel
 @onready var pool_tree       : Tree         = $HBox/PoolPanel/VBox/PoolTree
 @onready var player_card     : Control      = $HBox/MidPanel/VBox/PlayerCard
 @onready var promote_button  : Button       = $HBox/MidPanel/VBox/PromoteButton
@@ -46,6 +48,7 @@ func refresh() -> void:
 
 	_clear_selection()
 	_populate_pool_tree()
+	pool_count_label.text = tr("Juveniles: %d / %d") % [club.youth_players.size(), GameState.get_youth_academy_cap()]
 	GameState.mark_youth_seen()
 
 
@@ -56,7 +59,11 @@ func _populate_pool_tree() -> void:
 	for p : PlayerResource in GameState.player_club.youth_players:
 		var item := pool_tree.create_item(root)
 		var qcolor : Color = QualityStyle.COLORS[p.quality]
-		item.set_text(COL_NAME,    p.full_name)
+		# Reserved (see PlayerResource.reserved) means a mom paid to guarantee
+		# her kid's spot until graduation — flagged here so the player doesn't
+		# select him expecting to be able to release him (see
+		# _on_pool_tree_item_selected()).
+		item.set_text(COL_NAME, p.full_name + ("  [RESERVADO]" if p.reserved else ""))
 		item.set_text(COL_ROLE,    Positions.label(p.role))
 		item.set_text(COL_AGE,     str(p.age))
 		item.set_text(COL_QUALITY, tr(QualityStyle.NAMES[p.quality]))
@@ -75,7 +82,9 @@ func _on_pool_tree_item_selected() -> void:
 	_selected_player = p
 	player_card.setup(p, GameState.player_club.team_key)
 	promote_button.disabled = false
-	release_button.disabled = false
+	# A reserved prospect (mom paid to guarantee his spot) can still be
+	# promoted early, just not released — see PlayerResource.reserved.
+	release_button.disabled = p.reserved
 
 
 func _on_promote_pressed() -> void:
@@ -89,7 +98,7 @@ func _on_promote_pressed() -> void:
 
 
 func _on_release_pressed() -> void:
-	if _selected_player == null:
+	if _selected_player == null or _selected_player.reserved:
 		return
 	GameState.player_club.youth_players.erase(_selected_player)
 	GameState.save_staff()

@@ -65,6 +65,11 @@ theme_override_constants/separation = 6
 layout_mode = 2
 text = "ACADEMIA JUVENIL"
 
+[node name="PoolCountLabel" type="Label" parent="HBox/PoolPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Juveniles: 0 / 0"
+
 [node name="PoolTree" type="Tree" parent="HBox/PoolPanel/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -76,7 +81,7 @@ select_mode = 1
 [node name="RefreshNote" type="Label" parent="HBox/PoolPanel/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "Nueva camada cada pretemporada. Se suman al primer equipo automáticamente a los 18 años."
+text = "Nuevos juveniles se suman por eventos narrados (80% de chance por día con la Academia contratada). Se suman al primer equipo automáticamente a los 18 años."
 autowrap_mode = 2
 
 [node name="MidPanel" parent="HBox" instance=ExtResource("2")]

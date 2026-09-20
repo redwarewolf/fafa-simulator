@@ -27,9 +27,12 @@ const ROLE_MANIFESTS : Array[Array] = [
 ## quality_odds: weights per PlayerResource.Quality tier, forwarded to
 ## PlayerFactory.generate_player() for every slot (see ClubFactory for the
 ## division-based tables this is normally called with).
-static func generate_squad(quality_odds: Array) -> Array[PlayerResource]:
+## normal_skin_only: forwarded to PlayerFactory.generate_player() — pass true
+## when generating the player's own club (see team_creation.gd); AI clubs
+## (ClubFactory.generate_ai_club) leave it false.
+static func generate_squad(quality_odds: Array, normal_skin_only: bool = false) -> Array[PlayerResource]:
 	var manifest : Array = ROLE_MANIFESTS.pick_random()
 	var squad : Array[PlayerResource] = []
 	for role in manifest:
-		squad.append(PlayerFactory.generate_player(quality_odds, role))
+		squad.append(PlayerFactory.generate_player(quality_odds, role, normal_skin_only))
 	return squad

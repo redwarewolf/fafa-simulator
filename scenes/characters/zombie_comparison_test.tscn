@@ -1,0 +1,163 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/characters/zombie_comparison_test.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cydlye222a3hp" path="res://assets/art/characters/soccer-player.png" id="2_oldtex"]
+[ext_resource type="Shader" uid="uid://jqtmfofmu1a8" path="res://shaders/replace_color.gdshader" id="3_shader"]
+[ext_resource type="Texture2D" uid="uid://3er61h2vjo64" path="res://assets/art/palettes/skin-colors-palette.png" id="4_skinpal"]
+[ext_resource type="Texture2D" uid="uid://kyvnn2ou4ago" path="res://assets/art/palettes/hair-colors-palette.png" id="5_hairpal"]
+[ext_resource type="Texture2D" uid="uid://bd5epn8bjc22g" path="res://assets/art/palettes/teams-color-palette.png" id="6_teampal"]
+[ext_resource type="Texture2D" path="res://assets/art/characters/zombie_test.png" id="7_newtex"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_zombie"]
+shader = ExtResource("3_shader")
+shader_parameter/team_palette = ExtResource("6_teampal")
+shader_parameter/skin_palette = ExtResource("4_skinpal")
+shader_parameter/hair_palette = ExtResource("5_hairpal")
+shader_parameter/team_color = 0
+shader_parameter/skin_color = 3
+shader_parameter/hair_color = 0
+
+[node name="ZombieComparisonTest" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.086, 0.196, 0.098, 1)
+
+[node name="Title" type="Label" parent="."]
+offset_left = 0.0
+offset_top = 12.0
+offset_right = 1280.0
+offset_bottom = 42.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+text = "Zombie render comparison — shader-tinted soccer-player.png (OLD) vs custom zombie_test.png (NEW)"
+
+[node name="ZoomRowLabel" type="Label" parent="."]
+offset_left = 0.0
+offset_top = 100.0
+offset_right = 1280.0
+offset_bottom = 124.0
+horizontal_alignment = 1
+text = "Detail view (art comparison, not to game scale)"
+
+[node name="OldSpriteZoomed" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(340, 300)
+material = SubResource("ShaderMaterial_zombie")
+texture = ExtResource("2_oldtex")
+centered = false
+offset = Vector2(-16, -32)
+scale = Vector2(6, 6)
+hframes = 6
+vframes = 14
+
+[node name="NewSpriteZoomed" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(940, 300)
+texture = ExtResource("7_newtex")
+centered = false
+offset = Vector2(-56, -112)
+scale = Vector2(1.714286, 1.714286)
+hframes = 6
+vframes = 14
+
+[node name="OldZoomLabel" type="Label" parent="."]
+offset_left = 100.0
+offset_top = 400.0
+offset_right = 580.0
+offset_bottom = 424.0
+horizontal_alignment = 1
+text = "OLD — soccer-player.png + RADIOACTIVE skin shader (×6)"
+
+[node name="NewZoomLabel" type="Label" parent="."]
+offset_left = 700.0
+offset_top = 400.0
+offset_right = 1180.0
+offset_bottom = 424.0
+horizontal_alignment = 1
+text = "NEW — zombie_test.png, own art, no shader (×6-equivalent)"
+
+[node name="NativeRowLabel" type="Label" parent="."]
+offset_left = 0.0
+offset_top = 440.0
+offset_right = 1280.0
+offset_bottom = 464.0
+horizontal_alignment = 1
+text = "Native in-game scale (this is the size that actually matters on the pitch)"
+
+[node name="OldSprite" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(400, 560)
+material = SubResource("ShaderMaterial_zombie")
+texture = ExtResource("2_oldtex")
+centered = false
+offset = Vector2(-16, -32)
+hframes = 6
+vframes = 14
+
+[node name="NewSprite" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(880, 560)
+texture = ExtResource("7_newtex")
+centered = false
+offset = Vector2(-56, -112)
+scale = Vector2(0.285714, 0.285714)
+hframes = 6
+vframes = 14
+
+[node name="OldNativeLabel" type="Label" parent="."]
+offset_left = 260.0
+offset_top = 580.0
+offset_right = 540.0
+offset_bottom = 604.0
+horizontal_alignment = 1
+text = "OLD (native ~32px)"
+
+[node name="NewNativeLabel" type="Label" parent="."]
+offset_left = 740.0
+offset_top = 580.0
+offset_right = 1020.0
+offset_bottom = 604.0
+horizontal_alignment = 1
+text = "NEW (scaled ×32/112 to match)"
+
+[node name="FrameLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 560.0
+offset_top = 648.0
+offset_right = 720.0
+offset_bottom = 672.0
+horizontal_alignment = 1
+text = "Frame 0 / 83"
+
+[node name="PrevButton" type="Button" parent="."]
+unique_name_in_owner = true
+offset_left = 440.0
+offset_top = 644.0
+offset_right = 540.0
+offset_bottom = 680.0
+text = "< Prev"
+
+[node name="NextButton" type="Button" parent="."]
+unique_name_in_owner = true
+offset_left = 740.0
+offset_top = 644.0
+offset_right = 840.0
+offset_bottom = 680.0
+text = "Next >"
+
+[node name="PlayButton" type="Button" parent="."]
+unique_name_in_owner = true
+offset_left = 860.0
+offset_top = 644.0
+offset_right = 970.0
+offset_bottom = 680.0
+toggle_mode = true
+text = "Play/Pause"
+
+[node name="PlayTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.1666

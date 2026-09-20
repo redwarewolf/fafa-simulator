@@ -6,6 +6,8 @@
 [ext_resource type="Texture2D" uid="uid://b2f8cuo5cvm3h" path="res://assets/art/football_club_logos/fc_portrait.png" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/match_preview_popup.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/ui/match_summary_popup.tscn" id="8"]
 
 [node name="Hub" type="Control" unique_id=1848374641]
 layout_mode = 3
@@ -87,6 +89,10 @@ text = "Torneo"
 layout_mode = 2
 text = "Juveniles"
 
+[node name="LabButton" type="Button" parent="Header/HeaderLayout/NavSection" unique_id=322401239]
+layout_mode = 2
+text = "Laboratorio"
+
 [node name="InfoSection" type="HBoxContainer" parent="Header/HeaderLayout" unique_id=1861009784]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -101,7 +107,7 @@ theme_override_constants/separation = 2
 
 [node name="Date" type="Label" parent="Header/HeaderLayout/InfoSection/InfoLabels" unique_id=2057272091]
 layout_mode = 2
-text = "1 de marzo de 2026"
+text = "Día 1 de 6  ·  Pretemporada"
 
 [node name="MoneyDivision" type="HBoxContainer" parent="Header/HeaderLayout/InfoSection/InfoLabels" unique_id=2046653523]
 layout_mode = 2
@@ -148,6 +154,7 @@ grow_vertical = 2
 [connection signal="pressed" from="Header/HeaderLayout/NavSection/CalendarButton" to="." method="_on_nav_pressed" binds= ["calendar"]]
 [connection signal="pressed" from="Header/HeaderLayout/NavSection/TournamentButton" to="." method="_on_nav_pressed" binds= ["tournament"]]
 [connection signal="pressed" from="Header/HeaderLayout/NavSection/YouthButton" to="." method="_on_nav_pressed" binds= ["youth"]]
+[connection signal="pressed" from="Header/HeaderLayout/NavSection/LabButton" to="." method="_on_nav_pressed" binds= ["lab"]]
 [connection signal="pressed" from="Header/HeaderLayout/InfoSection/NextDayButton" to="." method="_on_next_day_pressed"]
 [connection signal="pressed" from="Header/HeaderLayout/InfoSection/TestMatchButton" to="." method="_on_test_match_pressed"]
 
@@ -168,4 +175,8 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PauseMenu" parent="." instance=ExtResource("6")]
+
+[node name="MatchPreviewPopup" parent="." instance=ExtResource("7")]
+
+[node name="MatchSummaryPopup" parent="." instance=ExtResource("8")]
 

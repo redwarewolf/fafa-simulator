@@ -37,7 +37,7 @@ const SPEAKER_NAME := "Pepito Perinola"
 @onready var _dialogue_box : DialogueBox = $DialogueBox
 
 func _ready() -> void:
-	layer = 10  # above Hub/Match content, above the match's GameOverOverlay CanvasLayer
+	layer = 10  # above Hub/Match content; below modal popups like PauseMenu/MatchSummaryPopup (layer 20)
 	_dialogue_box.finished.connect(func() -> void: finished.emit())
 
 func say(text: String) -> void:
@@ -52,6 +52,22 @@ func say_lines(texts: Array[String]) -> void:
 	for t in texts:
 		lines.append(_make_line(t))
 	_dialogue_box.say(lines)
+
+## Narrates [param text] with [param right_control] shown on the right and
+## Accept/Decline buttons instead of click-to-advance — the general primitive
+## behind any narrated player choice (currently youth academy sign-ups, see
+## scenes/ui/youth_signup_flow.gd). The caller instantiates/sets up
+## right_control beforehand and queue_free()s it after this returns.
+##
+## Only one dialogue can be in flight on this shared box at a time — callers
+## elsewhere that await ClubTrainer.finished must fully resolve before this
+## is invoked, or vice versa (see hub.gd's day-advance sequencing).
+func say_with_choice(text: String, right_control: Control) -> bool:
+	if text.is_empty():
+		return false
+	_dialogue_box.say_with_choice(_make_line(text), right_control)
+	var accepted : bool = await _dialogue_box.choice_made
+	return accepted
 
 func _make_line(text: String) -> DialogueLine:
 	return DialogueLine.new(SPEAKER_NAME, TOP, BOTTOM, text, null,

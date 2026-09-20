@@ -15,6 +15,9 @@ var _card_buttons : Dictionary = {}
 var _card_pips    : Dictionary = {}
 var _card_levels  : Dictionary = {}
 var _card_upkeep  : Dictionary = {}
+## Only populated for the "academy" card — shows current prospects vs. cap,
+## since that's the only upgrade whose "level" also gates a live pool size.
+var _card_pool    : Dictionary = {}
 
 
 func _ready() -> void:
@@ -65,6 +68,12 @@ func _build_cards() -> void:
 		card.add_child(upkeep_label)
 		_card_upkeep[key] = upkeep_label
 
+		if key == "academy":
+			var pool_label := Label.new()
+			pool_label.add_theme_color_override("font_color", HubPalette.MUTED)
+			card.add_child(pool_label)
+			_card_pool[key] = pool_label
+
 		var pips_row := HBoxContainer.new()
 		pips_row.add_theme_constant_override("separation", 4)
 		card.add_child(pips_row)
@@ -102,6 +111,9 @@ func _populate() -> void:
 		else:
 			upkeep.text = ""
 
+		if key == "academy" and _card_pool.has(key):
+			_card_pool[key].text = (tr("Juveniles: %d / %d") % [club.youth_players.size(), GameState.get_youth_academy_cap()]) if cur_lvl > 0 else ""
+
 		var pips : Array = _card_pips[key]
 		for i in pips.size():
 			pips[i].color = HubPalette.HIGHLIGHT if i < cur_lvl else PIP_EMPTY
@@ -124,6 +136,9 @@ func _populate() -> void:
 
 
 func _on_buy_pressed(key: String) -> void:
+	# A coroutine — the academy's first-hire branch awaits its guaranteed
+	# sign-up event before this returns. Godot handles a signal-connected
+	# coroutine transparently, no change needed at the connection site.
 	var club    := GameState.player_club
 	var cur_lvl : int = club.upgrades.get(key, 0)
 	var data    : Dictionary = StaffData.STAFF[key]
@@ -145,6 +160,6 @@ func _on_buy_pressed(key: String) -> void:
 		GameState.refresh_scout_pool()
 		GameState.save_staff()
 	elif key == "academy" and was_unhired:
-		GameState.refresh_youth_pool()
+		await YouthSignupFlow.run_first_signup(club)
 
 	_populate()

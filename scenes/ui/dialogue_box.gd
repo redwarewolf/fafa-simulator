@@ -20,6 +20,11 @@ extends Control
 
 signal finished
 signal line_started(line: DialogueLine)
+## Emitted only by say_with_choice()'s Accept/Decline buttons — see
+## _on_choice_pressed(). finished still also fires on that same close (see
+## _close()), so a caller awaiting choice_made must not also be racing another
+## awaiter on finished at the same time.
+signal choice_made(accepted: bool)
 
 @export var chars_per_second : float = 45.0
 
@@ -60,10 +65,20 @@ const _TALK_SOUND_STREAM := preload("res://assets/music/gibberish.mp3")
 @onready var _dialogue_label : RichTextLabel = $TextPanel/Margin/DialogueLabel
 @onready var _continue_indicator : Label = $TextPanel/ContinueIndicator
 @onready var _talk_sound : AudioStreamPlayer = $TalkSound
+@onready var _choice_row : HBoxContainer = $TextPanel/ChoiceRow
+@onready var _accept_button : Button = $TextPanel/ChoiceRow/AcceptButton
+@onready var _decline_button : Button = $TextPanel/ChoiceRow/DeclineButton
 
 var _queue : Array[DialogueLine] = []
 var _queue_index : int = -1
 var _is_typing : bool = false
+## True while say_with_choice()'s line is up and waiting on Accept/Decline —
+## suppresses the normal click/Enter-to-advance handling in _gui_input() so
+## the box can only be resolved via the buttons themselves.
+var _awaiting_choice : bool = false
+## The Control say_with_choice() parented into _right_content — unparented
+## (not freed; the caller owns it) once a choice is made.
+var _choice_right_control : Control = null
 var _talk_time : float = 0.0
 var _bob_amp : float = 0.0
 var _char_progress : float = 0.0
@@ -111,6 +126,9 @@ func _ready() -> void:
 	_talk_sound.stream = _TALK_SOUND_STREAM
 	_talk_sound.volume_db = talk_sound_volume_db
 	_talk_sound.finished.connect(_on_talk_sound_finished)
+	_choice_row.visible = false
+	_accept_button.pressed.connect(_on_choice_pressed.bind(true))
+	_decline_button.pressed.connect(_on_choice_pressed.bind(false))
 
 func _gui_input(event: InputEvent) -> void:
 	if not visible:
@@ -118,9 +136,16 @@ func _gui_input(event: InputEvent) -> void:
 	var pressed : bool = (event is InputEventMouseButton and event.pressed) \
 		or (event is InputEventKey and event.pressed and not event.echo
 			and (event.keycode == KEY_SPACE or event.keycode == KEY_ENTER))
-	if pressed:
-		accept_event()
-		_advance()
+	if not pressed:
+		return
+	accept_event()
+	if _awaiting_choice:
+		# Still allow fast-forwarding the typewriter, but never advance/close
+		# the box this way while a choice is pending — only the buttons do.
+		if _is_typing:
+			_finish_typing()
+		return
+	_advance()
 
 func _process(delta: float) -> void:
 	if _is_typing:
@@ -145,6 +170,45 @@ func say_lines(speaker_name: String, portrait_top: Texture2D, portrait_bottom: T
 	for t in texts:
 		lines.append(DialogueLine.new(speaker_name, portrait_top, portrait_bottom, t, right_texture))
 	say(lines)
+
+## Narrates a single [param line] with [param right_control] (already set up
+## by the caller) shown in the right-side slot instead of a static image, and
+## Accept/Decline buttons in place of the usual click-to-advance prompt.
+## Resolves via choice_made(accepted) rather than finished being the useful
+## signal — finished still fires too (see _close()), but callers should await
+## choice_made. The caller owns right_control's lifecycle: this only parents/
+## unparents it, never frees it.
+func say_with_choice(line: DialogueLine, right_control: Control) -> void:
+	_queue.clear()
+	_queue_index = -1
+	visible = true
+	_awaiting_choice = true
+	_choice_right_control = right_control
+	_prepare_portrait(line)
+	right_control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_right_content.add_child(right_control)
+	_right_content.visible = true
+	_dialogue_label.text = line.text
+	_dialogue_label.visible_characters = 0
+	_char_progress = 0.0
+	_continue_indicator.visible = false
+	_choice_row.visible = false
+	_is_typing = true
+	_talk_sound_pitch = CharacterVoices.pitch_for(line.speaker_name)
+	_play_talk_sound()
+	line_started.emit(line)
+
+func _on_choice_pressed(accepted: bool) -> void:
+	if not _awaiting_choice:
+		return
+	_awaiting_choice = false
+	_choice_row.visible = false
+	var rc := _choice_right_control
+	_choice_right_control = null
+	if rc != null and rc.get_parent() == _right_content:
+		_right_content.remove_child(rc)
+	_close()
+	choice_made.emit(accepted)
 
 ## Shows [param line]'s portrait fully typed, instantly, with no sound/talk
 ## animation — for scenes/ui/portrait_calibrator.tscn, which needs a stable
@@ -194,6 +258,8 @@ func _advance() -> void:
 	_show_line(_queue[_queue_index])
 
 func _show_line(line: DialogueLine) -> void:
+	_awaiting_choice = false
+	_choice_row.visible = false
 	_prepare_portrait(line)
 	if line.right_texture != null:
 		_right_image.texture = line.right_texture
@@ -220,8 +286,11 @@ func _type_step(delta: float) -> void:
 func _finish_typing() -> void:
 	_dialogue_label.visible_characters = _dialogue_label.get_total_character_count()
 	_is_typing = false
-	_continue_indicator.visible = true
 	_stop_talk_sound()
+	if _awaiting_choice:
+		_choice_row.visible = true
+	else:
+		_continue_indicator.visible = true
 
 func _close() -> void:
 	visible = false

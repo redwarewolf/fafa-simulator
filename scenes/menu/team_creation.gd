@@ -102,7 +102,7 @@ func _on_start_pressed() -> void:
 		ClubFactory.starting_budget(DIVISION), 0
 	)
 	player_club.fans = FanEconomy.STARTING_FANS
-	player_club.players = SquadGenerator.generate_squad(ClubFactory.own_odds_for(DIVISION))
+	player_club.players = SquadGenerator.generate_squad(ClubFactory.own_odds_for(DIVISION), true)
 
 	var ai_clubs := ClubFactory.generate_ai_clubs(DIVISION, 7, taken_names, taken_ids)
 

@@ -4,6 +4,13 @@ extends Control
 ## scout is hired. The pool itself is generated/refreshed by
 ## GameState.refresh_scout_pool() (on first hire and on every month rollover)
 ## — this panel only reads GameState.player_club.scouted_players.
+##
+## The pool can mix in youth-academy-age kids alongside ordinary adult finds
+## (see GameState.SCOUT_KID_FIND_CHANCE) — a kid is flagged via
+## PlayerResource.is_youth_prospect and, when "hired", is routed into
+## GameState.player_club.youth_players instead of the senior roster, gated
+## the same way a narrated sign-up event is (academy must be hired and have
+## an open slot — see _on_pool_tree_item_selected()/_on_action_pressed()).
 
 ## Scouted players are a steal compared to the open market — 75% off their
 ## estimated transfer value — since the scout already did the work of
@@ -58,7 +65,7 @@ func _populate_pool_tree() -> void:
 	for p : PlayerResource in GameState.player_club.scouted_players:
 		var item := pool_tree.create_item(root)
 		var qcolor : Color = QualityStyle.COLORS[p.quality]
-		item.set_text(COL_NAME,    p.full_name)
+		item.set_text(COL_NAME, p.full_name + ("  (Juvenil)" if p.is_youth_prospect else ""))
 		item.set_text(COL_ROLE,    Positions.label(p.role))
 		item.set_text(COL_AGE,     str(p.age))
 		item.set_text(COL_QUALITY, tr(QualityStyle.NAMES[p.quality]))
@@ -83,6 +90,23 @@ func _on_pool_tree_item_selected() -> void:
 	player_card.setup(p)
 
 	var price := _price_for(p)
+	if p.is_youth_prospect:
+		var club := GameState.player_club
+		var academy_hired : bool = club.upgrades.get("academy", 0) > 0
+		if not academy_hired:
+			action_button.text = "REQUIERE ACADEMIA JUVENIL"
+			action_button.disabled = true
+		elif club.youth_players.size() >= GameState.get_youth_academy_cap():
+			action_button.text = "ACADEMIA LLENA"
+			action_button.disabled = true
+		elif club.budget < price:
+			action_button.text = "PRESUPUESTO INSUFICIENTE"
+			action_button.disabled = true
+		else:
+			action_button.text = tr("FICHAR PARA LA ACADEMIA — $%s") % MoneyFormat.format(price)
+			action_button.disabled = false
+		return
+
 	var can_hire := GameState.player_club.budget >= price
 	if can_hire:
 		action_button.text = tr("FICHAR — $%s") % MoneyFormat.format(price)
@@ -98,6 +122,20 @@ func _on_action_pressed() -> void:
 	var club := GameState.player_club
 	var price := _price_for(p)
 	if club.budget < price:
+		return
+
+	if p.is_youth_prospect:
+		if club.upgrades.get("academy", 0) <= 0 or club.youth_players.size() >= GameState.get_youth_academy_cap():
+			return
+		club.scouted_players.erase(p)
+		club.youth_players.append(p)
+		club.youth_unseen += 1
+		club.budget -= price
+		GameState.budget_changed.emit()
+		GameState.pool_badges_changed.emit()
+		GameState.save_upgrades()
+		GameState.save_staff()
+		refresh()
 		return
 
 	club.scouted_players.erase(p)

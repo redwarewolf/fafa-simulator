@@ -31,4 +31,10 @@ const STAFF := {
 			{"cost": 500_000, "monthly": 12_000, "pool_size": 8},
 		],
 	},
+	"butcher": {
+		"label": "Carnicero",
+		"levels": [
+			{"cost": 120_000, "monthly": 5_000},
+		],
+	},
 }
