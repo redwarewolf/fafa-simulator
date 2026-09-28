@@ -18,6 +18,9 @@
     "width_in_m":                [40.0, 64.0],
     "shots_per_possession":      [0.10, 0.22],
     "xg_per_possession":         [0.010, 0.030],
+    "on_target_share":           [0.28, 0.45],
+    "opp_keeper_save_share":     [0.60, 0.78],
+    "goals_per_xg":              [0.75, 1.25],
     "_note_totals":              "shots/goals totals dropped as targets: 360s stands for 90 min but players move at real speed, so a match fits ~1/3 of a real match's possessions. Judge per-possession rates; total goals is a game-design question (match length/pace), not an AI one."
   },
   "match_level": {

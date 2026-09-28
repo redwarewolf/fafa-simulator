@@ -46,6 +46,9 @@ func process_ai() -> void:
 	if player.brain != null:
 		player.brain.process()  # engine v2 — see scenes/match/brain/player_brain.gd
 		return
+	if player.keeper_brain != null:
+		player.keeper_brain.process()  # engine v2 keeper — goalkeeper_brain.gd
+		return
 	if MatchClock.now_ms() - time_since_last_ai_tick > DURATION_AI_TICK_FREQUENCY:
 		time_since_last_ai_tick = MatchClock.now_ms()
 		perform_ai_movement()

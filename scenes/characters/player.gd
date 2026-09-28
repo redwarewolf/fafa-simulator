@@ -82,6 +82,9 @@ var ai_behavior : AIBehavior = AIBehavior.new()
 ## outfield players on a side running the v2 AI; null means the v1 RoleAI
 ## path in AIBehavior drives this player.
 var brain : PlayerBrain = null
+## Engine-v2 goalkeeper brain (Phase 8) — set for the keeper of a v2 side
+## instead of GoalieAI; see scenes/match/brain/goalkeeper_brain.gd.
+var keeper_brain : GoalkeeperBrain = null
 
 @export var own_goal : Goal
 @export var target_goal : Goal

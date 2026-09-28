@@ -59,6 +59,10 @@ signal tackle_resolved(tackler: Player, carrier: Player, won: bool, foul: bool)
 ## Fired for fouls too, alongside foul_called.
 signal restart_awarded(kind: int, team: String, spot: Vector2)
 
+## The engine-v2 keeper read a shot: [param p_save] was his save probability,
+## [param save] the rolled outcome (GoalkeeperBrain).
+signal keeper_decision(keeper: Player, p_save: float, save: bool)
+
 ## [param player] failed to control an arriving ball (first touch).
 signal heavy_touch(player: Player)
 

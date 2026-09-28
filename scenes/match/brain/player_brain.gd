@@ -91,7 +91,7 @@ func _act_on_ball() -> bool:
 	match o.kind:
 		OnBallEvaluator.Kind.SHOOT:
 			var dir := player.position.direction_to(_shot_aim())
-			var err := MatchRng.randfn(0.0, deg_to_rad(lerpf(7.0, 1.5, player.power / 100.0)))
+			var err := MatchRng.randfn(0.0, deg_to_rad(_shot_error_deg()))
 			player.face_towards_target_goal()
 			player.switch_state(Player.State.SHOOTING,
 				PlayerStateData.build().set_shot_power(player.power).set_shot_direction(dir.rotated(err)))
@@ -106,20 +106,41 @@ func _act_on_ball() -> bool:
 			_carry_target = _shield_point()
 	return false
 
-## Aim at whichever shot target (top/middle/bottom of the goal) is farthest,
-## angularly, from the keeper.
+## Shot placement. Real shooters go for the corners — just inside a post, where
+## a keeper can't reach — and miss the frame roughly half the time doing so
+## (~33% of real shots are on target once blocks are included). The first cut
+## aimed at the goal's inner shot targets with 1.5-7° of error, which put
+## 60-66% of shots on target and goals at ~1.5x xG in the harness.
+## Error: POWER-scaled base, plus extra under pressure.
+const AIM_INSIDE_POST_PX := 5.0
+const SHOT_ERROR_BEST_DEG := 3.0
+const SHOT_ERROR_WORST_DEG := 8.0
+const SHOT_ERROR_PRESSURE_DEG := 3.0
+const SHOT_PRESSURE_PX := 35.0
+
+func _shot_error_deg() -> float:
+	var e := lerpf(SHOT_ERROR_WORST_DEG, SHOT_ERROR_BEST_DEG, player.power / 100.0)
+	for o in player.get_opponents():
+		if o.position.distance_to(player.position) < SHOT_PRESSURE_PX:
+			e += SHOT_ERROR_PRESSURE_DEG
+			break
+	return e * Tuning.f("shot_error_scale", 1.0)
+
+## Aim just inside whichever post is farther (angularly) from the keeper.
 func _shot_aim() -> Vector2:
 	var goal := player.target_goal
+	var mouth := MatchWorld._goal_mouth(goal)
+	var cx := goal.get_center_target_position().x
+	var posts := [Vector2(cx, mouth.x + AIM_INSIDE_POST_PX), Vector2(cx, mouth.y - AIM_INSIDE_POST_PX)]
 	var keeper : Player = null
 	for o in player.get_opponents():
 		if o.role == Positions.Role.GK:
 			keeper = o
-	var targets := [goal.get_top_target_position(), goal.get_center_target_position(), goal.get_bottom_target_position()]
 	if keeper == null:
-		return targets[1]
-	var best : Vector2 = targets[1]
+		return goal.get_center_target_position()
+	var best : Vector2 = posts[0]
 	var best_a := -1.0
-	for t: Vector2 in targets:
+	for t: Vector2 in posts:
 		var a := absf((t - player.position).angle_to(keeper.position - player.position))
 		if a > best_a:
 			best_a = a

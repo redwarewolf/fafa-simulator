@@ -16,6 +16,19 @@ var pass_to_feet := true
 static func build() -> PlayerStateData:
 	return PlayerStateData.new()
 
+## Engine-v2 goalkeeper dive (GoalkeeperBrain): where to, how fast, for how long.
+var has_dive := false
+var dive_target := Vector2.ZERO
+var dive_speed := 0.0
+var dive_duration_ms := 500
+
+func set_dive(target: Vector2, speed: float, duration_ms: int) -> PlayerStateData:
+	has_dive = true
+	dive_target = target
+	dive_speed = speed
+	dive_duration_ms = duration_ms
+	return self
+
 func set_pass_target(receiver: Player, destination: Vector2, to_feet: bool) -> PlayerStateData:
 	has_pass_target = true
 	pass_receiver = receiver

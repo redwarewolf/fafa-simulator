@@ -71,6 +71,7 @@ func setup(world: MatchWorld) -> void:
 	GameEvents.team_reset.connect(_on_restart)
 	GameEvents.foul_called.connect(_on_foul_called)
 	GameEvents.restart_awarded.connect(_on_restart_awarded)
+	GameEvents.team_scored.connect(_on_team_scored_for_shots)
 
 func _exit_tree() -> void:
 	# GameEvents is a long-lived autoload; a batch run instantiates many
@@ -83,6 +84,7 @@ func _exit_tree() -> void:
 		[GameEvents.team_reset, _on_restart],
 		[GameEvents.foul_called, _on_foul_called],
 		[GameEvents.restart_awarded, _on_restart_awarded],
+		[GameEvents.team_scored, _on_team_scored_for_shots],
 	]:
 		if sig_and_cb[0].is_connected(sig_and_cb[1]):
 			sig_and_cb[0].disconnect(sig_and_cb[1])
@@ -203,6 +205,60 @@ func _on_shot_taken(shooter: Player, origin: Vector2) -> void:
 		_tel(_side(shooter), "shots_with_acq")
 	st["shot_dist_m_sum"] += PitchSpace.distance_m(origin, shooter.target_goal.get_center_target_position())
 	_pending_pass = {}
+	_close_shot("superseded")
+	_shot = {"side": _side(shooter), "goal": shooter.target_goal, "xg": shot_xg, "on_target": null,
+		"keeper_touch": false}
+
+# ─── Shot outcomes (goalkeeping telemetry) ──────────────────────────────────
+# A shot is followed until it ends: goal, keeper touch (save), or anything
+# else (off target, blocked, collected by an outfielder). On-target is judged
+# one frame after the strike, once the ball has its shot velocity: does its
+# straight-line path cross the goal line inside the mouth?
+
+var _shot := {}
+
+func _classify_shot_target() -> void:
+	var goal : Goal = _shot["goal"]
+	var v := _ball.velocity
+	if v.length() < 1.0:
+		_shot["on_target"] = false
+		return
+	var line_x := goal.get_center_target_position().x
+	var t := (line_x - _ball.position.x) / v.x if absf(v.x) > 0.01 else -1.0
+	if t <= 0.0:
+		_shot["on_target"] = false
+		return
+	var y := _ball.position.y + v.y * t
+	var mouth := MatchWorld._goal_mouth(goal)
+	_shot["on_target"] = y >= mouth.x and y <= mouth.y
+	if _shot["on_target"]:
+		_tel(_shot["side"], "shots_on_target")
+		_tel(_shot["side"], "xg_on_target", _shot["xg"])
+
+func _track_shot() -> void:
+	if _shot.is_empty():
+		return
+	if _shot["on_target"] == null:
+		_classify_shot_target()
+	var lt := _ball.last_touch
+	if lt != null and lt.role == Positions.Role.GK and _side(lt) != _shot["side"]:
+		_shot["keeper_touch"] = true
+	if _ball.carrier != null:
+		_close_shot("collected")
+
+func _on_team_scored_for_shots(_team_conceded: String) -> void:
+	_close_shot("goal")
+
+func _close_shot(outcome: String) -> void:
+	if _shot.is_empty():
+		return
+	var side : String = _shot["side"]
+	if _shot["on_target"] == true:
+		if outcome == "goal":
+			_tel(side, "shot_goals_on_target")
+		elif _shot["keeper_touch"]:
+			_tel(side, "shots_saved")
+	_shot = {}
 
 func _on_tackle_resolved(tackler: Player, carrier: Player, won: bool, foul: bool) -> void:
 	var side := _side(tackler)
@@ -225,6 +281,7 @@ func _on_foul_called(_fouled: Player, _where: Vector2) -> void:
 ## "offsides won" = the defending side was awarded the free kick).
 func _on_restart_awarded(kind: int, team: String, _spot: Vector2) -> void:
 	_on_restart()
+	_close_shot("stoppage")
 	var side := "L" if team == _world.actors_container.team_left else "R"
 	var key : String = "restarts_" + Restart.KEYS.get(kind, "other")
 	_s[side][key] = _s[side].get(key, 0) + 1
@@ -234,6 +291,7 @@ func _on_restart_awarded(kind: int, team: String, _spot: Vector2) -> void:
 func _process(delta: float) -> void:
 	if not _in_play():
 		return
+	_track_shot()
 	if _last_possessor != null:
 		_s[_side(_last_possessor)]["possession_s"] += delta
 	var ctx := _world.actors_container.match_context
@@ -380,6 +438,7 @@ func build_result() -> Dictionary:
 			# across matches (sum/sum) instead of averaging per-match ratios —
 			# a match with zero shots would otherwise drag xg_per_shot to 0.
 			"raw": {
+				"goals_raw": _world.score_left if side == "L" else _world.score_right,
 				"possession_s": st["possession_s"], "possession_total_s": total_poss,
 				"passes": st["passes"], "passes_completed": st["passes_completed"],
 				"passes_progressive": st["passes_progressive"], "passes_forward": st["passes_forward"],
@@ -429,4 +488,11 @@ const POOLED_RATES := {
 	"xg_per_shot_after_won": ["tel_xg_after_won", "tel_shots_after_won"],
 	"xg_per_shot_after_loose": ["tel_xg_after_loose", "tel_shots_after_loose"],
 	"shot_carry_m": ["tel_shot_carry_m", "tel_shots_with_acq"],
+	# Goalkeeping (from the SHOOTING side's point of view — the opponent's
+	# keeper faced these): real top-flight ≈ 33% of shots on target, ~70% of
+	# those saved, and goals ≈ xG over a season.
+	"on_target_share": ["tel_shots_on_target", "shots"],
+	"conversion_on_target": ["tel_shot_goals_on_target", "tel_shots_on_target"],
+	"opp_keeper_save_share": ["tel_shots_saved", "tel_shots_on_target"],
+	"goals_per_xg": ["goals_raw", "xg"],
 }

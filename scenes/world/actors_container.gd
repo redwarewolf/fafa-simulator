@@ -102,6 +102,10 @@ func _make_team_brain(is_left: bool, team: Array[Player]) -> TeamBrain:
 	var tb := TeamBrain.new(is_left, team, match_context)
 	for p in tb.players:
 		p.brain = PlayerBrain.new(p, tb, match_context, p.opponent_detection_area)
+	if Tuning.b("gk_v2", true):
+		for p in team:
+			if p.role == Positions.Role.GK and SpecialPlayerTypes.movable(p.special_type):
+				p.keeper_brain = GoalkeeperBrain.new(p, tb, match_context, p.opponent_detection_area)
 	return tb
 
 ## When a season fixture is pending, override the scene's default teams

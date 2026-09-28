@@ -53,6 +53,8 @@ func move_and_bounce(delta: float) -> void:
 		var toucher := _player_owning(collision.get_collider())
 		if toucher != null:
 			ball.last_touch = toucher  # e.g. a keeper's parry off GoalieHands
+			if toucher.keeper_brain != null:
+				toucher.keeper_brain.on_ball_contact()  # engine-v2 keeper: catch or parry
 		var obstacle := collision.get_collider() as Player
 		if obstacle != null and SpecialPlayerTypes.bounces_ball(obstacle.special_type):
 			obstacle.get_hurt(ball.global_position.direction_to(obstacle.global_position))

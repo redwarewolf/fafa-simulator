@@ -46,7 +46,7 @@ Full plan: see the phase list below. The code lives in `scenes/match/`. The old 
 | 5 | Coordinators: defensive / attacking / set-piece role assignment (Hungarian) | 🟡 open-play coordinators done; set-piece coordinator pending |
 | 6 | Player Brain: mental attributes, grid off-ball positioning, EPV on-ball decisions, receiving | 🟡 first cut working, tuning |
 | 7 | Execution: accel/turn-limited locomotion, tackle model, touch dribbling | pending |
-| 8 | Analytic goalkeeper | pending |
+| 8 | Analytic goalkeeper | ✅ core done: positioning, sweeping, calibrated shot-stopping, catch/parry, distribution |
 | 9 | Performance budget / scheduler | pending |
 | 10 | Calibration, A/B vs v1, delete v1 | pending |
 
@@ -203,7 +203,49 @@ Changes:
   - v2 vs v2 with E: 28/37 in band, 87% completion, 5.5 passes per possession.
   - **A-vs-A check:** this same-AI run came out +0.122 ± 0.052 (2.3 SE). That's either a ~1-in-50 fluke or SE underestimating the true noise. Until an A-vs-A calibration is run, treat differences under ~3 SE as unproven.
 
+## Phase 8 notes: analytic goalkeeper
+
+**Results (v2 vs v2, 64 × 180s each):**
+
+| Configuration | on target | keeper save % | goals / xG |
+|---|---|---|---|
+| A: old keeper, old shot speed (140–274 px/s) | 63% | 63–69% | 1.21 / 0.90 |
+| B: old keeper, realistic shot speed | 58–69% | **44–47%** | **2.9 / 2.8** |
+| C: new keeper, realistic speed, old aim | 60–66% | 63% | 1.56 / 1.44 |
+| **D (adopted): new keeper, realistic speed, post-aim** | 48–55% | **64–66%** | **0.84 / 1.01** |
+| E, F: D + save bias 0.08 / 0.16 | 48–55% | 66–70% | 0.69–0.98 |
+
+- **At realistic shot speed the old keeper collapses**, while the new one holds a realistic save rate.
+- **Aim change:** shooters now aim 5px inside the post farther from the keeper, with 3–8° of error (by shooting power) plus 3° under pressure. The old inner-target aim put 60–66% of shots on target and goals at ~1.5× xG.
+- **Save bias stays at 0.** The extra bias barely moves the numbers.
+- **v1 players keep the legacy shot speed.** v1 sides still use GoalieAI, and v1 is being retired rather than re-tuned. In mixed v2-vs-v1 matches, v1's keeper saves 50% of v2's fast shots and v2's keeper saves 92% of v1's slow ones; overall goal difference is −0.05 ± 0.09. Watched matches always run both sides on the same AI.
+
+Design:
+
+`scenes/match/brain/goalkeeper_brain.gd` is used by v2 sides (Tuning knob `gk_v2`, default on). v1 sides keep GoalieAI.
+- **Positioning:** stands on the goal-centre → ball line. Depth off the line is 12px for close danger, 42px at mid range, and up to 110px as a sweeper when the ball is deep in the other half. Clamped just outside the posts.
+- **Sweeping and claiming:** rushes a loose ball or through ball when `BallPredictor` says he's 0.3s ahead of every opponent and the meeting point is in his box. He claims within 22px, up to 32px ball height (hands).
+- **Shot stopping:**
+  - A shot is a free ball over 150 px/s whose predicted path crosses the goal line inside the mouth.
+  - After his reaction time (0.12–0.30s, from reflexes) he picks the path point he can reach with the most margin: `dive_speed·t + reach − distance`.
+  - `P(save) = logistic(margin / 18px)`, minus a handling penalty on fast shots. The outcome is **rolled once**, then the dive plays out to match it.
+  - A save dives to the ball with the hands collider enlarged to his reach. On contact he catches it (`CATCH_BASE` × handling, less for fast shots) or parries it away from goal and wide.
+  - A miss dives just short with the hands disabled.
+  - Deciding first and animating second makes goals vs xG calibratable. With the old keeper, saves were an accident of collider sizes.
+- **Keeper attributes:** reflexes = 0.55·DEF + 0.25·PAC + 0.2·PHY; handling = 0.6·DEF + 0.4·PHY. These give reaction time, dive speed (170–300 px/s) and reach (14–22px).
+- **Distribution:** after a 0.6–1.6s hold (quicker for better decision-makers), the best pass option from `OnBallEvaluator`.
+- **Engine changes:**
+  - `PlayerStateDiving` takes an explicit target, speed and duration.
+  - `BallState.move_and_bounce` notifies the keeper on hand contact.
+  - Each keeper gets his own copy of the hands shape (it was a shared sub-resource).
+  - `GameEvents.keeper_decision` is fired for telemetry.
+- **Goalkeeping telemetry** (`MatchStats`):
+  - On-target is judged from the shot's velocity one frame after the strike.
+  - Each shot's outcome is tracked: goal, keeper touch, or other.
+  - Reported as `on_target_share`, `conversion_on_target`, `opp_keeper_save_share` and `goals_per_xg`.
+
 ## Findings log
+8. **Shots travelled at 7–13 m/s: ✅ CHANGED (2026-09-28).** `PlayerStateShooting.SHOT_SPEED_MIN/MAX` went from 140/274 px/s to 300/560 (~14–27 m/s; real shots are ~20–30 m/s). A keeper that actually reads the ball would save nearly every shot at the old speeds; goals had come mostly from the old keeper's clumsy physics. The old range stays available through the `shot_speed_legacy` knob for before/after comparisons.
 7. **Ground passes died at the target, and most mid-range passes were lofted: ✅ CHANGED (2026-09-28).**
    - Problem: ground passes were sized to decelerate to a dead stop exactly at the receiver, so they crawled through their last metres. Every pass over 300px (~14m) was lofted, so the v2 AI played more lofted passes than ground passes (222 vs 184 per 8 matches).
    - Fix: `Ball.GROUND_PASS_ARRIVAL_SPEED` (110 px/s, still an easy first touch) and `DISTANCE_HIGH_PASS` 300 → 520px (~25m).
