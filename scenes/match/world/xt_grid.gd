@@ -8,12 +8,15 @@ extends RefCounted
 ##
 ## First version is an ANALYTIC surface, not a fitted Markov table: a slow
 ## progression term (threat rises steeply only in the final third, and with
-## centrality) plus the shot value of the location itself (0.8 × xG, since
-## possession near goal is worth roughly its shot). Coefficients were chosen
-## to hit the landmarks of the published 12×8 surface — ~0.01 at halfway,
-## ~0.1 at the edge of the box centrally, ~0.2+ at the penalty spot, ~0.03-0.05
-## wide on the byline, ~0.005 in our own box. Phase 10 re-fits it from harness
-## data by value iteration (Singh's method) once v2 plays realistic football.
+## centrality) plus part of the shot value of the location itself. Singh's
+## xT at a spot is P(shoot)·xG + P(move)·(onward value), and P(shoot) near
+## the box is only ~0.3-0.5 — the first cut used 0.8·xG, which made simply
+## HOLDING the ball near goal worth more than shooting from it, so v2 sides
+## dominated possession but almost never shot (1.2 shots / 180s in the first
+## harness run). Coefficients hit the published 12×8 surface's landmarks —
+## ~0.01 at halfway, ~0.08 at the edge of the box centrally, ~0.15 at the
+## penalty spot, ~0.04 wide on the byline, ~0.005 in our own box. Phase 10
+## re-fits it from harness data by value iteration (Singh's method).
 ##
 ## Cached as a RES_X × RES_Y table over team-relative normalised space
 ## (x = 0 own goal line → 1 opponent goal line) and sampled bilinearly.
@@ -21,8 +24,8 @@ extends RefCounted
 const RES_X := 48
 const RES_Y := 20
 const BASE := 0.005
-const PROGRESSION := 0.045
-const SHOT_WEIGHT := 0.8
+const PROGRESSION := 0.06
+const SHOT_WEIGHT := 0.45
 
 static var _table := PackedFloat32Array()
 

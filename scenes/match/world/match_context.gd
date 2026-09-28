@@ -31,6 +31,7 @@ func setup(p_actors: ActorsContainer) -> void:
 
 func _ready() -> void:
 	control.update_all(actors.left_team, actors.right_team)
+	_update_potential()
 	GameEvents.pass_attempted.connect(_on_pass_attempted)
 	GameEvents.possession_gained.connect(_on_possession_gained)
 	GameEvents.restart_awarded.connect(_on_restart)
@@ -90,10 +91,15 @@ func offside_depth(attack_left: bool) -> float:
 const TACTICAL_REFRESH_S := 0.1
 var _next_tactical := 0.0
 
+var _frame := 0
+
 func _process(_delta: float) -> void:
 	var t0 := Time.get_ticks_usec()
 	var rows_per_frame := ceili(float(PitchControlGrid.ROWS) / FRAMES_PER_REFRESH)
 	control.update_rows(rows_per_frame, actors.left_team, actors.right_team)
+	_frame += 1
+	if _frame % FRAMES_PER_REFRESH == 0:
+		_update_potential()
 	AIProfile.end("pitch_control", t0)
 	if MatchClock.now() >= _next_tactical:
 		_next_tactical = MatchClock.now() + TACTICAL_REFRESH_S
@@ -119,6 +125,79 @@ static func xt_at(p: Vector2, team_left: bool) -> float:
 ## side controls it. The positional currency off-ball positioning trades in.
 func value_at(p: Vector2, team_left: bool) -> float:
 	return XtGrid.at(p, team_left) * control_at(p, team_left)
+
+# ─── Reachable-value potential ──────────────────────────────────────────────
+# xT alone values a spot by its location only; in a team's own half it's
+# nearly flat (≈0.004-0.009), so it gives build-up play almost no gradient
+# toward progress — the first v2 harness runs circulated the ball in their own
+# third and made 2 of 116 decisions in the attacking third. Full EPV
+# (Fernández et al.) instead values a spot by what can be DONE from it given
+# the space around it. The potential grid approximates that: for every cell,
+# the best xT×control reachable within POT_REACH_COLS/ROWS cells, discounted
+# by distance. A receiver in a pocket with open grass ahead is then worth far
+# more than one with the same xT hemmed in.
+
+const POT_REACH_COLS := 3
+const POT_REACH_ROWS := 2
+const POT_DECAY_PER_CELL := 0.12
+
+var _xt_left := PackedFloat32Array()
+var _xt_right := PackedFloat32Array()
+var pot_left := PackedFloat32Array()
+var pot_right := PackedFloat32Array()
+
+func _ensure_xt_cells() -> void:
+	if not _xt_left.is_empty():
+		return
+	var n := control.centres.size()
+	_xt_left.resize(n)
+	_xt_right.resize(n)
+	pot_left.resize(n)
+	pot_right.resize(n)
+	for i in n:
+		_xt_left[i] = XtGrid.at(control.centres[i], true)
+		_xt_right[i] = XtGrid.at(control.centres[i], false)
+
+func _update_potential() -> void:
+	_ensure_xt_cells()
+	var cols := PitchControlGrid.COLS
+	var rows := PitchControlGrid.ROWS
+	for r in rows:
+		for c in cols:
+			var best_l := 0.0
+			var best_r := 0.0
+			for dr in range(-POT_REACH_ROWS, POT_REACH_ROWS + 1):
+				var rr := r + dr
+				if rr < 0 or rr >= rows:
+					continue
+				for dc in range(-POT_REACH_COLS, POT_REACH_COLS + 1):
+					var cc := c + dc
+					if cc < 0 or cc >= cols:
+						continue
+					var j := rr * cols + cc
+					var decay := 1.0 - POT_DECAY_PER_CELL * maxf(absf(dr), absf(dc))
+					var cl := control.control_left[j]
+					best_l = maxf(best_l, _xt_left[j] * cl * decay)
+					best_r = maxf(best_r, _xt_right[j] * (1.0 - cl) * decay)
+			pot_left[r * cols + c] = best_l
+			pot_right[r * cols + c] = best_r
+
+## Reachable-value potential at [param p] for [param team_left] (nearest cell).
+func potential_at(p: Vector2, team_left: bool) -> float:
+	_ensure_xt_cells()
+	var n := PitchSpace.absolute_normalised(p)
+	var c := clampi(int(n.x * PitchControlGrid.COLS), 0, PitchControlGrid.COLS - 1)
+	var r := clampi(int(n.y * PitchControlGrid.ROWS), 0, PitchControlGrid.ROWS - 1)
+	var i := r * PitchControlGrid.COLS + c
+	return pot_left[i] if team_left else pot_right[i]
+
+## What having the ball at [param p] is worth to [param team_left] — the
+## better of the spot itself (xT, scaled by how securely we'd hold it) and
+## what can be reached from it (potential). The single value function the
+## on-ball evaluator compares every option with.
+func possession_value(p: Vector2, team_left: bool) -> float:
+	var sec := 0.6 + 0.4 * control_at(p, team_left)
+	return maxf(XtGrid.at(p, team_left) * sec, potential_at(p, team_left))
 
 # ─── Debug overlays ─────────────────────────────────────────────────────────
 

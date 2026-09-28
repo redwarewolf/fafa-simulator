@@ -77,6 +77,11 @@ var _kickoff_taker : Player = null
 func _enter_tree() -> void:
 	MatchClock.reset()
 	MatchRng.seed_match(MatchConfig.match_seed)
+	# Watched matches follow the pause menu's dev AI toggle; the batch harness
+	# sets MatchConfig itself.
+	if not MatchConfig.headless and GameState != null:
+		MatchConfig.ai_version_left = GameState.match_ai_version
+		MatchConfig.ai_version_right = GameState.match_ai_version
 
 func _ready() -> void:
 	GameEvents.team_scored.connect(_on_team_scored)

@@ -235,6 +235,7 @@ const MESSAGES := {
 	"Volver al Hub": "Back to Hub",
 	"¡FALTA!": "FOUL!",
 	"¡FUERA DE JUEGO!": "OFFSIDE!",
+	"IA de partido: %s (próximo partido)": "Match AI: %s (next match)",
 	"SAQUE DE BANDA": "THROW-IN",
 	"¡CÓRNER!": "CORNER!",
 	"SAQUE DE META": "GOAL KICK",

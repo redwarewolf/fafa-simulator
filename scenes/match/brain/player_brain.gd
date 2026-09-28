@@ -153,7 +153,7 @@ func _think_off_ball() -> void:
 				_target = job.point + _position_error
 		Job.Kind.RECEIVE:
 			var t := BallPredictor.earliest_intercept(ctx.ball_path, player) if ctx.ball_path != null else INF
-			_target = ctx.ball_path.position_at(t) if t != INF else job.point
+			_target = TeamBrain.clamp_to_pitch(ctx.ball_path.position_at(t)) if t != INF else job.point
 		_:
 			_target = job.point
 	if MatchRng.randf() < 0.05:

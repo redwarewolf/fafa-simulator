@@ -42,9 +42,9 @@ Full plan: see the phase list below. The code lives in `scenes/match/`. The old 
 | 1 | Deterministic clock, seeded RNG, stats, headless batch harness | ✅ done (`babab77`); pre-rules v1 baseline running |
 | 2 | Rules: offside, throw-ins, corners, goal kicks | ✅ done: unit tests + 7/7 live rules probe |
 | 3 | World model: ball predictor, pitch-control grid, xT, pass/shot models, MatchContext | ✅ done (`b479e90`), incl. lofted-pass physics fix |
-| 4 | Tactical Brain: phase classification + hysteresis, live team shape, instructions | pending |
-| 5 | Coordinators: defensive / attacking / set-piece role assignment (Hungarian) | pending |
-| 6 | Player Brain: mental attributes, grid off-ball positioning, EPV on-ball decisions, receiving | pending |
+| 4 | Tactical Brain: phase classification + hysteresis, live team shape, instructions | 🟡 first cut working (`c3510bd`), tuning |
+| 5 | Coordinators: defensive / attacking / set-piece role assignment (Hungarian) | 🟡 open-play coordinators done; set-piece coordinator pending |
+| 6 | Player Brain: mental attributes, grid off-ball positioning, EPV on-ball decisions, receiving | 🟡 first cut working, tuning |
 | 7 | Execution: accel/turn-limited locomotion, tackle model, touch dribbling | pending |
 | 8 | Analytic goalkeeper | pending |
 | 9 | Performance budget / scheduler | pending |
@@ -128,7 +128,59 @@ What landed (`scenes/match/world/`):
 
 Tests: 26/26 (`tests/world_model_test.gd`: pass stopping/landing accuracy, shot hot phase, intercept ordering, open/blocked/marked passes, through-ball race, pitch-control symmetry, xT landmarks and mirroring).
 
+## Phases 4–6 notes (first cut + tuning log)
+
+Code: `scenes/match/brain/`. A side runs v2 when `MatchConfig.ai_version_left/right == "v2"`. Its keeper stays on v1's GoalieAI until Phase 8.
+- **TacticalBrain**: observed owner (carrier / pass in flight / first to a loose ball) becomes the committed owner after 0.15s (carried) or 0.5s (loose). Transition windows last 4s (attack) and 5s (counter-press).
+- **TeamShape**: formation anchors re-scaled into a block each tick, in the team frame.
+  - Out of possession: the defensive line holds a gap behind the ball within press-dependent limits, adjusted by the ball-pressure rule.
+  - In possession: the back line steps up behind the ball, and the front is pinned just onside of the opponents' last line.
+- **TeamBrain coordinators**, all assigned in one Hungarian solve (travel time + affinity + slot-swap penalty − stickiness):
+  - Out of possession: PRESS (engage or contain, with pressing triggers), a second PRESS in the counter-press window, COVER, MARK ×≤4 (by xT threat), LANE_CUT.
+  - Loose ball: CHASE / INTERCEPT by predicted first-to-ball.
+  - In possession: RECEIVE (on the ball path), SUPPORT ×2, RUN ×1–2 (on the shoulder), REST_DEFENCE ×2–4.
+- **PlayerBrain**: jobs execute per frame (tracking targets recomputed every frame), thinking is staggered, there's a first-touch delay, and tackles are committed per job.
+- **OnBallEvaluator**: `P·V(dest) − (1−P)·risk·V_opp(loss) + P·verticality·Δdepth`, where `V = MatchContext.possession_value` (the better of the spot's xT × security and the reachable-value potential). Options: passes to feet, into space ahead of runners, carries in 7 directions, hold, and shot (xG × role bias). Picked by softmax with a value-relative temperature.
+- **MentalAttributes**: decisions → temperature, composure → first-touch delay, positioning → shape error, vision/off-ball → search radius.
+
+Harness progression, v2 vs v1, 6 × 180s, seeds 50–55 (per side per match):
+
+| round | change | v2 passes | v2 compl. | v2 shots | v2 xG | v1 xG | record W/D/L |
+|---|---|---|---|---|---|---|---|
+| 0 | first cut (+ pickup & clock fixes) | 51 | 83% | 1.2 | 0.46 | 0.25 | 1/4/1 |
+| 1 | xT shot weight 0.8→0.45; higher def. line | 52 | 81% | 0.8 | 0.08 | 0.06 | 1/5/0 |
+| 2 | mandatory special jobs; attack block pinned to opp. line; potential grid; relative softmax; verticality 0.02–0.07 | 29 | 63% | 2.2 | 0.29 | 0.21 | 1/4/1 |
+| 3 | verticality 0.008–0.035 | 37 | 70% | 2.3 | **0.46** | **0.08** | **2/3/1** |
+
+**Valid v1 reference** (v1 vs v1, 20 × 360s, all engine fixes applied, `baseline_v1b.json`), per side per match:
+- Passes and turnovers: 38 passes at **45% completion**, 29 turnovers, 33 tackles, bunching index **2.23**.
+- Shooting: 1.7 shots, 0.27 xG/shot, 0.9 / 0.65 goals.
+- Direction: 87–91% of passes forward.
+
+Against that, v2's rates are clearly better: 70% vs 45% completion, half the bunching, ~3× the shot rate per minute, and more realistic shot quality.
+
+What each round's telemetry showed (decision counters by third, shape snapshots):
+- **Round 1.** Only 2 of 116 on-ball decisions happened in the attacking third. Build-up choices were near-random, because the absolute softmax temperature exceeded the differences between options in the flat own-half xT.
+- **Round 2.** The RUN job was never assigned. Its priority (−3s) was smaller than travel times, so leaving it empty was "cheaper". Specials are now effectively mandatory (−30…−120).
+  - The forwards were parked at 0.52 while a deep block's line sat at ~0.85.
+  - Rest-defence and receive targets were falling off the pitch; now clamped.
+
+Open issues (next tuning rounds):
+- Play is too direct: 73% of passes go forward and 43% are progressive.
+- Possessions are short (1.2 passes each).
+- Average pass length is 26m.
+- Bunching index is 1.06.
+- `ctx_usec_mean` is 1.44 ms because the potential grid adds 0.7 ms. Phase 9 will switch to a separable max-filter.
+- No set-piece routines yet: restarts use the Phase 2 placeholder.
+- The keeper is still v1.
+
 ## Findings log
+3. **Loose ball never collected by a player already standing on it: ✅ FIXED (2026-09-28).** Pickup only fired on `body_entered`. A player who reached a stopped ball while unable to carry it (mid-tackle or recovering), or a chaser who stopped exactly on it, never re-entered, so the ball sat dead for 50+ seconds. Found with the harness heartbeat trace. `BallStateFreeform` now also polls overlaps each physics frame. `Ball.KICK_COOLDOWN_MS` (300 ms) stops the kicker from re-collecting their own kick.
+4. **Tactics frozen for a whole match after the first one in a session: ✅ FIXED (2026-09-28). A regression I introduced in Phase 1.**
+   - Cause: `ActorsContainer.time_since_last_tactical_refresh` was initialised from `MatchClock.now_ms()` when the scene was *instantiated*, before `MatchWorld._enter_tree()` reset the clock to 0. After a previous match that captured value was huge, so the refresh check stayed false for as long as the previous match had lasted.
+   - Effect: neither v1's TeamTacticalState nor v2's TeamBrain ever updated. This affects any second match played in a session, not just the harness.
+   - It also invalidated the 40-match v1 baseline (every match after the first).
+   - Found because the same seed gave 5/19 passes standalone but 0/3 as the second match of a batch. Fixed by initialising in `_ready()`, after the reset.
 2. **Every lofted pass fell short at ~26–30% of its intended distance: ✅ FIXED (2026-09-28).** Found by validating BallPredictor against the real ball (`tools/ball_probe.tscn`): 350px → 90px, 600px → 180px, 900px → 264px.
    - Cause: `pass_to`'s lofted branch sized speed for air friction but set `height_velocity` via a sqrt(dt) scale. Under the engine's per-tick height integration that gave ~0.3s of airtime, so the ball landed almost at once and ground friction stopped it early.
    - Consequence: in v1, every pass over 300px, including switches, through balls and long outlets, went to nobody. That's a large hidden contributor to v1's poor completion and scrum-like play.

@@ -22,6 +22,24 @@ static func end(section: String, t0: int) -> void:
 static func reset() -> void:
 	_usec.clear()
 	_calls.clear()
+	_counts.clear()
+	_sums.clear()
+
+# ─── Decision telemetry (counts and value sums, not timings) ────────────────
+
+static var _counts := {}
+static var _sums := {}
+
+static func count(key: String, value: float = 0.0) -> void:
+	_counts[key] = _counts.get(key, 0) + 1
+	_sums[key] = _sums.get(key, 0.0) + value
+
+## {key: {"n": count, "mean": mean of the values passed}}
+static func counters() -> Dictionary:
+	var out := {}
+	for k in _counts:
+		out[k] = {"n": _counts[k], "mean": _sums[k] / maxi(_counts[k], 1)}
+	return out
 
 ## {section: {"ms": total ms, "calls": n, "us_per_call": mean}}
 static func report() -> Dictionary:

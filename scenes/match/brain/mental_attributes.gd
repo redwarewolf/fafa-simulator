@@ -47,10 +47,12 @@ static func _f(v: float) -> float:
 
 # ─── Behavioural parameters ─────────────────────────────────────────────────
 
-## Softmax temperature for on-ball choices, in xT units: a sharp decision-maker
-## almost always takes the best option, a poor one often takes a near-miss.
+## Softmax temperature for on-ball choices, RELATIVE to the best option's
+## value (see OnBallEvaluator._softmax_pick): 0.05 means options within ~5%
+## of the best are real contenders — a sharp decision-maker; 0.35 means even
+## clearly worse options get picked fairly often.
 func decision_temperature() -> float:
-	return lerpf(0.012, 0.0015, _f(decisions))
+	return lerpf(0.35, 0.05, _f(decisions))
 
 ## Seconds between gaining the ball and the first on-ball decision (the
 ## "first touch" window — a composed player releases a one-touch pass).

@@ -17,12 +17,16 @@ extends RefCounted
 const TICK_S := 0.2
 
 # ─── Assignment costs (seconds of travel-time equivalent) ───────────────────
-## Special jobs carry a large negative priority so they are always filled
-## (and filled first) — the optimisation then only decides WHO takes them.
+## Special jobs carry a negative priority far larger than any travel time, so
+## they are ALWAYS filled (in priority order if there are more specials than
+## players) — the optimisation then only decides WHO takes each one. The first
+## cut used -3..-12, comparable to travel times: a RUN point 8s away "cost"
+## more than leaving it empty, so no runner was ever assigned and v2 sides
+## never got anyone in behind (docs/match-engine-v2.md, tuning round 2).
 const PRIORITY := {
-	Job.Kind.RECEIVE: -12.0, Job.Kind.CHASE: -10.0, Job.Kind.INTERCEPT: -10.0,
-	Job.Kind.PRESS: -9.0, Job.Kind.COVER: -6.0, Job.Kind.MARK: -5.0,
-	Job.Kind.SUPPORT: -4.0, Job.Kind.LANE_CUT: -3.5, Job.Kind.RUN: -3.0,
+	Job.Kind.RECEIVE: -120.0, Job.Kind.CHASE: -100.0, Job.Kind.INTERCEPT: -100.0,
+	Job.Kind.PRESS: -90.0, Job.Kind.COVER: -60.0, Job.Kind.MARK: -50.0,
+	Job.Kind.SUPPORT: -40.0, Job.Kind.LANE_CUT: -35.0, Job.Kind.RUN: -30.0,
 }
 ## Keeping the same job as last tick (assignment hysteresis).
 const STICKY_BONUS := 0.6
@@ -205,20 +209,26 @@ func _loose_ball_jobs(specials: Array, attacking: bool) -> void:
 		if r != null and r in players and r.process_mode != Node.PROCESS_MODE_DISABLED:
 			var t := BallPredictor.earliest_intercept(ctx.ball_path, r)
 			var pt := ctx.ball_path.position_at(t) if t != INF else ctx.ball_path.end_position()
-			specials.append(Job.make(Job.Kind.RECEIVE, pt, r, 1.0))
+			specials.append(Job.make(Job.Kind.RECEIVE, clamp_to_pitch(pt), r, 1.0))
 			return
 	var first : Dictionary = ctx.first_to_ball(team_left)
 	var chaser : Player = first["player"]
 	if chaser == null or chaser.role == Positions.Role.GK:
 		return
 	var kind := Job.Kind.CHASE if ctx.last_pass.is_empty() or ctx.last_pass["left"] == team_left else Job.Kind.INTERCEPT
-	specials.append(Job.make(kind, ctx.ball_path.position_at(first["time"]), null, 1.0))
+	specials.append(Job.make(kind, clamp_to_pitch(ctx.ball_path.position_at(first["time"])), null, 1.0))
+
+## Ball-path points can lie outside the lines (a ball heading out of play);
+## nobody should be sent off the pitch to meet it.
+static func clamp_to_pitch(p: Vector2) -> Vector2:
+	var n := PitchSpace.absolute_normalised(p)
+	return PitchSpace.from_absolute_normalised(Vector2(clampf(n.x, 0.01, 0.99), clampf(n.y, 0.02, 0.98)))
 
 # ═══ Attacking coordinator ══════════════════════════════════════════════════
 
 func _attacking_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dictionary) -> void:
 	var offside := ctx.offside_depth(team_left)
-	var params := TeamShape.params_for(tactical.phase, preset.mentality, preset.press_intensity, ball_n, 0.0)
+	var params := TeamShape.params_for(tactical.phase, preset.mentality, preset.press_intensity, ball_n, 0.0, offside)
 	var rest_n := clampi(roundi(3.0 - preset.mentality * 1.5), 2, 4)
 	var by_rank := active.duplicate()
 	by_rank.sort_custom(func(a, b): return shape.rank_of(a) < shape.rank_of(b))

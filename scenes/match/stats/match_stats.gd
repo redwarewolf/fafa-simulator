@@ -59,6 +59,8 @@ func setup(world: MatchWorld) -> void:
 		}
 		for kind_key in Restart.KEYS.values():
 			_s[side]["restarts_" + kind_key] = 0
+		for g in ["gk", "defense", "midfield", "offense"]:
+			_s[side]["turnovers_by_" + g] = 0
 	_s["bunching_sum"] = 0.0
 	_s["bunching_samples"] = 0
 	GameEvents.possession_gained.connect(_on_possession_gained)
@@ -112,6 +114,11 @@ func _on_possession_gained(p: Player) -> void:
 				_s[side]["high_def_actions"] += 1
 	if _last_possessor != null and _side(_last_possessor) != side:
 		_on_turnover(_side(_last_possessor), side, p.position)
+		# Who lost it, by formation group — diagnoses e.g. keeper distribution.
+		var group_name : String = "gk" if _last_possessor.role == Positions.Role.GK \
+			else String(Positions.Group.keys()[Positions.group(_last_possessor.role)]).to_lower()
+		var key := "turnovers_by_" + group_name
+		_s[_side(_last_possessor)][key] = _s[_side(_last_possessor)].get(key, 0) + 1
 	_last_possessor = p
 
 func _on_turnover(loser: String, gainer: String, where: Vector2) -> void:
@@ -324,6 +331,10 @@ func build_result() -> Dictionary:
 			"restarts_throw_in": st["restarts_throw_in"],
 			"restarts_corner": st["restarts_corner"],
 			"restarts_goal_kick": st["restarts_goal_kick"],
+			"turnovers_by_gk": st["turnovers_by_gk"],
+			"turnovers_by_defense": st["turnovers_by_defense"],
+			"turnovers_by_midfield": st["turnovers_by_midfield"],
+			"turnovers_by_offense": st["turnovers_by_offense"],
 			# Raw numerators/denominators, so the harness can pool rates
 			# across matches (sum/sum) instead of averaging per-match ratios —
 			# a match with zero shots would otherwise drag xg_per_shot to 0.

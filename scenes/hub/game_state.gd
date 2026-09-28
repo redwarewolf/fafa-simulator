@@ -35,6 +35,18 @@ var locale : String = DEFAULT_LOCALE
 ## see settings_screen.gd's "Desactivar Tutorial" checkbox.
 var tutorials_disabled : bool = false
 
+## Dev setting — which match AI both sides use in watched matches: "v1" (the
+## original RoleAI system) or "v2" (the engine-v2 rebuild, docs/match-engine-v2.md).
+## App-wide like tutorials_disabled; toggled from the pause menu's debug tools
+## and applied at the next kickoff (MatchWorld._enter_tree).
+var match_ai_version : String = "v1"
+
+func set_match_ai_version(version: String) -> void:
+	if version == match_ai_version:
+		return
+	match_ai_version = version
+	_save_settings()
+
 func _ready() -> void:
 	TranslationServer.add_translation(LocaleENClass.build())
 	_load_settings()
@@ -71,13 +83,15 @@ func _load_settings() -> void:
 	var data : Dictionary = json.data
 	locale = data.get("locale", DEFAULT_LOCALE)
 	tutorials_disabled = data.get("tutorials_disabled", false)
+	match_ai_version = data.get("match_ai_version", "v1")
 
 func _save_settings() -> void:
 	var file := FileAccess.open(SETTINGS_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		printerr("GameState: could not open %s for writing" % SETTINGS_SAVE_PATH)
 		return
-	file.store_string(JSON.stringify({"locale": locale, "tutorials_disabled": tutorials_disabled}, "\t"))
+	file.store_string(JSON.stringify({"locale": locale, "tutorials_disabled": tutorials_disabled,
+		"match_ai_version": match_ai_version}, "\t"))
 	file.close()
 
 # Club

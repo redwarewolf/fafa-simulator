@@ -95,6 +95,12 @@ func _run() -> void:
 		AIProfile.reset()
 		var r := await _play_one()
 		r["ai_profile"] = AIProfile.report()
+		r["ai_counters"] = AIProfile.counters()
+		if OS.has_environment("BATCH_COUNTERS"):
+			var keys : Array = r["ai_counters"].keys()
+			keys.sort()
+			for k in keys:
+				print("    counter %-40s n=%6d mean=%.4f" % [k, r["ai_counters"][k]["n"], r["ai_counters"][k]["mean"]])
 		if not _args["quiet"]:
 			for k in r["ai_profile"]:
 				var e : Dictionary = r["ai_profile"][k]
@@ -133,6 +139,21 @@ func _play_one() -> Dictionary:
 	while world.state != MatchWorld.MatchState.GAMEOVER and frames < max_frames:
 		await get_tree().process_frame
 		frames += 1
+		if OS.has_environment("BATCH_SHAPES") and frames % 300 == 0:
+			var ac := world.actors_container
+			for tb in [ac.team_brain_left, ac.team_brain_right]:
+				if tb == null or ac.match_context == null:
+					continue
+				var line := ac.match_context.offside_depth(tb.team_left)
+				var ball_n := PitchSpace.normalised(ac.ball.position, tb.team_left)
+				var parts := []
+				for p in tb.players:
+					var j : Job = tb.jobs.get(p)
+					var n := PitchSpace.normalised(p.position, tb.team_left)
+					var jn := PitchSpace.normalised(j.point, tb.team_left) if j != null else Vector2.ZERO
+					parts.append("%s@%.2f,%.2f→%.2f,%.2f" % [Job.NAMES[j.kind] if j != null else "-", n.x, n.y, jn.x, jn.y])
+				print("shape t=%.0f %s phase=%s ball=%.2f,%.2f offside=%.2f | %s" % [world.match_time, "L" if tb.team_left else "R",
+					TacticalBrain.PHASE_NAMES[tb.tactical.phase], ball_n.x, ball_n.y, line, "  ".join(parts)])
 		if OS.has_environment("BATCH_HEARTBEAT") and frames % 120 == 0:
 			var b := world.actors_container.ball
 			var c := b.carrier

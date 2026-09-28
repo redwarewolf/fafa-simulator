@@ -23,6 +23,9 @@ extends RefCounted
 class Params:
 	var back_x := 0.2       # depth of the deepest outfield slot
 	var length := 0.32      # depth span from deepest to highest slot
+	## In possession only: depth of the highest slot, pinned against the
+	## opponents' defensive line (so length = front_x - back_x); < 0 = unused.
+	var front_x := -1.0
 	var width := 0.65       # fraction of the pitch width the anchors span
 	var shift_y := 0.35     # how strongly the block slides toward the ball's side
 
@@ -46,25 +49,40 @@ func _init(p_team_left: bool, outfield: Array) -> void:
 		_rank[p] = (_anchor[p].x - min_x) / span
 
 ## Defensive line limits (team frame) at press_intensity 0 → 1.
-const LINE_MIN_LOW := 0.09
-const LINE_MIN_HIGH := 0.16
-const LINE_MAX_LOW := 0.28
-const LINE_MAX_HIGH := 0.46
+## First cut (0.09-0.16 min, 0.28-0.46 max, 0.30-0.20 gap) measured a 20m
+## average line height out of possession — a deep low block even for a
+## neutral side. Real mid-blocks hold ~30-40m.
+const LINE_MIN_LOW := 0.14
+const LINE_MIN_HIGH := 0.22
+const LINE_MAX_LOW := 0.36
+const LINE_MAX_HIGH := 0.52
 ## How far behind the ball the defensive line sits (fraction of pitch length).
-const LINE_GAP_LOW := 0.30
-const LINE_GAP_HIGH := 0.20
+const LINE_GAP_LOW := 0.26
+const LINE_GAP_HIGH := 0.17
 
 ## Builds this tick's block parameters.
 ## [param mentality] -1..1, [param press] 0..1 (TacticPreset), [param ball_n]
 ## the ball in the team frame, [param line_adjust] the ball-pressure step
 ## (negative = drop, positive = step up), [param phase] TacticalBrain.Phase.
-static func params_for(phase: int, mentality: float, press: float, ball_n: Vector2, line_adjust: float) -> Params:
+## In possession, the front of the block is pinned just onside of the
+## opponents' last line (their offside depth, in our frame), so the team
+## stretches the opposition instead of stopping at a ball-relative length —
+## the first harness runs showed forwards parked at ~0.52 while a deep block's
+## line sat at ~0.85, leaving a 30m hole nobody could pass into.
+const ATTACK_FRONT_MARGIN := 0.03
+const ATTACK_LENGTH_MIN := 0.38
+const ATTACK_LENGTH_MAX := 0.62
+
+static func params_for(phase: int, mentality: float, press: float, ball_n: Vector2, line_adjust: float, offside: float = -1.0) -> Params:
 	var p := Params.new()
 	var m01 := (mentality + 1.0) * 0.5
 	match phase:
 		TacticalBrain.Phase.ATTACK, TacticalBrain.Phase.TRANSITION_ATTACK:
+			p.back_x = clampf(ball_n.x - lerpf(0.22, 0.15, m01), 0.08, 0.55)
 			p.length = lerpf(0.40, 0.52, m01)
-			p.back_x = clampf(ball_n.x - lerpf(0.30, 0.22, m01), 0.10, 0.50)
+			if offside > 0.0:
+				p.front_x = clampf(offside - ATTACK_FRONT_MARGIN, p.back_x + ATTACK_LENGTH_MIN, p.back_x + ATTACK_LENGTH_MAX)
+				p.length = p.front_x - p.back_x
 			p.width = 0.92
 			p.shift_y = 0.12
 		_:
@@ -86,7 +104,9 @@ func slot(player: Player, params: Params, ball_n: Vector2, max_depth: float = 0.
 	var a : Vector2 = _anchor[player]
 	var x := params.back_x + float(_rank[player]) * params.length
 	var y := 0.5 + (a.y - 0.5) * params.width + (ball_n.y - 0.5) * params.shift_y
-	x = clampf(x, 0.04, max_depth)
+	# Callers cap depth relative to the ball; near our own goal that cap can
+	# fall below the pitch, so never let it pull a slot behind our own line.
+	x = clampf(x, 0.04, maxf(max_depth, 0.06))
 	y = clampf(y, 0.05, 0.95)
 	return PitchSpace.from_normalised(Vector2(x, y), team_left)
 

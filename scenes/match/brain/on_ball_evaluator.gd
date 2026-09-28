@@ -44,6 +44,15 @@ const SHOT_BIAS := {Positions.Group.OFFENSE: 1.35, Positions.Group.MIDFIELD: 1.1
 const SHOT_RANGE_PX := 520.0
 ## Through balls: how far ahead of a runner the ball is played into space.
 const THROUGH_LEADS := [140.0, 230.0]
+## Verticality — a tactical instruction, value per unit of pitch depth gained
+## (normalised; 1.0 = the full 105m), from cautious (mentality -1) to direct
+## (+1). xT and the potential grid are nearly flat in a team's own half
+## (≈0.004-0.01), so without this the EPV comparison had almost no gradient
+## toward progress there and harness runs saw sides dribble around their own
+## box. First tried 0.02-0.07: overshot (82% of passes forward, completion
+## fell from 81% to 63%). ~0.02 per pitch length at neutral mentality.
+const VERTICALITY_CAUTIOUS := 0.008
+const VERTICALITY_DIRECT := 0.035
 
 static func decide(player: Player, ctx: MatchContext, team: TeamBrain, mental: MentalAttributes, restart: bool) -> Option:
 	var options := enumerate(player, ctx, team, restart)
@@ -51,7 +60,32 @@ static func decide(player: Player, ctx: MatchContext, team: TeamBrain, mental: M
 		var hold := Option.new()
 		hold.destination = player.position
 		return hold
-	return _softmax_pick(options, mental.decision_temperature())
+	var pick := _softmax_pick(options, mental.decision_temperature())
+	_record(player, options, pick)
+	return pick
+
+const KIND_NAMES := ["shoot", "pass", "carry", "hold"]
+
+## Decision telemetry by pitch third: what was chosen, and — when a shot was
+## available — its value vs. the chosen option's (why aren't we shooting?).
+static func _record(player: Player, options: Array, pick: Option) -> void:
+	var nx := PitchSpace.normalised(player.position, player.is_left_team).x
+	var third := "def" if nx < 1.0 / 3.0 else ("mid" if nx < 2.0 / 3.0 else "att")
+	AIProfile.count("choice_%s_%s" % [third, KIND_NAMES[pick.kind]], pick.value)
+	var best_through : Option = null
+	for o in options:
+		if o.kind == Kind.SHOOT:
+			AIProfile.count("shot_available_%s" % third, o.value)
+			AIProfile.count("shot_available_chosen_value_%s" % third, pick.value)
+		if o.kind == Kind.PASS and not o.to_feet:
+			if best_through == null or o.value > best_through.value:
+				best_through = o
+	if best_through != null:
+		AIProfile.count("through_available_p_%s" % third, best_through.p_success)
+		AIProfile.count("through_available_value_%s" % third, best_through.value)
+		AIProfile.count("through_available_vs_chosen_%s" % third, pick.value)
+		if pick.kind == Kind.PASS and not pick.to_feet:
+			AIProfile.count("through_chosen_%s" % third, pick.p_success)
 
 static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restart: bool) -> Array:
 	var left := player.is_left_team
@@ -59,6 +93,8 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 	var teammates := player.get_teammates()
 	var opponents := MatchContext.active(player.get_opponents())
 	var risk := _risk(team)
+	var vertical := lerpf(VERTICALITY_CAUTIOUS, VERTICALITY_DIRECT, (team.preset.mentality + 1.0) * 0.5)
+	var from_depth := PitchSpace.normalised(from, left).x
 	var out := []
 
 	# ── Passes to feet ──
@@ -111,8 +147,8 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 		carry.destination = q
 		var t_opp := _best_time(q, opponents) + _skill_edge(player, q, opponents)
 		carry.p_success = PassModel.p_first(CARRY_HORIZON_S, t_opp)
-		carry.value = carry.p_success * XtGrid.at(q, left) \
-			- (1.0 - carry.p_success) * risk * XtGrid.at(from.lerp(q, 0.5), not left)
+		carry.value = carry.p_success * ctx.possession_value(q, left) \
+			- (1.0 - carry.p_success) * risk * ctx.possession_value(from.lerp(q, 0.5), not left)
 		out.append(carry)
 
 	# ── Hold / shield ──
@@ -120,8 +156,14 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 	hold.kind = Kind.HOLD
 	hold.destination = from
 	hold.p_success = PassModel.p_first(HOLD_EXPOSURE_S, _best_time(from, opponents) + _skill_edge(player, from, opponents))
-	hold.value = hold.p_success * XtGrid.at(from, left) - (1.0 - hold.p_success) * risk * XtGrid.at(from, not left)
+	hold.value = hold.p_success * ctx.possession_value(from, left) \
+		- (1.0 - hold.p_success) * risk * ctx.possession_value(from, not left)
 	out.append(hold)
+
+	# Verticality: reward the depth an option gains (only if it succeeds).
+	for o in out:
+		if o.kind == Kind.PASS or o.kind == Kind.CARRY:
+			o.value += o.p_success * vertical * (PitchSpace.normalised(o.destination, left).x - from_depth)
 	return out
 
 static func _pass_option(player: Player, receiver: Player, dest: Vector2, to_feet: bool,
@@ -134,10 +176,9 @@ static func _pass_option(player: Player, receiver: Player, dest: Vector2, to_fee
 	o.destination = dest
 	o.to_feet = to_feet
 	o.p_success = e.p_success
-	var security := 1.0 - RECEIVE_SECURITY + RECEIVE_SECURITY * ctx.control_at(dest, left)
 	var loss := player.position.lerp(dest, LOSS_POINT)
-	o.value = e.p_success * XtGrid.at(dest, left) * security \
-		- (1.0 - e.p_success) * risk * XtGrid.at(loss, not left)
+	o.value = e.p_success * ctx.possession_value(dest, left) \
+		- (1.0 - e.p_success) * risk * ctx.possession_value(loss, not left)
 	return o
 
 ## How much losing the ball hurts relative to gaining threat: protecting a
@@ -177,14 +218,22 @@ static func _has_kind(options: Array, kind: int) -> bool:
 			return true
 	return false
 
+## [param temperature] is RELATIVE (MentalAttributes.decision_temperature):
+## it's scaled by the size of the best value on offer, so "a poor decision-
+## maker picks a near-miss option" means the same thing in build-up (values
+## ≈0.005) as in the box (≈0.2). An absolute temperature was larger than every
+## difference between build-up options, making those choices near-random.
+const TEMPERATURE_FLOOR := 0.0015
+
 static func _softmax_pick(options: Array, temperature: float) -> Option:
 	var best := -INF
 	for o in options:
 		best = maxf(best, o.value)
+	var tau := maxf(temperature * absf(best), TEMPERATURE_FLOOR * temperature)
 	var weights := []
 	var total := 0.0
 	for o in options:
-		var w := exp((o.value - best) / maxf(temperature, 0.0001))
+		var w := exp((o.value - best) / maxf(tau, 0.000001))
 		weights.append(w)
 		total += w
 	var r := MatchRng.randf() * total
