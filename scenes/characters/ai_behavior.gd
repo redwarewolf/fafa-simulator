@@ -43,6 +43,9 @@ func setup_role_ai() -> void:
 func process_ai() -> void:
 	if not SpecialPlayerTypes.movable(player.special_type):
 		return
+	if player.brain != null:
+		player.brain.process()  # engine v2 — see scenes/match/brain/player_brain.gd
+		return
 	if MatchClock.now_ms() - time_since_last_ai_tick > DURATION_AI_TICK_FREQUENCY:
 		time_since_last_ai_tick = MatchClock.now_ms()
 		perform_ai_movement()

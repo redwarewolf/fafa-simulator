@@ -16,17 +16,90 @@ var control := PitchControlGrid.new()
 ## Microseconds spent in the most recent _process — for the Phase 9 budget.
 var last_update_usec := 0
 
+## The most recent pass kicked: {"passer", "receiver", "left": bool, "time": s},
+## or empty. Cleared when anyone gains possession or play restarts.
+var last_pass := {}
+## Refreshed by refresh_tactical() at the team-brain tick rate: where the loose
+## ball is going, and each side's fastest player to it.
+var ball_path : BallPredictor.BallPath = null
+var first_left := {"player": null, "time": INF}
+var first_right := {"player": null, "time": INF}
+
 func setup(p_actors: ActorsContainer) -> void:
 	actors = p_actors
 	ball = p_actors.ball
 
 func _ready() -> void:
 	control.update_all(actors.left_team, actors.right_team)
+	GameEvents.pass_attempted.connect(_on_pass_attempted)
+	GameEvents.possession_gained.connect(_on_possession_gained)
+	GameEvents.restart_awarded.connect(_on_restart)
+	GameEvents.team_reset.connect(_clear_pass)
+	refresh_tactical()
+
+func _exit_tree() -> void:
+	for pair in [
+		[GameEvents.pass_attempted, _on_pass_attempted],
+		[GameEvents.possession_gained, _on_possession_gained],
+		[GameEvents.restart_awarded, _on_restart],
+		[GameEvents.team_reset, _clear_pass],
+	]:
+		if pair[0].is_connected(pair[1]):
+			pair[0].disconnect(pair[1])
+
+func _on_pass_attempted(passer: Player, receiver: Player, _dest: Vector2) -> void:
+	last_pass = {"passer": passer, "receiver": receiver, "left": passer.is_left_team, "time": MatchClock.now()}
+
+func _on_possession_gained(_p: Player) -> void:
+	_clear_pass()
+
+func _on_restart(_kind: int, _team: String, _spot: Vector2) -> void:
+	_clear_pass()
+
+func _clear_pass() -> void:
+	last_pass = {}
+
+## Called once per team-brain tick (ActorsContainer) so both teams' brains
+## share one ball prediction instead of each recomputing it.
+func refresh_tactical() -> void:
+	ball_path = BallPredictor.for_ball(ball, 3.0)
+	if ball.carrier == null:
+		first_left = BallPredictor.first_to_ball(ball_path, active(actors.left_team))
+		first_right = BallPredictor.first_to_ball(ball_path, active(actors.right_team))
+	else:
+		first_left = {"player": null, "time": INF}
+		first_right = {"player": null, "time": INF}
+
+## Players currently able to act (not frozen for a restart).
+static func active(team: Array) -> Array:
+	return team.filter(func(p): return p.process_mode != Node.PROCESS_MODE_DISABLED)
+
+func first_to_ball(team_left: bool) -> Dictionary:
+	return first_left if team_left else first_right
+
+## The offside line faced by the side attacking from [param attack_left], as
+## a depth in that side's frame (0 own goal → 1 goal attacked).
+func offside_depth(attack_left: bool) -> float:
+	var defenders := actors.right_team if attack_left else actors.left_team
+	var depths := []
+	for d in defenders:
+		depths.append(PitchSpace.normalised(d.position, attack_left).x)
+	return OffsideJudge.offside_line(depths, PitchSpace.normalised(ball.position, attack_left).x)
+
+## Ball prediction / first-to-ball refresh interval (s).
+const TACTICAL_REFRESH_S := 0.1
+var _next_tactical := 0.0
 
 func _process(_delta: float) -> void:
 	var t0 := Time.get_ticks_usec()
 	var rows_per_frame := ceili(float(PitchControlGrid.ROWS) / FRAMES_PER_REFRESH)
 	control.update_rows(rows_per_frame, actors.left_team, actors.right_team)
+	AIProfile.end("pitch_control", t0)
+	if MatchClock.now() >= _next_tactical:
+		_next_tactical = MatchClock.now() + TACTICAL_REFRESH_S
+		var t1 := AIProfile.begin()
+		refresh_tactical()
+		AIProfile.end("ball_prediction", t1)
 	last_update_usec = Time.get_ticks_usec() - t0
 	if DebugDraw.ENABLED:
 		_draw_debug()

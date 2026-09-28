@@ -1,0 +1,344 @@
+class_name TeamBrain
+extends RefCounted
+
+## One per v2 team — the top two layers of the hierarchy (Phases 4-5):
+##
+##   TacticalBrain  reads the game state (phase, with hysteresis)
+##   TeamShape      turns the formation into this tick's block of slots
+##   coordinators   build the special jobs for the phase (press / cover /
+##                  mark / lane-cut / chase / intercept, or support / run /
+##                  receive / rest-defence) and hand ALL jobs out in one
+##                  optimal assignment (Hungarian), so no two players do the
+##                  same job and nobody's job is decided by "who's nearest first".
+##
+## Ticked by ActorsContainer at TICK_S. The resulting Job lands on each
+## player's PlayerBrain, which turns it into movement and decisions.
+
+const TICK_S := 0.2
+
+# ─── Assignment costs (seconds of travel-time equivalent) ───────────────────
+## Special jobs carry a large negative priority so they are always filled
+## (and filled first) — the optimisation then only decides WHO takes them.
+const PRIORITY := {
+	Job.Kind.RECEIVE: -12.0, Job.Kind.CHASE: -10.0, Job.Kind.INTERCEPT: -10.0,
+	Job.Kind.PRESS: -9.0, Job.Kind.COVER: -6.0, Job.Kind.MARK: -5.0,
+	Job.Kind.SUPPORT: -4.0, Job.Kind.LANE_CUT: -3.5, Job.Kind.RUN: -3.0,
+}
+## Keeping the same job as last tick (assignment hysteresis).
+const STICKY_BONUS := 0.6
+## Taking a teammate's shape slot instead of your own.
+const SLOT_SWAP_PENALTY := 1.2
+const SLOT_RANK_PENALTY := 3.0
+const FORBIDDEN := 1.0e6
+
+# ─── Defensive coordinator constants ────────────────────────────────────────
+const COVER_DIST := 95.0
+const CONTAIN_DIST := 70.0
+const MAX_MARKS := 4
+## Opponents less threatening than this (xT at their spot, run-adjusted) are
+## left to the zonal shape rather than man-marked.
+const MARK_DANGER_MIN := 0.012
+const TIGHT_MARK_PX := 22.0
+const LOOSE_MARK_PX := 48.0
+## Carrier this close to one of ours counts as pressured (ball-pressure rule).
+const PRESSURED_PX := 120.0
+
+# ─── Attacking coordinator constants ────────────────────────────────────────
+const SUPPORT_RADII := [190.0, 300.0]
+const SUPPORT_MIN_SEPARATION := 150.0
+## Runners wait "on the shoulder": just onside of the line.
+const ONSIDE_MARGIN := 0.012
+
+var team_left := true
+var tactical : TacticalBrain = null
+var shape : TeamShape = null
+var preset : TacticPreset = null
+var ctx : MatchContext = null
+var players : Array[Player] = []  # outfield players driven by v2
+## Last tick's jobs (for stickiness + telemetry).
+var jobs := {}  # Player -> Job
+var _next_tick := 0.0
+## Harness telemetry: how many ticks each job kind was held, summed over players.
+var job_ticks := {}
+
+func _init(p_team_left: bool, team: Array[Player], p_ctx: MatchContext) -> void:
+	team_left = p_team_left
+	ctx = p_ctx
+	for p in team:
+		if p.role != Positions.Role.GK and SpecialPlayerTypes.movable(p.special_type):
+			players.append(p)
+	tactical = TacticalBrain.new(team_left)
+	shape = TeamShape.new(team_left, players)
+	preset = TacticPreset.from_roster(team)
+
+## Called every frame by ActorsContainer; thinks at TICK_S.
+func maybe_update(manual_mode: int, score_diff: int, time_fraction_remaining: float) -> void:
+	var now := MatchClock.now()
+	if now < _next_tick:
+		return
+	_next_tick = now + TICK_S
+	var t0 := AIProfile.begin()
+	_update(manual_mode, score_diff, time_fraction_remaining, now)
+	AIProfile.end("team_brain", t0)
+
+func _update(manual_mode: int, score_diff: int, time_fraction_remaining: float, now: float) -> void:
+	preset.update(manual_mode, score_diff, time_fraction_remaining)
+	tactical.update(ctx, now)
+	var active : Array = players.filter(func(p): return p.process_mode != Node.PROCESS_MODE_DISABLED)
+	if active.is_empty():
+		return
+	var ball_n := PitchSpace.normalised(ctx.ball.position, team_left)
+	var specials : Array = []
+	var zone := {}
+	if _attacking():
+		_attacking_jobs(active, ball_n, specials, zone)
+	else:
+		_defensive_jobs(active, ball_n, specials, zone)
+	_assign(active, specials, zone)
+
+func _attacking() -> bool:
+	return tactical.in_possession() or (tactical.phase == TacticalBrain.Phase.LOOSE_BALL and tactical.owner == TacticalBrain.US)
+
+# ═══ Defensive coordinator ══════════════════════════════════════════════════
+
+func _defensive_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dictionary) -> void:
+	var ball := ctx.ball
+	var carrier := ball.carrier
+	var own_goal := _own_goal_centre(active)
+	var opponents := active[0].get_opponents() as Array
+	var params := TeamShape.params_for(tactical.phase, preset.mentality, preset.press_intensity, ball_n, _line_adjust(active, ball_n))
+	for p in active:
+		zone[p] = Job.make(Job.Kind.ZONE, shape.slot(p, params, ball_n), null, lerpf(0.9, 0.6, shape.rank_of(p)))
+
+	var marked := {}
+	if carrier != null and carrier.is_left_team != team_left:
+		var press := Job.make(Job.Kind.PRESS, carrier.position + carrier.velocity * 0.3, carrier, 1.0)
+		press.engage = _should_engage(carrier, ball_n)
+		specials.append(press)
+		if tactical.phase == TacticalBrain.Phase.TRANSITION_DEFENCE:
+			# Counter-press: a second player closes the carrier from another
+			# angle during the transition window.
+			var press2 := Job.make(Job.Kind.PRESS, carrier.position, carrier, 1.0)
+			press2.engage = true
+			specials.append(press2)
+		specials.append(Job.make(Job.Kind.COVER, carrier.position + carrier.position.direction_to(own_goal) * COVER_DIST, carrier, 1.0))
+		marked[carrier] = true
+	else:
+		_loose_ball_jobs(specials, false)
+
+	# Marks: the most dangerous opponents off the ball.
+	var threats := []
+	for o: Player in opponents:
+		if o == carrier or o.role == Positions.Role.GK or o.process_mode == Node.PROCESS_MODE_DISABLED:
+			continue
+		var danger := XtGrid.at(o.position, o.is_left_team)
+		var to_goal := o.position.direction_to(own_goal)
+		danger *= 1.0 + maxf(0.0, o.velocity.dot(to_goal)) / 100.0
+		if danger >= MARK_DANGER_MIN:
+			threats.append([danger, o])
+	threats.sort_custom(func(a, b): return a[0] > b[0])
+	var max_danger : float = threats[0][0] if not threats.is_empty() else 1.0
+	for i in mini(threats.size(), MAX_MARKS):
+		var o : Player = threats[i][1]
+		var tight := clampf(threats[i][0] / max_danger, 0.0, 1.0)
+		var dist := lerpf(LOOSE_MARK_PX, TIGHT_MARK_PX, tight)
+		var lead := o.position + o.velocity * 0.25
+		specials.append(Job.make(Job.Kind.MARK, lead + lead.direction_to(own_goal) * dist, o, 1.0))
+		marked[o] = true
+
+	# Lane cut: the carrier's most valuable unmarked outlet.
+	if carrier != null and carrier.is_left_team != team_left:
+		var best : Player = null
+		var best_v := -INF
+		for o: Player in opponents:
+			if marked.has(o) or o.role == Positions.Role.GK:
+				continue
+			var v := XtGrid.at(o.position, o.is_left_team) * OffBallPositioner.lane_clear(carrier.position, o.position, active)
+			if v > best_v:
+				best_v = v
+				best = o
+		if best != null:
+			specials.append(Job.make(Job.Kind.LANE_CUT, carrier.position.lerp(best.position, 0.42), best, 1.0))
+
+## Ball-pressure rule for the defensive line: drop off when their carrier is
+## free and running at us, step up when the ball goes backwards.
+func _line_adjust(active: Array, _ball_n: Vector2) -> float:
+	var carrier := ctx.ball.carrier
+	if carrier == null or carrier.is_left_team == team_left:
+		return 0.0
+	var nearest := INF
+	for p: Player in active:
+		nearest = minf(nearest, p.position.distance_to(carrier.position))
+	var toward_us := carrier.velocity.dot(PitchSpace.from_normalised(Vector2(0.0, 0.5), team_left) - carrier.position)
+	if nearest > PRESSURED_PX and toward_us > 0.0:
+		return -0.04
+	if toward_us < 0.0 and carrier.velocity.length() > 30.0:
+		return 0.03
+	return 0.0
+
+## Engage (go and win it) vs contain (shadow goal-side). High-press sides
+## engage further up the pitch; everyone engages in their own third, in the
+## counter-press window, and on the classic pressing triggers.
+func _should_engage(carrier: Player, ball_n: Vector2) -> bool:
+	if tactical.phase == TacticalBrain.Phase.TRANSITION_DEFENCE or ball_n.x < 0.35:
+		return true
+	var trigger := lerpf(0.5, 1.01, preset.press_intensity)
+	if ball_n.x <= trigger:
+		return true
+	# Pressing triggers: carrier running back toward his own goal, or
+	# pinned against a touchline.
+	var their_goal := PitchSpace.from_normalised(Vector2(1.0, 0.5), team_left)
+	if carrier.velocity.dot(their_goal - carrier.position) > 20.0:
+		return true
+	return absf(ball_n.y - 0.5) > 0.4
+
+# ═══ Loose ball / passes in flight ══════════════════════════════════════════
+
+## One chaser per side: our fastest to the ball (BallPredictor), aiming at
+## where they'll meet it. A pass we played in flight gets a RECEIVE for its
+## intended receiver instead.
+func _loose_ball_jobs(specials: Array, attacking: bool) -> void:
+	if ctx.ball.carrier != null or ctx.ball_path == null:
+		return
+	if attacking and not ctx.last_pass.is_empty() and ctx.last_pass["left"] == team_left:
+		var r : Player = ctx.last_pass["receiver"]
+		if r != null and r in players and r.process_mode != Node.PROCESS_MODE_DISABLED:
+			var t := BallPredictor.earliest_intercept(ctx.ball_path, r)
+			var pt := ctx.ball_path.position_at(t) if t != INF else ctx.ball_path.end_position()
+			specials.append(Job.make(Job.Kind.RECEIVE, pt, r, 1.0))
+			return
+	var first : Dictionary = ctx.first_to_ball(team_left)
+	var chaser : Player = first["player"]
+	if chaser == null or chaser.role == Positions.Role.GK:
+		return
+	var kind := Job.Kind.CHASE if ctx.last_pass.is_empty() or ctx.last_pass["left"] == team_left else Job.Kind.INTERCEPT
+	specials.append(Job.make(kind, ctx.ball_path.position_at(first["time"]), null, 1.0))
+
+# ═══ Attacking coordinator ══════════════════════════════════════════════════
+
+func _attacking_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dictionary) -> void:
+	var offside := ctx.offside_depth(team_left)
+	var params := TeamShape.params_for(tactical.phase, preset.mentality, preset.press_intensity, ball_n, 0.0)
+	var rest_n := clampi(roundi(3.0 - preset.mentality * 1.5), 2, 4)
+	var by_rank := active.duplicate()
+	by_rank.sort_custom(func(a, b): return shape.rank_of(a) < shape.rank_of(b))
+	var rest := {}
+	for i in mini(rest_n, by_rank.size()):
+		rest[by_rank[i]] = true
+	for p in active:
+		if rest.has(p):
+			var slot := shape.slot(p, params, ball_n, minf(ball_n.x - 0.12, offside - ONSIDE_MARGIN))
+			zone[p] = Job.make(Job.Kind.REST_DEFENCE, slot, null, 0.85)
+		else:
+			zone[p] = Job.make(Job.Kind.ZONE, shape.slot(p, params, ball_n, offside - ONSIDE_MARGIN), null, lerpf(0.6, 0.25, shape.rank_of(p)))
+
+	var carrier := ctx.ball.carrier
+	_loose_ball_jobs(specials, true)
+	var ref : Vector2 = ctx.ball.position
+	if carrier != null:
+		ref = carrier.position
+	elif not specials.is_empty():
+		ref = specials[0].point
+
+	# Support: two short passing angles around the (future) carrier.
+	for pt in _support_points(ref, active, carrier):
+		specials.append(Job.make(Job.Kind.SUPPORT, pt, null, 0.35))
+
+	# Runs: wait on the shoulder of the last defender, in the most promising channel.
+	var runs := 1 + (1 if preset.mentality > 0.3 or tactical.phase == TacticalBrain.Phase.TRANSITION_ATTACK else 0)
+	var lanes := [0.3, 0.5, 0.7]
+	lanes.sort_custom(func(a, b): return _lane_value(a, offside) > _lane_value(b, offside))
+	for i in runs:
+		var pt := PitchSpace.from_normalised(Vector2(clampf(offside - ONSIDE_MARGIN, 0.3, 0.95), lanes[i]), team_left)
+		specials.append(Job.make(Job.Kind.RUN, pt, null, 0.5))
+
+func _lane_value(y: float, offside: float) -> float:
+	var behind := PitchSpace.from_normalised(Vector2(minf(offside + 0.08, 0.95), y), team_left)
+	return ctx.value_at(behind, team_left)
+
+func _support_points(ref: Vector2, active: Array, carrier: Player) -> Array:
+	var attack_dir := PitchSpace.from_normalised(Vector2(1.0, 0.5), team_left) - PitchSpace.from_normalised(Vector2(0.0, 0.5), team_left)
+	attack_dir = attack_dir.normalized()
+	var scored := []
+	for radius in SUPPORT_RADII:
+		for deg in [-150, -110, -70, -35, 0, 35, 70, 110, 150]:
+			var p : Vector2 = ref + attack_dir.rotated(deg_to_rad(deg)) * radius
+			var n := PitchSpace.normalised(p, team_left)
+			if n.x < 0.03 or n.x > 0.97 or n.y < 0.05 or n.y > 0.95:
+				continue
+			var s : float = ctx.control_at(p, team_left) * OffBallPositioner.lane_clear(ref, p, active[0].get_opponents()) \
+				* (0.5 + XtGrid.at(p, team_left) * 10.0)
+			scored.append([s, p])
+	scored.sort_custom(func(a, b): return a[0] > b[0])
+	var picked := []
+	for e in scored:
+		var ok := true
+		for q in picked:
+			if q.distance_to(e[1]) < SUPPORT_MIN_SEPARATION:
+				ok = false
+				break
+		if ok:
+			picked.append(e[1])
+		if picked.size() == 2:
+			break
+	return picked
+
+# ═══ Assignment ═════════════════════════════════════════════════════════════
+
+func _assign(active: Array, specials: Array, zone: Dictionary) -> void:
+	var cols : Array = specials.duplicate()
+	var zone_owner := []
+	for p in active:
+		cols.append(zone[p])
+		zone_owner.append(p)
+	var n_special := specials.size()
+	var cost := []
+	for p: Player in active:
+		var row := PackedFloat32Array()
+		row.resize(cols.size())
+		for j in cols.size():
+			var job : Job = cols[j]
+			var c := PitchControl.time_to_reach(job.point, p)
+			if j < n_special:
+				c += PRIORITY.get(job.kind, -2.0) + _affinity(p, job)
+			else:
+				var owner : Player = zone_owner[j - n_special]
+				if owner != p:
+					c += SLOT_SWAP_PENALTY + absf(shape.rank_of(owner) - shape.rank_of(p)) * SLOT_RANK_PENALTY
+			var prev : Job = jobs.get(p)
+			if prev != null and prev.same_role_as(job):
+				c -= STICKY_BONUS
+			row[j] = c
+		cost.append(row)
+	var assignment := Hungarian.solve(cost)
+	var new_jobs := {}
+	for i in active.size():
+		var p : Player = active[i]
+		var job : Job = cols[assignment[i]]
+		new_jobs[p] = job
+		job_ticks[job.kind] = job_ticks.get(job.kind, 0) + 1
+		if p.brain != null:
+			p.brain.job = job
+	jobs = new_jobs
+
+## Role fit for a special job — keeps centre-backs from pressing high up the
+## pitch, forwards from marking in our own box, and runs to the front line.
+func _affinity(p: Player, job: Job) -> float:
+	var rank := shape.rank_of(p)
+	var depth := PitchSpace.normalised(job.point, team_left).x
+	match job.kind:
+		Job.Kind.RECEIVE:
+			return 0.0 if job.subject == p else FORBIDDEN
+		Job.Kind.PRESS:
+			return 1.5 if rank < 0.3 and depth > 0.55 else 0.0
+		Job.Kind.MARK:
+			return 2.0 if rank > 0.75 and depth < 0.4 else 0.0
+		Job.Kind.RUN:
+			return 0.0 if rank > 0.6 else 3.0
+		Job.Kind.SUPPORT:
+			return 1.5 if rank < 0.2 else 0.0
+	return 0.0
+
+func _own_goal_centre(active: Array) -> Vector2:
+	var g : Goal = active[0].own_goal
+	return g.get_center_target_position() if g != null else PitchSpace.from_normalised(Vector2(0.0, 0.5), team_left)

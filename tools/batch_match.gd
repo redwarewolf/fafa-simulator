@@ -92,7 +92,13 @@ func _run() -> void:
 		MatchConfig.ai_version_right = _args["b"] if a_left else _args["a"]
 		GameState.test_match_teams = [left_club.team_key, right_club.team_key]
 		var mt0 := Time.get_ticks_msec()
+		AIProfile.reset()
 		var r := await _play_one()
+		r["ai_profile"] = AIProfile.report()
+		if not _args["quiet"]:
+			for k in r["ai_profile"]:
+				var e : Dictionary = r["ai_profile"][k]
+				print("    profile %-16s %9.1f ms  %7d calls  %8.1f us/call" % [k, e["ms"], e["calls"], e["us_per_call"]])
 		r["index"] = i
 		r["seed"] = MatchConfig.match_seed
 		r["a_side"] = "L" if a_left else "R"
@@ -127,6 +133,25 @@ func _play_one() -> Dictionary:
 	while world.state != MatchWorld.MatchState.GAMEOVER and frames < max_frames:
 		await get_tree().process_frame
 		frames += 1
+		if OS.has_environment("BATCH_HEARTBEAT") and frames % 120 == 0:
+			var b := world.actors_container.ball
+			var c := b.carrier
+			var job := ""
+			if c != null and c.brain != null and c.brain.job != null:
+				job = Job.NAMES[c.brain.job.kind]
+			print("hb f=%d %s t=%.1f ball=%s v=%.0f carrier=%s(%s,%s,%s) n=%s" % [
+				frames, MatchWorld.MatchState.keys()[world.state], world.match_time, b.position.round(), b.velocity.length(),
+				c.full_name if c != null else "-", ("L" if c.is_left_team else "R") if c != null else "",
+				Player.State.keys()[c._current_state_type] if c != null else "", job,
+				PitchSpace.absolute_normalised(b.position).snapped(Vector2(0.01, 0.01))])
+			for team in [world.actors_container.left_team, world.actors_container.right_team]:
+				var near : Array = team.duplicate()
+				near.sort_custom(func(a, bb): return a.position.distance_to(b.position) < bb.position.distance_to(b.position))
+				for q in near.slice(0, 2):
+					var qj : String = Job.NAMES[q.brain.job.kind] if q.brain != null and q.brain.job != null else "v1"
+					print("     %s %-18s d=%5.0f state=%-10s job=%-12s vel=%5.0f pm=%d carry=%s" % [
+						"L" if q.is_left_team else "R", q.full_name, q.position.distance_to(b.position),
+						Player.State.keys()[q._current_state_type], qj, q.velocity.length(), q.process_mode, q.can_carry_ball()])
 	var r := stats.build_result()
 	r["timed_out"] = world.state != MatchWorld.MatchState.GAMEOVER
 	r["sim_frames"] = frames

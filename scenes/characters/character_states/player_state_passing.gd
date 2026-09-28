@@ -24,7 +24,10 @@ func _enter_tree() -> void:
 	# still find a forward outlet instead of being stuck with whoever's ahead
 	# of their current heading. Picked once here (not at release) so the
 	# wind-up duration matches the pass actually being wound up for.
-	_pass_target = ai_behavior.role_ai.get_best_pass_target()
+	if state_data.has_pass_target:
+		_pass_target = state_data.pass_receiver
+	else:
+		_pass_target = ai_behavior.role_ai.get_best_pass_target()
 	player.velocity = Vector2.ZERO
 
 	if player.role == Positions.Role.GK and GoalieAI.DEBUG_LOG_DISTRIBUTION:
@@ -36,7 +39,10 @@ func _enter_tree() -> void:
 
 	var distance := 0.0
 	var charge_ms := 0.0
-	if _pass_target != null:
+	if state_data.has_pass_target:
+		distance = player.position.distance_to(state_data.pass_destination)
+		charge_ms = OnBallUtility.charge_ms_for_pass(player, distance)
+	elif _pass_target != null:
 		distance = player.position.distance_to(_pass_target.position)
 		charge_ms = OnBallUtility.charge_ms_for_pass(player, distance)
 	var windup_range := OnBallUtility.PASS_MAX_DISTANCE - Ball.DISTANCE_HIGH_PASS
@@ -65,7 +71,18 @@ func on_animation_complete() -> void:
 	if _winding_up:
 		return  # prep_kick finished a loop early — _process promotes us to "kick" when the wind-up is actually done
 
-	if _pass_target != null:
+	if state_data.has_pass_target and ball.carrier == player:
+		# Engine v2: the brain chose the target. A pass to feet is re-led from
+		# where the receiver is heading now; a pass into space goes exactly
+		# where it was aimed.
+		var dest := state_data.pass_destination
+		if state_data.pass_to_feet and _pass_target != null:
+			dest = ball.estimate_pass_lead_destination(player.position, _pass_target.position, _pass_target.velocity)
+		GameEvents.pass_attempted.emit(player, _pass_target, dest)
+		ball.pass_to(dest)
+	elif state_data.has_pass_target:
+		pass  # lost the ball during the wind-up — nothing to kick
+	elif _pass_target != null:
 		if DebugDraw.SHOW_PASS_LINES:
 			DebugDraw.line(player.position, _pass_target.position, Color.GREEN, 2.0)
 			DebugDraw.cross(_pass_target.position, Color.GREEN, 5.0, 2.0)

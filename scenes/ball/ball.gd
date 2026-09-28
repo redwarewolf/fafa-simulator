@@ -85,6 +85,12 @@ var carrier: Player:
 ## physical deflection (see BallState.move_and_bounce). Decides who gets a
 ## throw-in / corner / goal kick when the ball goes out (RestartManager).
 var last_touch: Player = null
+## The player who just kicked/lost the ball can't instantly re-collect it
+## while it's still leaving their feet (the overlap poll in
+## BallStateFreeform would otherwise hand a pass straight back to the passer).
+const KICK_COOLDOWN_MS := 300
+var _kicker: Player = null
+var _kick_time_ms := -100000
 var velocity := Vector2.ZERO
 var height_velocity := 0.0
 var heading := Vector2.RIGHT
@@ -148,13 +154,25 @@ func play_kick_sound() -> void:
 	_kick_sound.volume_db = kick_sound_volume_db + randf_range(-kick_sound_volume_variance_db, kick_sound_volume_variance_db)
 	_kick_sound.play()
 
+## Remembers who's releasing the ball (see KICK_COOLDOWN_MS). Call before
+## clearing carrier.
+func _mark_kick() -> void:
+	if carrier != null:
+		_kicker = carrier
+		_kick_time_ms = MatchClock.now_ms()
+
+func is_kick_cooldown(p: Player) -> bool:
+	return p == _kicker and MatchClock.now_ms() - _kick_time_ms < KICK_COOLDOWN_MS
+
 func shoot(shot_velocity : Vector2) -> void:
+	_mark_kick()
 	velocity = shot_velocity
 	carrier = null
 	switch_state(Ball.State.SHOT)
 	play_kick_sound()
 	
 func tumble(tumble_velocity: Vector2) -> void:
+	_mark_kick()
 	carrier = null
 	velocity = tumble_velocity
 	height_velocity = TUMBLE_HEIGHT_VELOCITY
@@ -162,6 +180,7 @@ func tumble(tumble_velocity: Vector2) -> void:
 	
 func pass_to(destination: Vector2) -> void:
 	var launch := pass_launch(position, destination)
+	_mark_kick()
 	velocity = launch["velocity"]
 	height_velocity = launch["height_velocity"]
 	carrier = null
@@ -222,6 +241,7 @@ func long_kick(destination: Vector2) -> void:
 	# the way, so the kick actually reaches its target.
 	var hang_time := 2.0 * height_velocity / BallState.GRAVITY
 	var intensity := distance / hang_time + 0.5 * FRICTION_AIR * hang_time
+	_mark_kick()
 	velocity = intensity * direction
 	carrier = null
 	switch_state(Ball.State.FREEFORM)

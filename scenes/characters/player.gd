@@ -43,6 +43,10 @@ enum HairColor { BLONDE, LIGHT_RED, GREEN, PURPLE, LIGHT_BROWN, DARK_BROWN, GRAY
 const TEAMS := [ "DEFAULT", "SACA CHISPAS", "LOS FULBOS FC", "CLUB ATLETICO PIÑATA", "DEPORTIVO LADRILLO", "UNION PATADURAS", "ATLÉTICO GAMBETA", "SAN LORENZO DE NADA", "RACING DE LA ESQUINA" ]
 
 var ai_behavior : AIBehavior = AIBehavior.new()
+## Engine-v2 brain (docs/match-engine-v2.md) — set by ActorsContainer for
+## outfield players on a side running the v2 AI; null means the v1 RoleAI
+## path in AIBehavior drives this player.
+var brain : PlayerBrain = null
 
 @export var own_goal : Goal
 @export var target_goal : Goal

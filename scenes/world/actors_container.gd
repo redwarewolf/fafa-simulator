@@ -27,7 +27,13 @@ const KICKOFF_COMPRESSION := 0.5
 var left_team : Array[Player] = []
 var right_team : Array[Player] = []
 
-var time_since_last_tactical_refresh := MatchClock.now_ms()
+## Set in _ready(), NOT as an initializer: initializers run when the scene is
+## instantiated, which is before MatchWorld._enter_tree() resets MatchClock to
+## 0 — after a previous match that captured a huge timestamp, so the
+## "refresh every DURATION_TACTICAL_REFRESH" check stayed false for as long as
+## the previous match had lasted and neither team's tactics ever updated.
+## See docs/match-engine-v2.md Findings #4.
+var time_since_last_tactical_refresh := 0
 var _field_zones : FieldZones = null
 var _team_tactical_left := TeamTacticalState.new()
 var _team_tactical_right := TeamTacticalState.new()
@@ -48,8 +54,11 @@ var player_manual_mentality_mode : int = TacticPreset.ManualMode.AUTO
 ## Engine-v2 shared world model (pitch control, xT, pass/shot models) — null
 ## in a v1-only match with no analytics overlay on. See MatchContext.
 var match_context : MatchContext = null
+var team_brain_left : TeamBrain = null
+var team_brain_right : TeamBrain = null
 
 func _ready() -> void:
+	time_since_last_tactical_refresh = MatchClock.now_ms()
 	_apply_pending_fixture_teams()
 	_match_world = get_parent() as MatchWorld
 
@@ -82,6 +91,18 @@ func _ready() -> void:
 		match_context.name = "MatchContext"
 		match_context.setup(self)
 		add_child(match_context)
+	if MatchConfig.ai_version_left == "v2":
+		team_brain_left = _make_team_brain(true, left_team)
+	if MatchConfig.ai_version_right == "v2":
+		team_brain_right = _make_team_brain(false, right_team)
+
+## Engine v2: a TeamBrain for the side, and a PlayerBrain for each of its
+## outfield players (keepers stay on v1's GoalieAI until Phase 8).
+func _make_team_brain(is_left: bool, team: Array[Player]) -> TeamBrain:
+	var tb := TeamBrain.new(is_left, team, match_context)
+	for p in tb.players:
+		p.brain = PlayerBrain.new(p, tb, match_context, p.opponent_detection_area)
+	return tb
 
 ## When a season fixture is pending, override the scene's default teams
 ## with the scheduled home/away clubs instead of the hardcoded test match.
@@ -196,10 +217,17 @@ func _process(_delta: float) -> void:
 			score_right = _match_world.score_right
 		var left_mode := player_manual_mentality_mode if is_player_team_left else TacticPreset.ManualMode.AUTO
 		var right_mode := player_manual_mentality_mode if not is_player_team_left else TacticPreset.ManualMode.AUTO
-		_team_tactical_left.recompute(left_team, right_team, ball, _field_zones, true,
-			left_mode, score_left - score_right, time_fraction_remaining)
-		_team_tactical_right.recompute(right_team, left_team, ball, _field_zones, false,
-			right_mode, score_right - score_left, time_fraction_remaining)
+		# A v2 side is run by its TeamBrain (below) instead of v1's tactical state.
+		if team_brain_left == null:
+			_team_tactical_left.recompute(left_team, right_team, ball, _field_zones, true,
+				left_mode, score_left - score_right, time_fraction_remaining)
+		else:
+			team_brain_left.maybe_update(left_mode, score_left - score_right, time_fraction_remaining)
+		if team_brain_right == null:
+			_team_tactical_right.recompute(right_team, left_team, ball, _field_zones, false,
+				right_mode, score_right - score_left, time_fraction_remaining)
+		else:
+			team_brain_right.maybe_update(right_mode, score_right - score_left, time_fraction_remaining)
 
 ## [param slot_role]: the position this player is actually being fielded in —
 ## a tactic slot's role, or just the player's own role for the legacy
