@@ -57,6 +57,8 @@ func setup(world: MatchWorld) -> void:
 			"line_height_out_m": 0.0, "compactness_out_m": 0.0,
 			"players_behind_ball_out": 0.0,
 		}
+		for kind_key in Restart.KEYS.values():
+			_s[side]["restarts_" + kind_key] = 0
 	_s["bunching_sum"] = 0.0
 	_s["bunching_samples"] = 0
 	GameEvents.possession_gained.connect(_on_possession_gained)
@@ -65,6 +67,7 @@ func setup(world: MatchWorld) -> void:
 	GameEvents.tackle_resolved.connect(_on_tackle_resolved)
 	GameEvents.team_reset.connect(_on_restart)
 	GameEvents.foul_called.connect(_on_foul_called)
+	GameEvents.restart_awarded.connect(_on_restart_awarded)
 
 func _exit_tree() -> void:
 	# GameEvents is a long-lived autoload; a batch run instantiates many
@@ -76,6 +79,7 @@ func _exit_tree() -> void:
 		[GameEvents.tackle_resolved, _on_tackle_resolved],
 		[GameEvents.team_reset, _on_restart],
 		[GameEvents.foul_called, _on_foul_called],
+		[GameEvents.restart_awarded, _on_restart_awarded],
 	]:
 		if sig_and_cb[0].is_connected(sig_and_cb[1]):
 			sig_and_cb[0].disconnect(sig_and_cb[1])
@@ -92,7 +96,7 @@ func _in_play() -> bool:
 # ─── Events ─────────────────────────────────────────────────────────────────
 
 func _on_possession_gained(p: Player) -> void:
-	if not _in_play() and _world.state != MatchWorld.MatchState.KICKOFF:
+	if not _in_play() and _world.state not in [MatchWorld.MatchState.KICKOFF, MatchWorld.MatchState.RESTART]:
 		return
 	var side := _side(p)
 	if not _pending_pass.is_empty():
@@ -171,6 +175,14 @@ func _on_restart() -> void:
 func _on_foul_called(_fouled: Player, _where: Vector2) -> void:
 	_on_restart()
 
+## Counted for the side AWARDED the restart ("corners won", "throw-ins",
+## "offsides won" = the defending side was awarded the free kick).
+func _on_restart_awarded(kind: int, team: String, _spot: Vector2) -> void:
+	_on_restart()
+	var side := "L" if team == _world.actors_container.team_left else "R"
+	var key : String = "restarts_" + Restart.KEYS.get(kind, "other")
+	_s[side][key] = _s[side].get(key, 0) + 1
+
 # ─── Sampling ───────────────────────────────────────────────────────────────
 
 func _process(delta: float) -> void:
@@ -178,6 +190,11 @@ func _process(delta: float) -> void:
 		return
 	if _last_possessor != null:
 		_s[_side(_last_possessor)]["possession_s"] += delta
+	var ctx := _world.actors_container.match_context
+	if ctx != null:
+		_s["ctx_usec_sum"] = _s.get("ctx_usec_sum", 0) + ctx.last_update_usec
+		_s["ctx_usec_max"] = maxi(_s.get("ctx_usec_max", 0), ctx.last_update_usec)
+		_s["ctx_frames"] = _s.get("ctx_frames", 0) + 1
 	_shape_timer += delta
 	if _shape_timer >= 1.0 / SHAPE_SAMPLE_HZ:
 		_shape_timer = 0.0
@@ -256,6 +273,10 @@ func build_result() -> Dictionary:
 		"bunching_index": _ratio(_s["bunching_sum"], _s["bunching_samples"]),
 		"passes_per_possession": 0.0,
 		"possessions_3plus_share": 0.0,
+		# Frame-budget telemetry (docs/match-engine-v2.md Phase 9): MatchContext
+		# per-frame cost, when one exists.
+		"ctx_usec_mean": _ratio(_s.get("ctx_usec_sum", 0), _s.get("ctx_frames", 0)),
+		"ctx_usec_max": _s.get("ctx_usec_max", 0),
 	}
 	if not _possession_lengths.is_empty():
 		var sum := 0
@@ -298,6 +319,11 @@ func build_result() -> Dictionary:
 			"line_height_out_m": st["line_height_out_m"] / so,
 			"compactness_out_m": st["compactness_out_m"] / so,
 			"players_behind_ball_out": st["players_behind_ball_out"] / so,
+			"restarts_free_kick": st["restarts_free_kick"],
+			"restarts_offside": st["restarts_offside"],
+			"restarts_throw_in": st["restarts_throw_in"],
+			"restarts_corner": st["restarts_corner"],
+			"restarts_goal_kick": st["restarts_goal_kick"],
 			# Raw numerators/denominators, so the harness can pool rates
 			# across matches (sum/sum) instead of averaging per-match ratios —
 			# a match with zero shots would otherwise drag xg_per_shot to 0.

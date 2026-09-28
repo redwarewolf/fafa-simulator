@@ -142,7 +142,8 @@ func _aggregate(results: Array) -> Dictionary:
 	var sums := {"A": {}, "B": {}}
 	var raw := {"A": {}, "B": {}}
 	var record := {"A_wins": 0, "draws": 0, "B_wins": 0}
-	var match_level := {"bunching_index": 0.0, "passes_per_possession": 0.0, "possessions_3plus_share": 0.0}
+	var match_level := {"bunching_index": 0.0, "passes_per_possession": 0.0, "possessions_3plus_share": 0.0,
+		"ctx_usec_mean": 0.0, "ctx_usec_max": 0.0}
 	for r in results:
 		var a_side : String = r["a_side"]
 		var b_side := "R" if a_side == "L" else "L"

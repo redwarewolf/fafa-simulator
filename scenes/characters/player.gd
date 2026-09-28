@@ -148,11 +148,15 @@ var team_line_bias: float = 0.0
 ## triggers it. See docs/ai-overhaul.md Phase 9.
 var give_and_go_until_ms: int = 0
 ## True only for the single player MatchWorld leaves unfrozen during a FOUL
-## or KICKOFF restart (see MatchWorld._free_kick_taker/_kickoff_taker). Makes
+## or KICKOFF restart (see MatchWorld._restart_taker/_kickoff_taker). Makes
 ## AIBehavior steer straight at the ball regardless of pressing_rank/marking,
 ## since those are computed team-wide and can hand "go get it" duty to a
 ## frozen teammate who has no way to act on it — see AIBehavior.perform_ai_movement().
 var is_restart_taker: bool = false
+## Set by MatchWorld when play resumes from a set piece this player took:
+## their next on-ball decision is a pass (a throw-in/corner/free kick is
+## played, not dribbled off with). Consumed by RoleAI._decide_on_ball().
+var restart_pass_pending: bool = false
 var heading := Vector2.RIGHT
 var height := 0.0
 var height_velocity := 0.0
@@ -370,6 +374,7 @@ func on_tackle_player(player_hit : Player) -> void:
 			player_hit.dodge_hop()  # Tackle whiffs — carrier hops away and keeps the ball
 			return
 		ball.play_kick_sound()  # Won the duel — the ball changes feet, same as any other kick
+		ball.last_touch = self
 		if MatchRng.randf() < FOUL_CHANCE_ON_TACKLE_WIN:
 			GameEvents.tackle_resolved.emit(self, player_hit, true, true)
 			var incident_position := player_hit.position

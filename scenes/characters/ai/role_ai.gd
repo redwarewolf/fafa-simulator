@@ -126,6 +126,11 @@ func _carrier_target_position() -> Vector2:
 	return player.position.lerp(target, weight)
 
 func _decide_on_ball() -> void:
+	if player.restart_pass_pending:
+		player.restart_pass_pending = false
+		if get_best_pass_target() != null:
+			player.switch_state(Player.State.PASSING)
+			return
 	var weights := PlayerTraits.apply_weights(_trait, role_weights())
 	var action := OnBallUtility.decide(player, ball, player.get_teammates(), player.get_opponents(), target_goal, weights)
 	match action.kind:

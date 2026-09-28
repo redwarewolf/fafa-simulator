@@ -28,11 +28,20 @@ const SHOW_GK_DISTRIBUTION := false
 ## by which of those it is. Diagnoses "why is this player going THERE"
 ## independent of what Locomotion's steering blend actually does with it.
 const SHOW_INTENT_LINES := false
-## Pitch-control heatmap: one filled cell per grid point, tinted by which
-## team could reach it first (see scenes/characters/ai/pitch_control.gd —
-## Phase 1 of docs/ai-overhaul.md). Empty/unpopulated until that lands; this
-## toggle and rect_filled() exist ahead of it so Phase 1 has somewhere to draw.
+## Pitch-control heatmap: one filled cell per MatchContext grid cell, blue =
+## left team controls it, red = right team (docs/match-engine-v2.md Phase 3).
 const SHOW_PITCH_CONTROL := false
+## Expected-threat surface (left team's attacking direction): brighter yellow
+## crosses = more valuable places to have the ball.
+const SHOW_XT := false
+## The loose ball's predicted path (BallPredictor) while nobody carries it.
+const SHOW_BALL_PREDICTION := false
+## Carrier → every teammate, coloured green→red by PassModel success probability.
+const SHOW_PASS_FAN := false
+
+## Any of the engine-v2 analytics overlays — these need a MatchContext even
+## in a v1-only match.
+const ANY_ANALYTICS := ENABLED and (SHOW_PITCH_CONTROL or SHOW_XT or SHOW_BALL_PREDICTION or SHOW_PASS_FAN)
 
 ## Line width in pixels (screen space).
 const LINE_WIDTH := 1.0

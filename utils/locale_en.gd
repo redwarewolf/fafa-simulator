@@ -234,6 +234,10 @@ const MESSAGES := {
 	# ── Match / world ───────────────────────────────────────────────────────
 	"Volver al Hub": "Back to Hub",
 	"¡FALTA!": "FOUL!",
+	"¡FUERA DE JUEGO!": "OFFSIDE!",
+	"SAQUE DE BANDA": "THROW-IN",
+	"¡CÓRNER!": "CORNER!",
+	"SAQUE DE META": "GOAL KICK",
 	"EMPATE  %d - %d": "DRAW  %d - %d",
 	"%s GANA  %d - %d": "%s LEADS  %d - %d",
 	"¡GOL DE %s!": "%s SCORED!",

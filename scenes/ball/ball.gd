@@ -22,16 +22,21 @@ const BOUNCINESS := 0.8
 ## Raised from 130: most real exchanges (100-300px) should stay fast, direct,
 ## grounded balls — lofting was previously the common case, not the exception.
 const DISTANCE_HIGH_PASS := 300
-## A lofted pass's launch speed spends most of its flight airborne, where
-## BallStateFreeform applies FRICTION_AIR, not FRICTION_GROUND — sizing that
-## speed off ground friction (like a grounded pass does) badly undershoots
-## real friction and the ball overshoots its target, sometimes drastically,
-## on anything long enough to loft. This factor nudges the air-friction-based
-## speed (see pass_to) back up to land close to target. Tuned against a
-## step-by-step replay of BallStateFreeform's actual physics (friction
-## switch + the landing bounce, which also steals horizontal speed) across
-## 320-650px, landing within ~2% of the intended distance at 1.08.
-const HIGH_PASS_SPEED_CORRECTION := 1.08
+## Lofted-pass airtime (seconds) as a function of distance: LOFT_TIME_BASE +
+## distance × LOFT_TIME_PER_PX, clamped. The launch is solved so the ball's
+## FIRST LANDING is on the target (see pass_launch).
+##
+## Replaced an older launch (air-friction-sized speed × 1.08, height velocity
+## scaled by sqrt(dt)) that looked right on paper but, measured against the
+## real engine (tools/ball_probe.tscn), gave only ~0.3s of airtime: the ball
+## landed almost immediately, then rolled to a stop under ground friction at
+## ~26-30% of the intended distance (350px → 90px, 900px → 264px). Every long
+## pass, switch and through ball fell short. See docs/match-engine-v2.md
+## Findings #2.
+const LOFT_TIME_BASE := 0.4
+const LOFT_TIME_PER_PX := 1.0 / 900.0
+const LOFT_TIME_MIN := 0.7
+const LOFT_TIME_MAX := 1.6
 const TUMBLE_HEIGHT_VELOCITY := 3.0
 const LONG_KICK_ARC_MULTIPLIER := 3.0
 
@@ -71,10 +76,15 @@ var carrier: Player:
 		if not is_node_ready():
 			return
 		if value != null:
+			last_touch = value
 			GameEvents.ball_possessed.emit(value.full_name)
 			GameEvents.possession_gained.emit(value)
 		else:
 			GameEvents.ball_released.emit()
+## Last player to touch the ball — gaining possession, winning a tackle, or a
+## physical deflection (see BallState.move_and_bounce). Decides who gets a
+## throw-in / corner / goal kick when the ball goes out (RestartManager).
+var last_touch: Player = null
 var velocity := Vector2.ZERO
 var height_velocity := 0.0
 var heading := Vector2.RIGHT
@@ -151,23 +161,38 @@ func tumble(tumble_velocity: Vector2) -> void:
 	switch_state(Ball.State.FREEFORM)
 	
 func pass_to(destination: Vector2) -> void:
-	var direction := position.direction_to(destination)
-	var distance := position.distance_to(destination)
-	if distance > DISTANCE_HIGH_PASS:
-		# Lofted: size speed off FRICTION_AIR since the ball spends most of
-		# this flight airborne (see HIGH_PASS_SPEED_CORRECTION above).
-		var intensity := sqrt(2 * distance * FRICTION_AIR) * HIGH_PASS_SPEED_CORRECTION
-		velocity = intensity * direction
-		height_velocity = BallState.GRAVITY * distance / (1.8 * intensity) * _height_velocity_scale
-	else:
-		# Grounded: height stays 0 the whole flight, so sizing off
-		# FRICTION_GROUND is exact — this is the friction it'll actually see.
-		var intensity := sqrt(2 * distance * FRICTION_GROUND)
-		velocity = intensity * direction
-		height_velocity = 0.0  # Short pass stays on the ground — clear any residual velocity
+	var launch := pass_launch(position, destination)
+	velocity = launch["velocity"]
+	height_velocity = launch["height_velocity"]
 	carrier = null
 	switch_state(Ball.State.FREEFORM)
 	play_kick_sound()
+
+## The launch pass_to() gives a ball kicked from [param from] to
+## [param destination]: {"velocity": Vector2, "height_velocity": float}.
+## Static so BallPredictor/PassModel evaluate exactly the kick the engine
+## would actually perform.
+static func pass_launch(from: Vector2, destination: Vector2) -> Dictionary:
+	var direction := from.direction_to(destination)
+	var distance := from.distance_to(destination)
+	if distance > DISTANCE_HIGH_PASS:
+		# Lofted. BallState.process_gravity() adds height_velocity to height
+		# once per physics TICK (not scaled by delta) and subtracts
+		# GRAVITY*delta from height_velocity per tick, so a launch of
+		# height_velocity h is airborne for 2h/(GRAVITY*dt) ticks = 2h/GRAVITY
+		# seconds. Pick the airtime T, then h = GRAVITY*T/2; horizontally the
+		# ball decelerates at FRICTION_AIR for those T seconds, so the launch
+		# speed covering `distance` by the landing is (d + ½·a·T²)/T.
+		var t := loft_time(distance)
+		var speed := (distance + 0.5 * FRICTION_AIR * t * t) / t
+		return {"velocity": speed * direction, "height_velocity": BallState.GRAVITY * t * 0.5}
+	# Grounded: height stays 0 the whole flight, so sizing off
+	# FRICTION_GROUND is exact — this is the friction it'll actually see.
+	return {"velocity": sqrt(2 * distance * FRICTION_GROUND) * direction, "height_velocity": 0.0}
+
+static func loft_time(distance: float) -> float:
+	return clampf(LOFT_TIME_BASE + distance * LOFT_TIME_PER_PX, LOFT_TIME_MIN, LOFT_TIME_MAX)
+
 
 ## Goalkeeper long distribution — a high-arc inverted parabola.
 ## Uses air friction for the horizontal component so the ball carries far,
@@ -209,7 +234,7 @@ func long_kick(destination: Vector2) -> void:
 ## the same way against FRICTION_AIR.
 func estimate_pass_flight_time(distance: float) -> float:
 	if distance > DISTANCE_HIGH_PASS:
-		return sqrt(2.0 * distance / FRICTION_AIR) * HIGH_PASS_SPEED_CORRECTION
+		return loft_time(distance)  # the launch is solved to land on target at exactly this time
 	return sqrt(2.0 * distance / FRICTION_GROUND)
 
 ## Where to actually aim a pass so it meets a moving receiver instead of
@@ -249,6 +274,7 @@ func is_headed_for_scoring_area(goal: Goal) -> bool:
 ## Reset ball to center after a goal is scored.
 func _on_team_reset() -> void:
 	carrier = null
+	last_touch = null
 	position = spawn_position
 	velocity = Vector2.ZERO
 	height = 0.0

@@ -3,10 +3,11 @@ extends Node2D
 
 ## World state machine — orchestrates the full match lifecycle:
 ## IN_PLAY → SCORED → RESET → KICKOFF → IN_PLAY, or → GAMEOVER when time runs out.
-## A foul (see Player.on_tackle_player) detours IN_PLAY → FOUL → IN_PLAY instead.
+## Any stoppage (foul, offside, ball out of play → throw-in/corner/goal kick)
+## detours IN_PLAY → RESTART → IN_PLAY (see award_restart() and Restart.Kind).
 ## HUD rendering is delegated to MatchHUD (match_hud.tscn).
 
-enum MatchState { IN_PLAY, SCORED, RESET, KICKOFF, GAMEOVER, EVENT, FOUL }
+enum MatchState { IN_PLAY, SCORED, RESET, KICKOFF, GAMEOVER, EVENT, RESTART }
 
 ## Total match duration in seconds (6 minutes).
 const MATCH_DURATION := 360.0
@@ -16,15 +17,17 @@ const DURATION_SCORED := 3.0
 ## touches the ball (see _setup_kickoff()). Guards against a soft lock if no
 ## taker could be picked, or theirs gets stuck, on the way there.
 const KICKOFF_TIMEOUT := 8.0
-## Safety net only — FOUL normally ends the instant the free-kick taker
-## touches the ball. Longer than KICKOFF_TIMEOUT since, unlike a kickoff
-## taker, the fouled player isn't teleported next to the ball first — they
-## may have to walk/run across the pitch to reach it.
-const FOUL_TIMEOUT := 12.0
-## How far an opponent must stand from the foul spot once a free kick is
-## given — mirrors the real "must retreat" distance rule so nobody is left
-## frozen shoulder-to-shoulder with (or blocking) the kicker.
-const MIN_FOUL_RETREAT_DISTANCE := 110.0
+## Safety net only — RESTART normally ends the instant the taker touches the
+## ball. Longer than KICKOFF_TIMEOUT since a fouled player isn't teleported
+## (and may still be getting up from HURT first).
+const RESTART_TIMEOUT := 12.0
+## Where a teleported restart taker is placed relative to the spot — far
+## enough that they aren't already overlapping the ball (the ball's pickup
+## Area2D only fires on body_entered, so a taker placed ON the ball would
+## never pick it up), close enough to take it almost immediately.
+const RESTART_TAKER_OFFSET := 26.0
+## Goal kick: opponents must be outside the penalty area (~16.5m / 105m).
+const PENALTY_AREA_DEPTH := 0.16
 ## How often (in match seconds) to roll for a random mid-match event.
 const EVENT_CHECK_INTERVAL := 60.0
 ## Roles eligible to take a kickoff — forwards, same as the real game.
@@ -55,13 +58,12 @@ var _scorers : Array[Dictionary] = []
 ## At most one random event per match — set the moment one fires.
 var _match_event_fired := false
 var _next_event_check := EVENT_CHECK_INTERVAL
-## Set while state == FOUL — the only player left unfrozen, walking/running
-## back to the loose ball to take the free kick. See _on_foul_called().
-var _free_kick_taker : Player = null
-## Where the foul happened — used to push retreating opponents back from it.
-## See _on_foul_called() and _retreat_opponents_from_free_kick().
-var _free_kick_incident_position : Vector2 = Vector2.ZERO
-## Which team takes the next kickoff — the conceding team after a goal, or a
+## Set while state == RESTART — the only player left unfrozen, who takes the
+## set piece. See award_restart().
+var _restart_taker : Player = null
+var _restart_kind : int = Restart.Kind.FREE_KICK
+var _restart_spot : Vector2 = Vector2.ZERO
+var _offside_judge : OffsideJudge = null## Which team takes the next kickoff — the conceding team after a goal, or a
 ## random team for the match's opening kickoff. Consumed by _setup_kickoff().
 var _kickoff_team : String = ""
 ## Set while state == KICKOFF — the only player left unfrozen, walking/running
@@ -82,6 +84,10 @@ func _ready() -> void:
 	GameEvents.ball_possessed.connect(_on_ball_possessed)
 	GameEvents.foul_called.connect(_on_foul_called)
 	match_summary_popup.continue_pressed.connect(_on_back_to_hub_pressed)
+	_offside_judge = OffsideJudge.new()
+	_offside_judge.name = "OffsideJudge"
+	_offside_judge.setup(self)
+	add_child(_offside_judge)
 	if not MatchConfig.headless:
 		_setup_stadium()
 	# Opening kickoff: a proper restart, same as after a goal, just with a
@@ -138,6 +144,9 @@ func _process(delta: float) -> void:
 			if not MatchConfig.disable_random_events and not _match_event_fired and match_time >= _next_event_check:
 				_next_event_check += EVENT_CHECK_INTERVAL
 				_maybe_trigger_match_event()
+				if state != MatchState.IN_PLAY:
+					return
+			_check_out_of_play()
 		MatchState.SCORED:
 			_state_timer += delta
 			if _state_timer >= DURATION_SCORED:
@@ -148,10 +157,10 @@ func _process(delta: float) -> void:
 			if taker_has_ball or _state_timer >= KICKOFF_TIMEOUT:
 				GameEvents.kickoff_started.emit()
 				_transition(MatchState.IN_PLAY)
-		MatchState.FOUL:
+		MatchState.RESTART:
 			_state_timer += delta
-			var taker_has_ball := _free_kick_taker != null and actors_container.ball.carrier == _free_kick_taker
-			if taker_has_ball or _state_timer >= FOUL_TIMEOUT:
+			var taker_has_ball := _restart_taker != null and actors_container.ball.carrier == _restart_taker
+			if taker_has_ball or _state_timer >= RESTART_TIMEOUT:
 				_transition(MatchState.IN_PLAY)
 
 func _on_team_scored(team: String) -> void:
@@ -219,38 +228,134 @@ func _pick_kickoff_taker(team: String) -> Player:
 		return MatchRng.pick(outfield)
 	return null
 
-## A successful tackle was just ruled a foul (see Player.on_tackle_player).
-## Ignore a second foul while one is already being resolved — rare, and the
-## in-flight one will finish normally.
-func _on_foul_called(fouled_player: Player, incident_position: Vector2) -> void:
-	if state == MatchState.FOUL:
-		return
-	_free_kick_taker = fouled_player
-	_free_kick_incident_position = incident_position
-	_transition(MatchState.FOUL)
-	referee.focus_on(incident_position)
+# ─── Restarts (fouls, offside, out of play) — docs/match-engine-v2.md Phase 2 ─
 
-## Pushes any opponent standing inside MIN_FOUL_RETREAT_DISTANCE of the foul
-## spot back toward their own goal, same as a real free kick's "must retreat"
-## rule. Players already far enough away are left exactly where they are —
-## this only clears out anyone crowding the restart. Deferred (see the FOUL
-## branch of _transition()) for the same reason process_mode toggles are:
-## the foul is detected mid physics-step, and moving a CharacterBody2D isn't
-## safe to do synchronously from inside that callback.
-func _retreat_opponents_from_free_kick() -> void:
-	if _free_kick_taker == null:
+## A successful tackle was just ruled a foul (see Player.on_tackle_player):
+## direct free kick to the fouled player's side, taken by the fouled player.
+func _on_foul_called(fouled_player: Player, incident_position: Vector2) -> void:
+	award_restart(Restart.Kind.FREE_KICK, fouled_player.team, incident_position, fouled_player)
+
+## Called by OffsideJudge: indirect free kick to the defending side where the
+## offender received the ball.
+func award_offside(offender: Player) -> void:
+	var defending := actors_container.right_team if offender.is_left_team else actors_container.left_team
+	if defending.is_empty():
 		return
-	var incident := _free_kick_incident_position
+	award_restart(Restart.Kind.OFFSIDE, defending[0].team, offender.position)
+
+## Polled every IN_PLAY frame. The walls still physically stop the ball, so
+## this fires as it reaches a line just inside them — see OutOfPlay.
+func _check_out_of_play() -> void:
+	var ball := actors_container.ball
+	var carrier := ball.carrier
+	if carrier != null and carrier.current_state != null and carrier.current_state.is_holding_ball():
+		return  # a keeper holding the ball in their hands can't carry it out
+	var line := OutOfPlay.crossed(ball.position, _goal_mouth(actors_container.goal_left), _goal_mouth(actors_container.goal_right))
+	if line == OutOfPlay.Line.NONE:
+		return
+	var last_left : bool = ball.last_touch.is_left_team if ball.last_touch != null else MatchRng.randf() < 0.5
+	var d := OutOfPlay.decide(line, ball.position, last_left)
+	var team := actors_container.team_left if d["award_left"] else actors_container.team_right
+	award_restart(d["kind"], team, d["spot"])
+
+## (min_y, max_y) of [param goal]'s mouth, a little wider than its shot
+## targets (which sit just inside the posts).
+static func _goal_mouth(goal: Goal) -> Vector2:
+	return Vector2(goal.get_top_target_position().y - 10.0, goal.get_bottom_target_position().y + 12.0)
+
+## Stops play and sets up a restart for [param team] at [param spot]. Only
+## [param taker] (picked automatically when null) stays unfrozen; they walk
+## onto the ball and play resumes the moment they have it. Ignored outside
+## IN_PLAY (e.g. a second foul while one is already being resolved).
+func award_restart(kind: int, team: String, spot: Vector2, taker: Player = null) -> void:
+	if state != MatchState.IN_PLAY:
+		return
+	if taker == null:
+		taker = _pick_restart_taker(kind, team, spot)
+	if taker == null:
+		return
+	_restart_kind = kind
+	_restart_spot = spot
+	_restart_taker = taker
+	GameEvents.restart_awarded.emit(kind, team, spot)
+	_transition(MatchState.RESTART)
+	referee.focus_on(spot)
+
+## Goal kicks go to the keeper; everything else to the nearest outfield
+## player of [param team] (any player if the side has no outfielders).
+func _pick_restart_taker(kind: int, team: String, spot: Vector2) -> Player:
+	var side := actors_container.left_team if team == actors_container.team_left else actors_container.right_team
+	var best : Player = null
+	var best_d := INF
+	for p in side:
+		if not SpecialPlayerTypes.movable(p.special_type):
+			continue
+		var is_gk := p.role == Positions.Role.GK
+		if kind == Restart.Kind.GOAL_KICK and is_gk:
+			return p
+		if is_gk:
+			continue
+		var d := p.position.distance_squared_to(spot)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best if best != null else (side[0] if not side.is_empty() else null)
+
+## Deferred from the RESTART transition — moving CharacterBody2Ds and the
+## ball isn't safe from inside the physics callback a foul is detected in.
+## Queued after the fouled player's HURT state is added (which tumbles the
+## ball), so the ball placement here wins.
+func _setup_restart() -> void:
+	var ball := actors_container.ball
+	var taker := _restart_taker
+	if taker == null:
+		return
+	var spot := _restart_spot
+	if _restart_kind == Restart.Kind.GOAL_KICK:
+		# The keeper restarts from their hands: HOLDING_BALL gives them the
+		# ball (tackle-immune, pressers back off) and GoalieAI's existing
+		# distribution logic takes it from there.
+		_clear_penalty_area(taker)
+		taker.position = spot
+		taker.velocity = Vector2.ZERO
+		taker.switch_state(Player.State.HOLDING_BALL)
+		return
+	ball.carrier = null
+	ball.position = spot
+	ball.velocity = Vector2.ZERO
+	ball.height = 0.0
+	ball.height_velocity = 0.0
+	ball.switch_state(Ball.State.FREEFORM)
+	# Stand the taker just behind the ball: from their own goal's side for a
+	# free kick, from the pitch interior for throw-ins and corners.
+	var back_dir := spot.direction_to(taker.own_goal.get_center_target_position())
+	if _restart_kind in [Restart.Kind.THROW_IN, Restart.Kind.CORNER]:
+		back_dir = spot.direction_to(PitchSpace.from_absolute_normalised(Vector2(0.5, 0.5)))
+	if Restart.teleports_taker(_restart_kind) or taker.position.distance_to(spot) < RESTART_TAKER_OFFSET:
+		taker.position = spot + back_dir * RESTART_TAKER_OFFSET
+		taker.velocity = Vector2.ZERO
+	_retreat_opponents(taker, spot, Restart.retreat_distance(_restart_kind))
+
+## Opponents inside [param radius] of the spot step back toward their own goal
+## (Laws 13/15/17 distances). Players already far enough away stay put.
+func _retreat_opponents(taker: Player, spot: Vector2, radius: float) -> void:
 	for p in actors_container.left_team + actors_container.right_team:
-		if p.team == _free_kick_taker.team:
+		if p.team == taker.team or p.position.distance_to(spot) >= radius:
 			continue
-		if p.position.distance_to(incident) >= MIN_FOUL_RETREAT_DISTANCE:
-			continue
-		var goal_center := p.own_goal.get_center_target_position() if p.own_goal != null else incident
-		var retreat_dir := incident.direction_to(goal_center)
+		var goal_center := p.own_goal.get_center_target_position() if p.own_goal != null else spot
+		var retreat_dir := spot.direction_to(goal_center)
 		if retreat_dir == Vector2.ZERO:
 			retreat_dir = Vector2.LEFT if p.is_left_team else Vector2.RIGHT
-		p.position = incident + retreat_dir * MIN_FOUL_RETREAT_DISTANCE
+		p.position = spot + retreat_dir * radius
+
+## Goal kick: every opponent inside the penalty area moves out to its edge.
+func _clear_penalty_area(keeper: Player) -> void:
+	for p in actors_container.left_team + actors_container.right_team:
+		if p.team == keeper.team:
+			continue
+		var n := PitchSpace.normalised(p.position, keeper.is_left_team)
+		if n.x < PENALTY_AREA_DEPTH:
+			p.position = PitchSpace.from_normalised(Vector2(PENALTY_AREA_DEPTH + 0.01, n.y), keeper.is_left_team)
 
 ## Rolls for a random mid-match event (Pepito Perinola narrating something
 ## like a pitch invader or a crowd surge). Pauses play for the duration of
@@ -284,27 +389,30 @@ func _transition(new_state: MatchState) -> void:
 				# CharacterBody2D's process_mode synchronously there is a Godot
 				# error ("Disabling a CollisionObject during a physics callback").
 				p.set_deferred("process_mode", Node.PROCESS_MODE_INHERIT)
-			if _free_kick_taker != null:
-				_free_kick_taker.is_restart_taker = false
+			if _restart_taker != null:
+				_restart_taker.is_restart_taker = false
+				# The taker plays it straight away rather than dribbling off
+				# with it (the keeper's goal kick uses GoalieAI's own release).
+				if _restart_kind != Restart.Kind.GOAL_KICK:
+					_restart_taker.restart_pass_pending = true
+				if Restart.offside_exempt(_restart_kind):
+					_offside_judge.exempt_next_kick = true
 			if _kickoff_taker != null:
 				_kickoff_taker.is_restart_taker = false
-			_free_kick_taker = null
+			_restart_taker = null
 			_kickoff_taker = null
 			referee.follow_ball()
 		MatchState.KICKOFF:
 			_setup_kickoff()
-		MatchState.FOUL:
-			# Everyone except the fouled player freezes exactly where they are
-			# — they walk/run back to the loose ball themselves via their own
-			# unfrozen AIBehavior (see _on_foul_called(), Player.is_restart_taker).
-			_free_kick_taker.is_restart_taker = true
+		MatchState.RESTART:
+			# Everyone except the taker freezes exactly where they are; the
+			# taker walks onto the placed ball via their own unfrozen
+			# AIBehavior (Player.is_restart_taker).
+			_restart_taker.is_restart_taker = true
 			for p in actors_container.left_team + actors_container.right_team:
-				if p != _free_kick_taker:
+				if p != _restart_taker:
 					p.set_deferred("process_mode", Node.PROCESS_MODE_DISABLED)
-			# Opponents must retreat off the ball too, same as a real free
-			# kick — a ref would order them back rather than let them stand
-			# frozen on top of the kicker.
-			call_deferred("_retreat_opponents_from_free_kick")
+			call_deferred("_setup_restart")
 		MatchState.GAMEOVER:
 			actors_container.process_mode = Node.PROCESS_MODE_DISABLED
 			GameEvents.game_over.emit()

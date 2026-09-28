@@ -54,3 +54,10 @@ signal shot_taken(shooter: Player, origin: Vector2)
 ## A tackle made contact with the carrier. [param won] = ball changed hands
 ## (cleanly or via foul); [param foul] = the referee called it.
 signal tackle_resolved(tackler: Player, carrier: Player, won: bool, foul: bool)
+
+## A set-piece restart was awarded (Restart.Kind) to [param team] at [param spot].
+## Fired for fouls too, alongside foul_called.
+signal restart_awarded(kind: int, team: String, spot: Vector2)
+
+## The assistant flagged [param offender] offside (OffsideJudge).
+signal offside_called(offender: Player)

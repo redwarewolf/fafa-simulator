@@ -52,7 +52,7 @@ func _ready() -> void:
 	GameEvents.team_reset.connect(_on_team_reset)
 	GameEvents.match_time_updated.connect(_on_match_time_updated)
 	GameEvents.game_over.connect(_on_game_over)
-	GameEvents.foul_called.connect(_on_foul_called)
+	GameEvents.restart_awarded.connect(_on_restart_awarded)
 	cam_mode_button.pressed.connect(_on_cam_mode_button_pressed)
 	mentality_button.pressed.connect(_on_mentality_button_pressed)
 
@@ -99,7 +99,10 @@ func _on_score_changed() -> void:
 		score_info_label.text = tr("%s GANA  %d - %d") % [_actors_container.team_right, sr, sl]
 	animation_player.play("goal_appear")
 
-func _on_foul_called(_fouled_player: Player, _incident_position: Vector2) -> void:
+## Every stoppage (foul, offside, throw-in, corner, goal kick) reuses the
+## foul toast, just with the restart's own label.
+func _on_restart_awarded(kind: int, _team: String, _spot: Vector2) -> void:
+	foul_label.text = tr(Restart.LABELS.get(kind, "¡FALTA!"))
 	animation_player.play("foul_flash")
 
 func _on_team_reset() -> void:

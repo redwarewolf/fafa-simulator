@@ -50,6 +50,19 @@ func move_and_bounce(delta: float) -> void:
 	if collision != null:
 		ball.velocity = ball.velocity.bounce(collision.get_normal()) * ball.BOUNCINESS
 		ball.switch_state(Ball.State.FREEFORM)
+		var toucher := _player_owning(collision.get_collider())
+		if toucher != null:
+			ball.last_touch = toucher  # e.g. a keeper's parry off GoalieHands
 		var obstacle := collision.get_collider() as Player
 		if obstacle != null and SpecialPlayerTypes.bounces_ball(obstacle.special_type):
 			obstacle.get_hurt(ball.global_position.direction_to(obstacle.global_position))
+
+## The Player a collider belongs to (the body itself, or an ancestor — the
+## keeper's GoalieHands body is a child of the Player), or null for walls/goals.
+static func _player_owning(collider: Object) -> Player:
+	var node := collider as Node
+	while node != null:
+		if node is Player:
+			return node
+		node = node.get_parent()
+	return null
