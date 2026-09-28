@@ -107,6 +107,12 @@ func set_piece_ready() -> bool:
 ## Engine v2: a TeamBrain for the side, and a PlayerBrain for each of its
 ## outfield players (keepers stay on v1's GoalieAI until Phase 8).
 func _make_team_brain(is_left: bool, team: Array[Player]) -> TeamBrain:
+	# Realistic speed/acceleration for every v2 player (Phase 7) — set before
+	# the brains are built, since they read player.speed.
+	if Tuning.b("realistic_movement", true):
+		for p in team:
+			if SpecialPlayerTypes.movable(p.special_type):
+				p.apply_realistic_movement()
 	var tb := TeamBrain.new(is_left, team, match_context)
 	for p in tb.players:
 		p.brain = PlayerBrain.new(p, tb, match_context, p.opponent_detection_area)

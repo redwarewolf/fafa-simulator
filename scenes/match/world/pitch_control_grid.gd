@@ -46,23 +46,43 @@ func update_rows(count: int, left: Array, right: Array) -> void:
 func update_all(left: Array, right: Array) -> void:
 	update_rows(ROWS, left, right)
 
-## [pos, vel, speed] per movable, active player, flattened into one array.
+## [pos, vel, speed, accel, vmax] per movable, active player.
 static func _pack(team: Array) -> Array:
 	var out := []
 	for p: Player in team:
 		if p.process_mode == Node.PROCESS_MODE_DISABLED:
 			continue
-		out.append([p.position, p.velocity, maxf(p.speed, 1.0)])
+		out.append([p.position, p.velocity, maxf(p.speed, 1.0), p.max_accel, maxf(p.speed, 1.0) * Locomotion.SPRINT_MULTIPLIER])
 	return out
 
-## Inlined PitchControl.time_to_reach over a packed team.
+## Inlined PitchControl.time_to_reach over a packed team. For engine-v2
+## players the kinematic formula (PitchControl.kinematic_time) is inlined, and
+## a player whose best-case time (straight at top speed) can't beat the
+## current best is skipped — the grid is the single hottest loop in the AI.
 static func _best_time(point: Vector2, packed: Array) -> float:
 	var best := 99.0
 	for d in packed:
 		var to_point : Vector2 = point - d[0]
 		var dist := to_point.length()
 		var t := PitchControl.REACTION_TIME
-		if dist >= 1.0:
+		var accel : float = d[3]
+		if dist >= 1.0 and accel > 0.0:
+			var vmax : float = d[4]
+			if t + dist / vmax >= best:
+				continue
+			var vel_k : Vector2 = d[1]
+			var v0 := vel_k.dot(to_point) / dist
+			if v0 < 0.0:
+				t += -v0 / (accel * Player.BRAKE_FACTOR)
+				v0 = 0.0
+			v0 = minf(v0, vmax)
+			var t_acc := (vmax - v0) / accel
+			var d_acc := (v0 + vmax) * 0.5 * t_acc
+			if dist <= d_acc:
+				t += (-v0 + sqrt(v0 * v0 + 2.0 * accel * dist)) / accel
+			else:
+				t += t_acc + (dist - d_acc) / vmax
+		elif dist >= 1.0:
 			var speed : float = d[2]
 			var vel : Vector2 = d[1]
 			var cur := vel.length()

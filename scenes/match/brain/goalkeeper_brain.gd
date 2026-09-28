@@ -85,7 +85,7 @@ func _init(p_player: Player, p_team: TeamBrain, p_ctx: MatchContext, p_opponent_
 	ctx = p_ctx
 	ball = p_ctx.ball
 	opponent_area = p_opponent_area
-	reflexes = (0.55 * player.defense + 0.25 * player.speed + 0.2 * player.physicality) / 100.0
+	reflexes = (0.55 * player.defense + 0.25 * player.pace + 0.2 * player.physicality) / 100.0
 	handling = (0.6 * player.defense + 0.4 * player.physicality) / 100.0
 	decisions = MentalAttributes.derive(player).decisions / 100.0
 	reaction_s = lerpf(0.30, 0.12, reflexes)
@@ -100,7 +100,18 @@ func _init(p_player: Player, p_team: TeamBrain, p_ctx: MatchContext, p_opponent_
 		_base_hands_radius = _hands_shape.radius
 
 ## Called every frame from AIBehavior.process_ai (MOVING and HOLDING_BALL).
+## Movement goes through the keeper's acceleration limits like outfielders'
+## (dives set their own velocity in PlayerStateDiving).
 func process() -> void:
+	var prev := player.velocity
+	var state_before := player.current_state
+	_process_logic()
+	if player.current_state == state_before:
+		var desired := player.velocity
+		player.velocity = prev
+		player.steer_velocity(desired, player.get_process_delta_time())
+
+func _process_logic() -> void:
 	if player.current_state != null and player.current_state.is_holding_ball():
 		_process_holding()
 		return

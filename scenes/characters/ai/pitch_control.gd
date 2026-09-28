@@ -29,6 +29,10 @@ static func time_to_reach(point: Vector2, player: Player) -> float:
 	var distance := to_point.length()
 	if distance < 1.0:
 		return REACTION_TIME
+	if player.max_accel > 0.0:
+		# Engine-v2 movement: real acceleration, so use kinematics.
+		var along := player.velocity.dot(to_point / distance)
+		return REACTION_TIME + kinematic_time(distance, along, player.speed * Locomotion.SPRINT_MULTIPLIER, player.max_accel)
 	var speed := maxf(player.speed, 1.0)
 	var current_speed := player.velocity.length()
 	var alignment := 0.0
@@ -39,6 +43,23 @@ static func time_to_reach(point: Vector2, player: Player) -> float:
 		speed * MIN_EFFECTIVE_SPEED_FACTOR, speed * MAX_EFFECTIVE_SPEED_FACTOR
 	)
 	return REACTION_TIME + distance / effective_speed
+
+## Seconds to cover [param distance] starting at speed [param v_along] along
+## the way (negative = currently moving away), accelerating at [param accel]
+## up to [param vmax]. Moving away first costs the time to brake to zero
+## (at Player.BRAKE_FACTOR × accel).
+static func kinematic_time(distance: float, v_along: float, vmax: float, accel: float) -> float:
+	var t := 0.0
+	var v0 := v_along
+	if v0 < 0.0:
+		t += -v0 / (accel * Player.BRAKE_FACTOR)
+		v0 = 0.0
+	v0 = minf(v0, vmax)
+	var t_acc := (vmax - v0) / accel
+	var d_acc := (v0 + vmax) * 0.5 * t_acc
+	if distance <= d_acc:
+		return t + (-v0 + sqrt(v0 * v0 + 2.0 * accel * distance)) / accel
+	return t + t_acc + (distance - d_acc) / vmax
 
 ## Fastest (lowest) time_to_reach among [param team] — goalkeepers included,
 ## same as the flat-distance nearest_opponent_distance() this augments. 99.0

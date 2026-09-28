@@ -46,7 +46,19 @@ func _init(p_player: Player, p_team: TeamBrain, p_ctx: MatchContext, p_opponent_
 	_roll_position_error()
 
 ## Called every frame while the player is in a controllable state (MOVING).
+## The logic below sets the DESIRED velocity; it's then reached within the
+## player's acceleration/braking limits (Player.steer_velocity), unless the
+## player switched state (pass/shot/tackle set their own velocity).
 func process() -> void:
+	var prev := player.velocity
+	var state_before := player.current_state
+	_process_logic()
+	if player.current_state == state_before:
+		var desired := player.velocity
+		player.velocity = prev
+		player.steer_velocity(desired, player.get_process_delta_time())
+
+func _process_logic() -> void:
 	if not SpecialPlayerTypes.movable(player.special_type):
 		return
 	var ball := ctx.ball

@@ -31,12 +31,12 @@ static func derive(p: Player) -> MentalAttributes:
 	var exp := (clampf((age - 17.0) / 12.0, 0.0, 1.0) * 2.0 - 1.0) * EXPERIENCE_SPREAD
 	m.vision = _c(0.7 * p.passing + 0.15 * p.dribbling + 0.15 * p.power + exp * 0.5)
 	m.decisions = _c(0.4 * p.passing + 0.3 * p.defense + 0.3 * p.dribbling + exp)
-	m.anticipation = _c(0.5 * p.defense + 0.25 * p.speed + 0.25 * p.passing + exp)
+	m.anticipation = _c(0.5 * p.defense + 0.25 * p.pace + 0.25 * p.passing + exp)
 	m.positioning = _c(0.7 * p.defense + 0.3 * p.physicality + exp)
 	m.composure = _c(0.35 * p.dribbling + 0.35 * p.passing + 0.3 * p.power + exp)
-	m.work_rate = _c(0.5 * p.physicality + 0.3 * p.teamplay + 0.2 * p.speed)
+	m.work_rate = _c(0.5 * p.physicality + 0.3 * p.teamplay + 0.2 * p.pace)
 	m.aggression = _c(0.6 * p.defense + 0.4 * p.physicality)
-	m.off_ball = _c(0.4 * p.speed + 0.3 * p.power + 0.3 * p.dribbling + exp * 0.5)
+	m.off_ball = _c(0.4 * p.pace + 0.3 * p.power + 0.3 * p.dribbling + exp * 0.5)
 	return m
 
 static func _c(v: float) -> float:

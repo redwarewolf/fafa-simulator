@@ -119,6 +119,47 @@ var special_type : String = ""
 @export var physicality : float = 50
 ## Personality trait copied from PlayerResource.teamplay — see there.
 var teamplay : float = 50
+## The PAC stat (0-100). `speed` above is the MOVEMENT speed in px/s: for v1
+## players it's the raw stat (as it always was); engine-v2 players get a
+## realistic speed from it (apply_realistic_movement). Stat-based formulas
+## (mental attributes, keeper reflexes) read `pace`.
+var pace : float = 80
+
+# ─── Engine-v2 movement (docs/match-engine-v2.md Phase 7, Findings #9) ──────
+## Top (sprint) speed range, m/s, from PAC 0 → 100. Real footballers sprint
+## at ~7-9.5 m/s; the raw-stat speed gave only ~2.4-4.8 m/s.
+const TOP_SPEED_MIN_MS := 6.4
+const TOP_SPEED_MAX_MS := 9.4
+## Acceleration range, m/s², from the pace/physicality blend; braking is
+## BRAKE_FACTOR times quicker. Real players reach ~5 m/s in about a second.
+const ACCEL_MIN_MS2 := 3.2
+const ACCEL_MAX_MS2 := 5.5
+const BRAKE_FACTOR := 1.8
+## Acceleration limit in px/s² (0 = instantaneous, the v1 behaviour).
+var max_accel : float = 0.0
+
+## Engine-v2 players: movement speed and acceleration in real units. `speed`
+## stays the RUNNING speed the codebase has always multiplied by
+## Locomotion.SPRINT_MULTIPLIER for a sprint, so top speed = speed × 1.25.
+func apply_realistic_movement() -> void:
+	var px_per_m := 1.0 / PitchSpace.metres_per_px().x
+	var top := lerpf(TOP_SPEED_MIN_MS, TOP_SPEED_MAX_MS, pace / 100.0) * px_per_m
+	speed = top / Locomotion.SPRINT_MULTIPLIER
+	var agility := (0.6 * pace + 0.4 * physicality) / 100.0
+	max_accel = lerpf(ACCEL_MIN_MS2, ACCEL_MAX_MS2, agility) * px_per_m
+
+## Moves velocity toward [param desired] within the acceleration limits —
+## turning and stopping take time, so runs curve and a player committed one
+## way can't instantly reverse. v1 players (max_accel 0) snap as before.
+func steer_velocity(desired: Vector2, delta: float) -> void:
+	if max_accel <= 0.0 or delta <= 0.0:
+		velocity = desired
+		return
+	# Braking/turning (the desired vector doesn't extend the current one)
+	# uses the stronger braking limit.
+	var extending := desired.length() >= velocity.length() and desired.dot(velocity) >= 0.0
+	var limit := max_accel * (1.0 if extending else BRAKE_FACTOR) * delta
+	velocity = velocity.move_toward(desired, limit)
 
 ## Kept for stamina read/write-back only (see stamina below) — everything
 ## else about this player already got copied into plain fields above.
@@ -241,6 +282,7 @@ func initialize(context_position : Vector2, context_ball : Ball, context_own_goa
 		var apt_pct := Positions.aptitude_stat_pct(Positions.aptitude(context_player_data.role, role))
 		power = context_player_data.get_effective_stat_for_role("sho", apt_pct)
 		speed = context_player_data.get_effective_stat_for_role("pac", apt_pct)
+		pace = speed
 		defense = context_player_data.get_effective_stat_for_role("def", apt_pct)
 		dribbling = context_player_data.get_effective_stat_for_role("dri", apt_pct)
 		passing = context_player_data.get_effective_stat_for_role("pas", apt_pct)
@@ -417,7 +459,7 @@ func on_tackle_player(player_hit : Player) -> void:
 			return
 		ball.play_kick_sound()  # Won the duel — the ball changes feet, same as any other kick
 		ball.last_touch = self
-		if MatchRng.randf() < FOUL_CHANCE_ON_TACKLE_WIN:
+		if MatchRng.randf() < _foul_chance(player_hit):
 			GameEvents.tackle_resolved.emit(self, player_hit, true, true)
 			var incident_position := player_hit.position
 			player_hit.get_hurt(position.direction_to(player_hit.position))
@@ -436,7 +478,34 @@ func dodge_hop() -> void:
 ## Tackle success is a contest between the tackler's DEF and the carrier's DRI.
 ## Equal stats → 50/50. Clamped so no stat gap makes the outcome a certainty.
 func _wins_tackle_duel(carrier: Player) -> bool:
-	return MatchRng.randf() < tackle_win_chance(defense, carrier.dribbling)
+	var p := tackle_win_chance(defense, carrier.dribbling)
+	if brain != null:
+		p -= BEHIND_WIN_PENALTY * _behind_factor(carrier)
+	return MatchRng.randf() < p
+
+# ─── Engine-v2 tackle angle (Phase 7) ───────────────────────────────────────
+## A tackle from behind the carrier (relative to where he's running) is less
+## likely to win the ball cleanly and much more likely to be a foul; more
+## aggressive players foul more. v1 tacklers keep the flat
+## FOUL_CHANCE_ON_TACKLE_WIN.
+const BEHIND_WIN_PENALTY := 0.12
+const FOUL_BASE := 0.06
+const FOUL_FROM_BEHIND := 0.35
+const FOUL_AGGRESSION := 0.12
+
+## 0 = tackling from in front or the side, 1 = straight from behind.
+func _behind_factor(carrier: Player) -> float:
+	if carrier.velocity.length() < 10.0:
+		return 0.0
+	var run := carrier.velocity.normalized()
+	var to_tackler := carrier.position.direction_to(position)
+	return maxf(0.0, -run.dot(to_tackler))
+
+func _foul_chance(carrier: Player) -> float:
+	if brain == null:
+		return FOUL_CHANCE_ON_TACKLE_WIN
+	var aggression := brain.mental.aggression / 100.0
+	return clampf(FOUL_BASE + FOUL_FROM_BEHIND * _behind_factor(carrier) + FOUL_AGGRESSION * aggression, 0.02, 0.6)
 
 ## Shared with the v2 AI's tackle decision (PlayerBrain) so it judges the
 ## duel by the exact odds the engine will roll.

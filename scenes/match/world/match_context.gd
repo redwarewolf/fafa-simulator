@@ -8,7 +8,10 @@ extends Node
 ## the v2 AI or an analytics overlay is on — v1-only matches skip its cost.
 
 ## A full pitch-control refresh is spread over this many frames (20 Hz at 60fps).
-const FRAMES_PER_REFRESH := 3
+## 5 frames = 12 Hz at 60 fps. Was 3 (20 Hz); realistic movement made each
+## cell's time-to-reach costlier and 12 Hz is still well above how fast the
+## brains that read it think (5 Hz team, 5-8 Hz players).
+const FRAMES_PER_REFRESH := 5
 
 var actors: ActorsContainer = null
 var ball: Ball = null

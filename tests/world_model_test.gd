@@ -73,6 +73,29 @@ func test_open_pass_is_likely_blocked_pass_is_not() -> void:
 	assert_true(tight.p_success < open.p_success - 0.2, "tightly marked receiver scores lower (%.2f vs %.2f)" % [tight.p_success, open.p_success])
 	_free_players()
 
+## Kinematics: standing start vs flying start vs running the wrong way.
+func test_kinematic_time_to_reach() -> void:
+	var vmax := 180.0
+	var a := 100.0
+	var standing := PitchControl.kinematic_time(300.0, 0.0, vmax, a)
+	var flying := PitchControl.kinematic_time(300.0, vmax, vmax, a)
+	var reversing := PitchControl.kinematic_time(300.0, -vmax, vmax, a)
+	assert_near(flying, 300.0 / vmax, 0.001, "already at top speed")
+	# Standing: 1.8s to reach vmax covering 162px, then 138px at 180 → 2.567s.
+	assert_near(standing, 1.8 + 138.0 / 180.0, 0.01, "standing start")
+	assert_true(reversing > standing, "having to stop first is slower")
+
+## Movement limits: a v2 player can't reverse instantly.
+func test_steer_velocity_limits_turning() -> void:
+	var p := _player(Vector2.ZERO, 100.0, Vector2(150, 0))
+	p.max_accel = 100.0
+	p.steer_velocity(Vector2(-150, 0), 0.1)
+	assert_near(p.velocity.x, 150.0 - 100.0 * Player.BRAKE_FACTOR * 0.1, 0.01, "braking limited per frame")
+	var q := _player(Vector2.ZERO, 100.0, Vector2(150, 0))
+	q.steer_velocity(Vector2(-150, 0), 0.1)
+	assert_near(q.velocity.x, -150.0, 0.01, "v1 (max_accel 0) snaps as before")
+	_free_players()
+
 ## First touch: a slow ground ball is trivial, a fast dropping one is not, and
 ## skill helps with the hard ones.
 func test_first_touch_difficulty() -> void:
