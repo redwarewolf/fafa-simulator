@@ -433,8 +433,12 @@ func dodge_hop() -> void:
 ## Tackle success is a contest between the tackler's DEF and the carrier's DRI.
 ## Equal stats → 50/50. Clamped so no stat gap makes the outcome a certainty.
 func _wins_tackle_duel(carrier: Player) -> bool:
-	var win_chance := clampf(0.5 + (defense - carrier.dribbling) / 200.0, 0.1, 0.9)
-	return MatchRng.randf() < win_chance
+	return MatchRng.randf() < tackle_win_chance(defense, carrier.dribbling)
+
+## Shared with the v2 AI's tackle decision (PlayerBrain) so it judges the
+## duel by the exact odds the engine will roll.
+static func tackle_win_chance(tackler_defense: float, carrier_dribbling: float) -> float:
+	return clampf(0.5 + (tackler_defense - carrier_dribbling) / 200.0, 0.1, 0.9)
 
 # ─── Debug helpers ────────────────────────────────────────────────────────────
 

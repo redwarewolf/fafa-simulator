@@ -146,6 +146,19 @@ var _xt_right := PackedFloat32Array()
 var pot_left := PackedFloat32Array()
 var pot_right := PackedFloat32Array()
 
+# ─── Forward (breakaway) potential ──────────────────────────────────────────
+# The local potential above only looks ±3 cells around a spot, so a ball
+# played into 40m of empty grass behind a high line was valued like any
+# midfield spot (through balls scored ~0.01 in the harness, below a sideways
+# carry). Dynamic programming over the control grid toward the goal fixes it:
+#     fwd[c] = max( xT[c]·ctl[c],  ctl[c] · FWD_DECAY · max(fwd of the 3 cells ahead) )
+# i.e. a cell is worth what can be reached from it by carrying on toward goal
+# while we keep control of every cell on the way. Space leading to goal now
+# carries the goal's value back to where the through ball lands.
+const FWD_DECAY := 0.94
+var fwd_left := PackedFloat32Array()
+var fwd_right := PackedFloat32Array()
+
 func _ensure_xt_cells() -> void:
 	if not _xt_left.is_empty():
 		return
@@ -154,6 +167,8 @@ func _ensure_xt_cells() -> void:
 	_xt_right.resize(n)
 	pot_left.resize(n)
 	pot_right.resize(n)
+	fwd_left.resize(n)
+	fwd_right.resize(n)
 	for i in n:
 		_xt_left[i] = XtGrid.at(control.centres[i], true)
 		_xt_right[i] = XtGrid.at(control.centres[i], false)
@@ -181,6 +196,33 @@ func _update_potential() -> void:
 					best_r = maxf(best_r, _xt_right[j] * (1.0 - cl) * decay)
 			pot_left[r * cols + c] = best_l
 			pot_right[r * cols + c] = best_r
+	_update_forward(cols, rows)
+
+## See FWD_DECAY. Left attacks toward col = COLS-1, right toward col 0, so
+## each side's DP sweeps from its target goal backwards.
+func _update_forward(cols: int, rows: int) -> void:
+	for step in cols:
+		var c_l := cols - 1 - step   # left team: from the right-hand goal back
+		var c_r := step              # right team: from the left-hand goal back
+		for r in rows:
+			var il := r * cols + c_l
+			var ctl_l := control.control_left[il]
+			var ahead_l := 0.0
+			if c_l + 1 < cols:
+				for dr in [-1, 0, 1]:
+					var rr : int = r + dr
+					if rr >= 0 and rr < rows:
+						ahead_l = maxf(ahead_l, fwd_left[rr * cols + c_l + 1])
+			fwd_left[il] = maxf(_xt_left[il] * ctl_l, ctl_l * FWD_DECAY * ahead_l)
+			var ir := r * cols + c_r
+			var ctl_r := 1.0 - control.control_left[ir]
+			var ahead_r := 0.0
+			if c_r - 1 >= 0:
+				for dr in [-1, 0, 1]:
+					var rr : int = r + dr
+					if rr >= 0 and rr < rows:
+						ahead_r = maxf(ahead_r, fwd_right[rr * cols + c_r - 1])
+			fwd_right[ir] = maxf(_xt_right[ir] * ctl_r, ctl_r * FWD_DECAY * ahead_r)
 
 ## Reachable-value potential at [param p] for [param team_left] (nearest cell).
 func potential_at(p: Vector2, team_left: bool) -> float:
@@ -189,7 +231,7 @@ func potential_at(p: Vector2, team_left: bool) -> float:
 	var c := clampi(int(n.x * PitchControlGrid.COLS), 0, PitchControlGrid.COLS - 1)
 	var r := clampi(int(n.y * PitchControlGrid.ROWS), 0, PitchControlGrid.ROWS - 1)
 	var i := r * PitchControlGrid.COLS + c
-	return pot_left[i] if team_left else pot_right[i]
+	return maxf(pot_left[i], fwd_left[i]) if team_left else maxf(pot_right[i], fwd_right[i])
 
 ## What having the ball at [param p] is worth to [param team_left] — the
 ## better of the spot itself (xT, scaled by how securely we'd hold it) and

@@ -174,6 +174,14 @@ func _move_off_ball() -> void:
 		Job.Kind.PRESS:
 			if carrier != null and carrier.is_left_team != player.is_left_team:
 				if job.engage:
+					var close := player.position.distance_to(carrier.position) < RoleAI.TACKLE_DISTANCE * 2.0
+					if close and not _should_commit_tackle(carrier):
+						# Jockey: goal-side, matching the carrier's run, waiting
+						# for better odds instead of diving in.
+						_target = carrier.position + carrier.velocity * 0.2 \
+							+ carrier.position.direction_to(own_goal) * JOCKEY_DIST
+						player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area)
+						return
 					var lead := clampf(player.position.distance_to(carrier.position) / maxf(player.speed, 1.0), 0.0, 1.0)
 					var aim := carrier.position + carrier.velocity * lead
 					player.velocity = player.position.direction_to(aim) * _sprint_speed()
@@ -200,6 +208,30 @@ func _move_off_ball() -> void:
 func _sprint_speed() -> float:
 	return player.speed * Locomotion.SPRINT_MULTIPLIER * player.get_stamina_factor()
 
+## Minimum duel odds (Player.tackle_win_chance) to commit to a tackle, by
+## where the ball is. A failed tackle leaves the defender recovering on the
+## floor, so near our own goal it pays to jockey and wait for better odds —
+## unless the carrier is about to shoot. The first cut tackled whenever in
+## range: 16.7 tackles per 180s at 53% success against v1, whose dribblers
+## then walked through the gaps (shots from 10.6m at 0.23 xG).
+const TACKLE_ODDS_OWN_THIRD := 0.58
+const TACKLE_ODDS_ELSEWHERE := 0.42
+const TACKLE_ODDS_MUST_STOP := 0.3
+## Carrier xG above which we're in "stop the shot at all costs" territory.
+const MUST_STOP_XG := 0.06
+## Jockeying: stay this far goal-side of the carrier, matching their run.
+const JOCKEY_DIST := 24.0
+
+func _should_commit_tackle(carrier: Player) -> bool:
+	var p_win := Player.tackle_win_chance(player.defense, carrier.dribbling)
+	var own_depth := PitchSpace.normalised(carrier.position, player.is_left_team).x
+	var threshold := TACKLE_ODDS_OWN_THIRD if own_depth < 1.0 / 3.0 else TACKLE_ODDS_ELSEWHERE
+	if ShotModel.xg(carrier.position, carrier.target_goal, player.get_teammates()) > MUST_STOP_XG:
+		threshold = TACKLE_ODDS_MUST_STOP
+	# Aggressive players commit on slightly worse odds, cautious ones wait.
+	threshold -= (mental.tackle_eagerness() - 0.85) * 0.2
+	return p_win >= threshold
+
 func _maybe_tackle() -> void:
 	var carrier := ctx.ball.carrier
 	if carrier == null or carrier.is_left_team == player.is_left_team:
@@ -212,7 +244,7 @@ func _maybe_tackle() -> void:
 	var committed := job != null and (
 		(job.kind == Job.Kind.PRESS and job.engage) or job.kind == Job.Kind.COVER
 		or (job.kind == Job.Kind.MARK and job.subject == carrier))
-	if committed or d < REFLEX_TACKLE_PX:
+	if (committed or d < REFLEX_TACKLE_PX) and _should_commit_tackle(carrier):
 		# The slide carries the tackler's current velocity — point it at the ball.
 		player.velocity = player.position.direction_to(ctx.ball.position) * maxf(player.velocity.length(), player.speed)
 		player.switch_state(Player.State.TACKLING)

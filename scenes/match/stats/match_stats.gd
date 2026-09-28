@@ -141,6 +141,7 @@ static func _third(nx: float) -> String:
 
 func _on_turnover(loser: String, gainer: String, where: Vector2) -> void:
 	_s[loser]["turnovers"] += 1
+	_tel(gainer, "possessions")
 	var nx := PitchSpace.normalised(where, loser == "L").x
 	if nx < 1.0 / 3.0:
 		_s[loser]["turnovers_def_third"] += 1
@@ -400,4 +401,10 @@ const POOLED_RATES := {
 	"pass_len_m_mid": ["tel_pass_len_m_from_mid", "tel_passes_from_mid"],
 	"pass_len_m_att": ["tel_pass_len_m_from_att", "tel_passes_from_att"],
 	"box_receptions_per_shot": ["tel_box_receptions", "shots"],
+	# Per-possession rates: match time is compressed (6 real minutes for 90)
+	# while players move at real speeds, so a match only fits about a third of
+	# a real one's possessions — totals can't match real football, rates can.
+	"shots_per_possession": ["shots", "tel_possessions"],
+	"xg_per_possession": ["xg", "tel_possessions"],
+	"box_receptions_per_possession": ["tel_box_receptions", "tel_possessions"],
 }

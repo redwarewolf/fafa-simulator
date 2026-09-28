@@ -39,9 +39,13 @@ const HOLD_EXPOSURE_S := 0.45
 const LOSS_POINT := 0.55
 ## How much a receiver's control of the landing spot scales the pass value.
 const RECEIVE_SECURITY := 0.4
-## Shot appetite by formation group, and max shooting range (px).
-const SHOT_BIAS := {Positions.Group.OFFENSE: 1.35, Positions.Group.MIDFIELD: 1.15, Positions.Group.DEFENSE: 0.9}
-const SHOT_RANGE_PX := 520.0
+## Shot appetite by formation group, and max shooting range (px). Pure
+## value-maximising agents under-shoot compared with real players (a shot
+## "cashes in" a chance a keep-ball option only probably keeps); 1.35/1.15/0.9
+## gave ~2 shots per side per 180s even once chances were created — about half
+## the real rate for 45 compressed minutes.
+const SHOT_BIAS := {Positions.Group.OFFENSE: 1.9, Positions.Group.MIDFIELD: 1.55, Positions.Group.DEFENSE: 1.1}
+const SHOT_RANGE_PX := 600.0
 ## Through balls: how far ahead of a runner the ball is played into space.
 const THROUGH_LEADS := [140.0, 230.0]
 ## Verticality — a tactical instruction, value per unit of pitch depth gained
@@ -81,6 +85,12 @@ static func _record(player: Player, options: Array, pick: Option) -> void:
 			if best_through == null or o.value > best_through.value:
 				best_through = o
 	if best_through != null:
+		var dn := PitchSpace.normalised(best_through.destination, player.is_left_team)
+		AIProfile.count("through_dest_x_%s" % third, dn.x)
+		AIProfile.count("through_dest_offcentre_%s" % third, absf(dn.y - 0.5))
+		AIProfile.count("through_receiver_is_runner_%s" % third,
+			1.0 if best_through.receiver.brain != null and best_through.receiver.brain.job != null \
+				and best_through.receiver.brain.job.kind == Job.Kind.RUN else 0.0)
 		AIProfile.count("through_available_p_%s" % third, best_through.p_success)
 		AIProfile.count("through_available_value_%s" % third, best_through.value)
 		AIProfile.count("through_available_vs_chosen_%s" % third, pick.value)

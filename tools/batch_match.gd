@@ -40,6 +40,9 @@ var _traced_passes : Array = []
 
 func _ready() -> void:
 	_parse_args()
+	if _args.has("merge"):
+		_merge(String(_args["merge"]).split(","))
+		return
 	MatchConfig.reset_to_defaults()
 	MatchConfig.headless = true
 	MatchConfig.disable_random_events = true
@@ -127,6 +130,28 @@ func _run() -> void:
 	if not _traced_passes.is_empty():
 		print("\n══════ PASS TRACE ══════\n" + PassTracer.summarize(_traced_passes))
 	_write_json({"args": _args, "summary": summary, "matches": results})
+	get_tree().quit(0)
+
+## --merge a.json,b.json,... : combine result files from parallel shards
+## (tools/run_parallel.sh) into one summary, without playing any matches.
+func _merge(paths: PackedStringArray) -> void:
+	var results : Array = []
+	for path in paths:
+		var f := FileAccess.open(path, FileAccess.READ)
+		if f == null:
+			printerr("batch_match: cannot read %s" % path)
+			continue
+		var data = JSON.parse_string(f.get_as_text())
+		f.close()
+		if data is Dictionary:
+			results.append_array(data.get("matches", []))
+			_args["a"] = data["args"].get("a", _args["a"])
+			_args["b"] = data["args"].get("b", _args["b"])
+	var summary := _aggregate(results)
+	summary["wall_s_total"] = 0.0
+	_print_summary(summary)
+	if _args.has("out") and String(_args["out"]) != "user://batch_results.json":
+		_write_json({"args": _args, "summary": summary, "matches": results})
 	get_tree().quit(0)
 
 func _play_one() -> Dictionary:
