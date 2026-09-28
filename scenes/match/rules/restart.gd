@@ -39,6 +39,37 @@ static func retreat_distance(kind: int) -> float:
 		_:
 			return 110.0
 
+## Seconds of set-up before an engine-v2 taker may play the ball: time for
+## both sides to take up set-piece positions (SetPiece jobs in TeamBrain).
+## v1 sides are frozen for restarts instead, so this only applies when the
+## taker has a PlayerBrain. A goal kick restarts from the keeper's hands.
+## This is the MAXIMUM wait: the restart is taken as soon as both sides'
+## set-piece posts are manned (TeamBrain.set_piece_ready) and at least
+## MIN_SETUP_S has passed. A fixed window didn't work — at walking pace a
+## 2.5s or even 5s window left only 0.6-1.8 attackers in the box for a corner
+## (tools/setpiece_probe.tscn). Match time is stopped during restarts, so a
+## longer wait costs viewing time, not match minutes.
+const MIN_SETUP_S := 0.8
+
+## Players move at only ~2.4-4.8 m/s (Player.speed is the raw PAC stat in
+## px/s at ~21 px/m — see docs/match-engine-v2.md Findings #9), so crossing
+## half the pitch to a corner takes 15-20s; 10s still left the box posts
+## unmanned.
+static func setup_time(kind: int) -> float:
+	match kind:
+		Kind.CORNER:
+			return 20.0
+		Kind.FREE_KICK:
+			return 8.0
+		Kind.GOAL_KICK:
+			return 0.0
+		_:
+			return 3.0
+
+## Law: no goal directly from a throw-in, and a corner is played in, not shot.
+static func allows_direct_shot(kind: int) -> bool:
+	return kind not in [Kind.THROW_IN, Kind.CORNER]
+
 ## Whether the taker is teleported next to the spot (quick restart, since
 ## match time is compressed ~15x) rather than having to run to it. A fouled
 ## player is already at the spot.

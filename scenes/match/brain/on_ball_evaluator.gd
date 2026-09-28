@@ -26,6 +26,7 @@ class Option:
 	var receiver : Player = null
 	var destination := Vector2.ZERO
 	var to_feet := true
+	var lofted := false
 	var p_success := 1.0
 
 const PASS_MIN_PX := 45.0
@@ -54,6 +55,12 @@ const SHOT_RANGE_PX := 600.0
 const SHOT_FOLLOWUP := 0.0
 ## Through balls: how far ahead of a runner the ball is played into space.
 const THROUGH_LEADS := [140.0, 230.0]
+## Crosses: from beyond this depth and this far off-centre (team frame), to
+## teammates inside this area around the box.
+const CROSS_MIN_DEPTH := 0.72
+const CROSS_MIN_WIDTH := 0.2
+const BOX_TARGET_DEPTH := 0.8
+const BOX_TARGET_HALF_WIDTH := 0.3
 ## Verticality — a tactical instruction, value per unit of pitch depth gained
 ## (normalised; 1.0 = the full 105m), from cautious (mentality -1) to direct
 ## (+1). xT and the potential grid are nearly flat in a team's own half
@@ -152,9 +159,26 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 				continue
 			out.append(_pass_option(player, tm, dest, false, teammates, opponents, ctx, risk))
 
+	# ── Crosses: lofted balls to teammates in or around the box — from a
+	# corner, or from a wide attacking position in open play. A ground ball
+	# from there has to go through the whole defence; a cross goes over it. ──
+	var here := PitchSpace.normalised(from, left)
+	var corner := restart and ctx.world != null and ctx.world.restart_kind == Restart.Kind.CORNER
+	if corner or (here.x > CROSS_MIN_DEPTH and absf(here.y - 0.5) > CROSS_MIN_WIDTH):
+		for tm: Player in teammates:
+			if tm == player or tm.process_mode == Node.PROCESS_MODE_DISABLED:
+				continue
+			var tn := PitchSpace.normalised(tm.position, left)
+			if tn.x < BOX_TARGET_DEPTH or absf(tn.y - 0.5) > BOX_TARGET_HALF_WIDTH:
+				continue
+			var dest := ctx.ball.estimate_pass_lead_destination(from, tm.position, tm.velocity, true)
+			if from.distance_to(dest) >= PASS_MIN_PX and _on_pitch(dest, left):
+				out.append(_pass_option(player, tm, dest, true, teammates, opponents, ctx, risk, true))
+
 	# ── Shot ──
 	var goal := player.target_goal
-	if from.distance_to(goal.get_center_target_position()) < SHOT_RANGE_PX:
+	var direct_ok := not restart or ctx.world == null or Restart.allows_direct_shot(ctx.world.restart_kind)
+	if direct_ok and from.distance_to(goal.get_center_target_position()) < SHOT_RANGE_PX:
 		var shot := Option.new()
 		shot.kind = Kind.SHOOT
 		var xg := ShotModel.xg(from, goal, opponents)
@@ -197,14 +221,15 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 	return out
 
 static func _pass_option(player: Player, receiver: Player, dest: Vector2, to_feet: bool,
-		teammates: Array, opponents: Array, ctx: MatchContext, risk: float) -> Option:
+		teammates: Array, opponents: Array, ctx: MatchContext, risk: float, lofted: bool = false) -> Option:
 	var left := player.is_left_team
-	var e := PassModel.evaluate(player.position, dest, player, receiver, teammates, opponents)
+	var e := PassModel.evaluate(player.position, dest, player, receiver, teammates, opponents, lofted)
 	var o := Option.new()
 	o.kind = Kind.PASS
 	o.receiver = receiver
 	o.destination = dest
 	o.to_feet = to_feet
+	o.lofted = lofted
 	o.p_success = e.p_success
 	var loss := player.position.lerp(dest, LOSS_POINT)
 	o.value = e.p_success * _future_value(ctx, dest, player, opponents) \

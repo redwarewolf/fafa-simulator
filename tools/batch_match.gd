@@ -264,8 +264,18 @@ func _aggregate(results: Array) -> Dictionary:
 			means[label][k] = raw[label].get(nd[0], 0.0) / den if den > 0.0 else 0.0
 	for k in match_level:
 		match_level[k] /= n
+	# Pooled AI counters across all matches (restart timeouts, keeper reads...).
+	var counters := {}
+	for r in results:
+		for k in r.get("ai_counters", {}):
+			var c : Dictionary = r["ai_counters"][k]
+			if not counters.has(k):
+				counters[k] = {"n": 0, "sum": 0.0}
+			counters[k]["n"] += int(c["n"])
+			counters[k]["sum"] += float(c["mean"]) * int(c["n"])
 	return {
 		"matches": results.size(),
+		"counters": counters,
 		"xg_diff": _mean_se(xg_diffs),
 		"goal_diff": _mean_se(goal_diffs),
 		"version_a": _args["a"], "version_b": _args["b"],
@@ -344,6 +354,12 @@ func _print_summary(s: Dictionary) -> void:
 		var band_str := "[%s, %s]" % side_bands[k] if side_bands.has(k) else ""
 		print("  %-28s %10.3f %-4s %10.3f %-4s %s" % [k, va, ma, vb, mb, band_str])
 	print("metrics in target band: %d / %d" % [in_band, banded])
+	var ckeys : Array = s.get("counters", {}).keys()
+	ckeys.sort()
+	for k in ckeys:
+		if String(k).begins_with("restart_") or String(k).begins_with("gk_"):
+			var c : Dictionary = s["counters"][k]
+			print("  counter %-32s n=%6d  mean=%.3f" % [k, c["n"], c["sum"] / maxi(c["n"], 1)])
 	s["in_band"] = in_band
 	s["banded"] = banded
 

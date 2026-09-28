@@ -49,9 +49,11 @@ func _run() -> void:
 		["left goal line wide, L touched", Vector2(0.1, 0.85), Vector2(-100, 1000), "L", Restart.Kind.CORNER, "R"],
 	]
 	for c in cases:
-		# Wait for any previous restart to finish.
+		# Wait for any previous restart to finish. With every player frozen the
+		# restart can only end by its safety timeout (RESTART_TIMEOUT + the
+		# kind's set-up time — 32s for a corner).
 		guard = 0
-		while world.state != MatchWorld.MatchState.IN_PLAY and guard < 1200:
+		while world.state != MatchWorld.MatchState.IN_PLAY and guard < 2400:
 			await get_tree().process_frame
 			guard += 1
 		# A goal kick from the previous case leaves the keeper holding the
@@ -91,7 +93,7 @@ func _run() -> void:
 	]
 	for oc in offside_cases:
 		guard = 0
-		while world.state != MatchWorld.MatchState.IN_PLAY and guard < 1200:
+		while world.state != MatchWorld.MatchState.IN_PLAY and guard < 2400:
 			await get_tree().process_frame
 			guard += 1
 		for p in ac.left_team + ac.right_team:

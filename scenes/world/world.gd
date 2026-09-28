@@ -63,6 +63,22 @@ var _next_event_check := EVENT_CHECK_INTERVAL
 var _restart_taker : Player = null
 var _restart_kind : int = Restart.Kind.FREE_KICK
 var _restart_spot : Vector2 = Vector2.ZERO
+## Engine-v2 set pieces: the side awarded the restart, and when (MatchClock
+## seconds) its taker may play the ball — see Restart.setup_time().
+var _restart_team_left := true
+var _restart_ready_at := 0.0
+
+# Read-only access for the v2 brains (TeamBrain's set-piece coordinator).
+var restart_taker : Player:
+	get: return _restart_taker
+var restart_kind : int:
+	get: return _restart_kind
+var restart_spot : Vector2:
+	get: return _restart_spot
+var restart_team_left : bool:
+	get: return _restart_team_left
+var restart_ready_at : float:
+	get: return _restart_ready_at
 var _offside_judge : OffsideJudge = null## Which team takes the next kickoff — the conceding team after a goal, or a
 ## random team for the match's opening kickoff. Consumed by _setup_kickoff().
 var _kickoff_team : String = ""
@@ -164,8 +180,21 @@ func _process(delta: float) -> void:
 				_transition(MatchState.IN_PLAY)
 		MatchState.RESTART:
 			_state_timer += delta
+			# Engine-v2 set pieces: release the taker as soon as both sides are
+			# in position (or the maximum wait runs out).
+			if MatchClock.now() < _restart_ready_at and _state_timer >= Restart.MIN_SETUP_S \
+					and actors_container.set_piece_ready():
+				_restart_ready_at = MatchClock.now()
+				actors_container.ball.restart_lock_until = _restart_ready_at
 			var taker_has_ball := _restart_taker != null and actors_container.ball.carrier == _restart_taker
-			if taker_has_ball or _state_timer >= RESTART_TIMEOUT:
+			# The safety timeout must outlast the set-up window — a flat 12s cut
+			# corners short before anyone had reached the box.
+			if taker_has_ball or _state_timer >= RESTART_TIMEOUT + Restart.setup_time(_restart_kind):
+				# Telemetry: how long set pieces take, and whether any stall
+				# until the safety timeout instead of being taken.
+				AIProfile.count("restart_duration_s", _state_timer)
+				if not taker_has_ball:
+					AIProfile.count("restart_timeout_" + String(Restart.KEYS.get(_restart_kind, "other")))
 				_transition(MatchState.IN_PLAY)
 
 func _on_team_scored(team: String) -> void:
@@ -282,6 +311,10 @@ func award_restart(kind: int, team: String, spot: Vector2, taker: Player = null)
 	_restart_kind = kind
 	_restart_spot = spot
 	_restart_taker = taker
+	_restart_team_left = taker.is_left_team
+	# A v2 taker waits for the set-up window; a v1 taker (everyone else
+	# frozen) goes straight away, as before.
+	_restart_ready_at = MatchClock.now() + (Restart.setup_time(kind) if taker.brain != null else 0.0)
 	GameEvents.restart_awarded.emit(kind, team, spot)
 	_transition(MatchState.RESTART)
 	referee.focus_on(spot)
@@ -331,6 +364,10 @@ func _setup_restart() -> void:
 	ball.height = 0.0
 	ball.height_velocity = 0.0
 	ball.switch_state(Ball.State.FREEFORM)
+	# Nobody but the taker may touch the placed ball, and the taker only once
+	# the set-up window has passed (v2 players aren't frozen during it).
+	ball.restart_lock_player = taker
+	ball.restart_lock_until = _restart_ready_at
 	# Stand the taker just behind the ball: from their own goal's side for a
 	# free kick, from the pitch interior for throw-ins and corners.
 	var back_dir := spot.direction_to(taker.own_goal.get_center_target_position())
@@ -406,16 +443,17 @@ func _transition(new_state: MatchState) -> void:
 				_kickoff_taker.is_restart_taker = false
 			_restart_taker = null
 			_kickoff_taker = null
+			actors_container.ball.restart_lock_player = null
 			referee.follow_ball()
 		MatchState.KICKOFF:
 			_setup_kickoff()
 		MatchState.RESTART:
-			# Everyone except the taker freezes exactly where they are; the
-			# taker walks onto the placed ball via their own unfrozen
-			# AIBehavior (Player.is_restart_taker).
+			# v1 players freeze exactly where they are; engine-v2 players stay
+			# active and take up set-piece positions (TeamBrain's set-piece
+			# coordinator) while the taker waits out Restart.setup_time().
 			_restart_taker.is_restart_taker = true
 			for p in actors_container.left_team + actors_container.right_team:
-				if p != _restart_taker:
+				if p != _restart_taker and p.brain == null and p.keeper_brain == null:
 					p.set_deferred("process_mode", Node.PROCESS_MODE_DISABLED)
 			call_deferred("_setup_restart")
 		MatchState.GAMEOVER:

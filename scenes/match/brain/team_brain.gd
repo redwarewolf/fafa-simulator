@@ -27,6 +27,7 @@ const PRIORITY := {
 	Job.Kind.RECEIVE: -120.0, Job.Kind.CHASE: -100.0, Job.Kind.INTERCEPT: -100.0,
 	Job.Kind.PRESS: -90.0, Job.Kind.COVER: -60.0, Job.Kind.MARK: -50.0,
 	Job.Kind.SUPPORT: -40.0, Job.Kind.LANE_CUT: -35.0, Job.Kind.RUN: -30.0,
+	Job.Kind.SET_PIECE: -45.0,
 }
 ## Keeping the same job as last tick (assignment hysteresis).
 const STICKY_BONUS := 0.6
@@ -94,7 +95,13 @@ func _update(manual_mode: int, score_diff: int, time_fraction_remaining: float, 
 	var ball_n := PitchSpace.normalised(ctx.ball.position, team_left)
 	var specials : Array = []
 	var zone := {}
-	if _attacking():
+	if ctx.restart_active():
+		# The taker is driven by his own PlayerBrain (waits, then plays it).
+		active = active.filter(func(p): return p != ctx.set_piece_taker)
+		if active.is_empty():
+			return
+		_set_piece_jobs(active, specials, zone)
+	elif _attacking():
 		_attacking_jobs(active, ball_n, specials, zone)
 	else:
 		_defensive_jobs(active, ball_n, specials, zone)
@@ -105,12 +112,15 @@ func _attacking() -> bool:
 
 # ═══ Defensive coordinator ══════════════════════════════════════════════════
 
-func _defensive_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dictionary) -> void:
+## [param restart]: organising for an opponents' set piece — no pressing or
+## chasing the placed ball (Law: retreat distance), just shape and marks.
+func _defensive_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dictionary, restart: bool = false) -> void:
 	var ball := ctx.ball
 	var carrier := ball.carrier
 	var own_goal := _own_goal_centre(active)
 	var opponents := active[0].get_opponents() as Array
-	var params := TeamShape.params_for(tactical.phase, preset.mentality, preset.press_intensity, ball_n, _line_adjust(active, ball_n))
+	var phase := TacticalBrain.Phase.DEFENCE if restart else tactical.phase
+	var params := TeamShape.params_for(phase, preset.mentality, preset.press_intensity, ball_n, 0.0 if restart else _line_adjust(active, ball_n))
 	for p in active:
 		zone[p] = Job.make(Job.Kind.ZONE, shape.slot(p, params, ball_n), null, lerpf(0.9, 0.6, shape.rank_of(p)))
 
@@ -127,7 +137,7 @@ func _defensive_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dict
 			specials.append(press2)
 		specials.append(Job.make(Job.Kind.COVER, carrier.position + carrier.position.direction_to(own_goal) * COVER_DIST, carrier, 1.0))
 		marked[carrier] = true
-	else:
+	elif not restart:
 		_loose_ball_jobs(specials, false)
 
 	# Marks: the most dangerous opponents off the ball.
@@ -226,9 +236,12 @@ static func clamp_to_pitch(p: Vector2) -> Vector2:
 
 # ═══ Attacking coordinator ══════════════════════════════════════════════════
 
-func _attacking_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dictionary) -> void:
+## [param restart]: organising around our own set piece — the ball is placed,
+## nobody chases it, and the taker (excluded from [param active]) will play it.
+func _attacking_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dictionary, restart: bool = false) -> void:
 	var offside := ctx.offside_depth(team_left)
-	var params := TeamShape.params_for(tactical.phase, preset.mentality, preset.press_intensity, ball_n, 0.0, offside)
+	var phase := TacticalBrain.Phase.ATTACK if restart else tactical.phase
+	var params := TeamShape.params_for(phase, preset.mentality, preset.press_intensity, ball_n, 0.0, offside)
 	var rest_n := clampi(roundi(3.0 - preset.mentality * 1.5), 2, 4)
 	var by_rank := active.duplicate()
 	by_rank.sort_custom(func(a, b): return shape.rank_of(a) < shape.rank_of(b))
@@ -243,7 +256,8 @@ func _attacking_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dict
 			zone[p] = Job.make(Job.Kind.ZONE, shape.slot(p, params, ball_n, offside - ONSIDE_MARGIN), null, lerpf(0.6, 0.25, shape.rank_of(p)))
 
 	var carrier := ctx.ball.carrier
-	_loose_ball_jobs(specials, true)
+	if not restart:
+		_loose_ball_jobs(specials, true)
 	var ref : Vector2 = ctx.ball.position
 	if carrier != null:
 		ref = carrier.position
@@ -292,6 +306,113 @@ func _support_points(ref: Vector2, active: Array, carrier: Player) -> Array:
 		if picked.size() == 2:
 			break
 	return picked
+
+# ═══ Set-piece coordinator ══════════════════════════════════════════════════
+# While play is stopped for a set piece (MatchContext.restart_active), both
+# sides take up positions during Restart.setup_time before the taker plays it.
+# Corners use fixed templates in the team's own frame; free kicks in shooting
+# range get a wall; everything else (throw-ins, deep free kicks, offside
+# kicks) is ordinary shape + support/marking around the placed ball. All
+# points are SET_PIECE jobs, assigned with the rest by the Hungarian solve.
+
+## Attacking corner posts (team frame; y is mirrored to the corner's side,
+## `s` = +1 for the bottom corner, -1 for the top).
+const CORNER_ATTACK := [
+	Vector2(0.955, 0.07),   # near post   (y = 0.5 + s*0.07)
+	Vector2(0.955, -0.07),  # far post
+	Vector2(0.94, 0.0),     # six-yard box centre
+	Vector2(0.895, 0.0),    # penalty spot
+	Vector2(0.83, -0.08),   # edge of the box, far side
+	Vector2(0.83, 0.08),    # edge of the box, near side
+]
+## Defending corner posts (defenders' frame, same `s` mirroring).
+const CORNER_DEFENCE := [
+	Vector2(0.02, 0.065),   # near post
+	Vector2(0.05, 0.06),    # zonal, six-yard line
+	Vector2(0.05, 0.0),
+	Vector2(0.05, -0.06),
+	Vector2(0.19, 0.0),     # edge of the box — second balls
+	Vector2(0.42, -0.2),    # counter-attack outlet
+]
+const CORNER_MAX_MARKS := 3
+## Free kicks: build a wall when the spot is at least this dangerous (xG).
+const WALL_MIN_XG := 0.025
+const WALL_BIG_XG := 0.06
+const WALL_SPACING := 14.0
+
+func _set_piece_jobs(active: Array, specials: Array, zone: Dictionary) -> void:
+	var w := ctx.world
+	var spot := w.restart_spot
+	var ours := w.restart_team_left == team_left
+	var spot_n := PitchSpace.normalised(spot, team_left)
+	if ours:
+		_attacking_jobs(active, spot_n, specials, zone, true)
+	else:
+		_defensive_jobs(active, spot_n, specials, zone, true)
+	var s := 1.0 if spot_n.y > 0.5 else -1.0
+	if w.restart_kind == Restart.Kind.CORNER:
+		specials.clear()
+		var template : Array = CORNER_ATTACK if ours else CORNER_DEFENCE
+		for off: Vector2 in template:
+			var n := Vector2(off.x, 0.5 + off.y * s)
+			specials.append(Job.make(Job.Kind.SET_PIECE, PitchSpace.from_normalised(n, team_left), null, 1.0))
+		if ours:
+			# Short option for a quick corner, beside the taker.
+			var centre := PitchSpace.from_normalised(Vector2(0.5, 0.5), team_left)
+			specials.append(Job.make(Job.Kind.SUPPORT, spot + spot.direction_to(centre) * 150.0, null, 0.6))
+		else:
+			_mark_box_attackers(active, specials)
+	elif w.restart_kind == Restart.Kind.FREE_KICK and not ours:
+		_build_wall(active, spot, specials)
+
+## Posts within this distance count as manned — loose enough for teammates'
+## separation steering, which keeps players ~45px apart, around posts ~50px
+## apart.
+const SET_PIECE_READY_PX := 55.0
+
+## Every SET_PIECE post around the penalty areas (box spots, zonal cover) is
+## manned. Far posts like the counter-attack outlet, marks and ordinary shape
+## jobs don't hold the restart up.
+func set_piece_ready() -> bool:
+	for p in jobs:
+		var j : Job = jobs[p]
+		if j.kind != Job.Kind.SET_PIECE:
+			continue
+		var depth := PitchSpace.normalised(j.point, team_left).x
+		if (depth > 0.75 or depth < 0.25) and p.position.distance_to(j.point) > SET_PIECE_READY_PX:
+			return false
+	return true
+
+## Corner defence: man-mark the most dangerous attackers in our box on top of
+## the zonal posts.
+func _mark_box_attackers(active: Array, specials: Array) -> void:
+	var own_goal := _own_goal_centre(active)
+	var in_box := []
+	for o: Player in active[0].get_opponents():
+		if o == ctx.set_piece_taker or o.role == Positions.Role.GK:
+			continue
+		var n := PitchSpace.normalised(o.position, team_left)
+		if n.x < 0.2 and absf(n.y - 0.5) < 0.32:
+			in_box.append([n.x, o])
+	in_box.sort_custom(func(a, b): return a[0] < b[0])
+	for i in mini(in_box.size(), CORNER_MAX_MARKS):
+		var o : Player = in_box[i][1]
+		specials.append(Job.make(Job.Kind.MARK, o.position + o.position.direction_to(own_goal) * TIGHT_MARK_PX, o, 1.0))
+
+## A wall 9.15m (Restart.retreat_distance) from the ball on the line to the
+## goal centre: 3 players for a dangerous spot, 2 for a speculative one.
+func _build_wall(active: Array, spot: Vector2, specials: Array) -> void:
+	var goal := _own_goal_centre(active)
+	var danger := ShotModel.xg_for_goal(spot, active[0].own_goal)
+	if danger < WALL_MIN_XG:
+		return
+	var n := 3 if danger >= WALL_BIG_XG else 2
+	var dir := spot.direction_to(goal)
+	var centre := spot + dir * (Restart.retreat_distance(Restart.Kind.FREE_KICK) + 2.0)
+	var perp := Vector2(-dir.y, dir.x)
+	for i in n:
+		var off := (i - (n - 1) * 0.5) * WALL_SPACING
+		specials.append(Job.make(Job.Kind.SET_PIECE, centre + perp * off, null, 1.0))
 
 # ═══ Assignment ═════════════════════════════════════════════════════════════
 
@@ -347,6 +468,10 @@ func _affinity(p: Player, job: Job) -> float:
 			return 0.0 if rank > 0.6 else 3.0
 		Job.Kind.SUPPORT:
 			return 1.5 if rank < 0.2 else 0.0
+		Job.Kind.SET_PIECE:
+			# Box posts go to the strongest players (aerial duels); a
+			# defensive wall or the counter outlet doesn't care.
+			return (1.0 - p.physicality / 100.0) * 1.2 if depth > 0.75 or depth < 0.1 else 0.0
 	return 0.0
 
 func _own_goal_centre(active: Array) -> Vector2:

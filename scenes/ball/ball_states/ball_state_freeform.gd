@@ -11,6 +11,8 @@ func on_player_enter(body: Player) -> void:
 func _try_collect(body: Player) -> bool:
 	if ball.carrier != null or not body.can_carry_ball() or ball.is_kick_cooldown(body):
 		return false
+	if ball.restart_locked_for(body):
+		return false
 	# Out of reach overhead — it'll be collectable once it comes down (the
 	# overlap poll below re-checks every frame).
 	if ball.height > Player.MAX_COLLECT_HEIGHT:

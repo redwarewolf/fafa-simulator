@@ -146,7 +146,7 @@ static func _in_own_box(p: Vector2, left: bool) -> bool:
 	return n.x < 0.16 and absf(n.y - 0.5) < 0.3
 
 func _try_claim() -> bool:
-	if ball.carrier != null or ball.is_kick_cooldown(player):
+	if ball.carrier != null or ball.is_kick_cooldown(player) or ball.restart_locked_for(player):
 		return false
 	if player.position.distance_to(ball.position) > CLAIM_RADIUS or ball.height > CLAIM_HEIGHT:
 		return false
@@ -295,4 +295,4 @@ func _process_holding() -> void:
 			best = o
 	_hold_since = -1.0
 	player.switch_state(Player.State.PASSING,
-		PlayerStateData.build().set_pass_target(best.receiver, best.destination, best.to_feet))
+		PlayerStateData.build().set_pass_target(best.receiver, best.destination, best.to_feet, best.lofted))

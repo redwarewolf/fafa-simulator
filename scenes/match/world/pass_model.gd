@@ -49,9 +49,9 @@ class PassEval:
 ## pass into space (any teammate may collect it). [param passer] is excluded
 ## from the receiving side.
 static func evaluate(from: Vector2, to: Vector2, passer: Player, receiver: Player,
-		teammates: Array, opponents: Array) -> PassEval:
+		teammates: Array, opponents: Array, lofted: bool = false) -> PassEval:
 	var e := PassEval.new()
-	e.path = BallPredictor.for_pass(from, to, MAX_FLIGHT_S)
+	e.path = BallPredictor.for_pass(from, to, MAX_FLIGHT_S, lofted)
 	var path := e.path
 	# When does the ball reach (or stop nearest to) the target?
 	var arrive_i := path.size() - 1

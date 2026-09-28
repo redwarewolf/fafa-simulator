@@ -96,6 +96,14 @@ func _ready() -> void:
 	if MatchConfig.ai_version_right == "v2":
 		team_brain_right = _make_team_brain(false, right_team)
 
+## True when every v2 side has its set-piece posts manned (see
+## TeamBrain.set_piece_ready); v1 sides are frozen and always "ready".
+func set_piece_ready() -> bool:
+	for tb in [team_brain_left, team_brain_right]:
+		if tb != null and not tb.set_piece_ready():
+			return false
+	return true
+
 ## Engine v2: a TeamBrain for the side, and a PlayerBrain for each of its
 ## outfield players (keepers stay on v1's GoalieAI until Phase 8).
 func _make_team_brain(is_left: bool, team: Array[Player]) -> TeamBrain:

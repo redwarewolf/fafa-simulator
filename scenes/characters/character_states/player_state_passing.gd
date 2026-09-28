@@ -77,9 +77,9 @@ func on_animation_complete() -> void:
 		# where it was aimed.
 		var dest := state_data.pass_destination
 		if state_data.pass_to_feet and _pass_target != null:
-			dest = ball.estimate_pass_lead_destination(player.position, _pass_target.position, _pass_target.velocity)
+			dest = ball.estimate_pass_lead_destination(player.position, _pass_target.position, _pass_target.velocity, state_data.pass_lofted)
 		GameEvents.pass_attempted.emit(player, _pass_target, dest)
-		ball.pass_to(dest)
+		ball.pass_to(dest, state_data.pass_lofted)
 	elif state_data.has_pass_target:
 		pass  # lost the ball during the wind-up — nothing to kick
 	elif _pass_target != null:

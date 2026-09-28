@@ -17,13 +17,14 @@ enum Kind {
 	SUPPORT,       ## offer the carrier a short passing angle
 	RUN,           ## run in behind / on the shoulder of the last defender
 	REST_DEFENCE,  ## stay behind the ball in possession to stop counters
+	SET_PIECE,     ## a fixed set-piece post: box spot on a corner, zonal/near-post cover, a wall
 }
 
 const NAMES := {
 	Kind.ZONE: "zone", Kind.PRESS: "press", Kind.COVER: "cover", Kind.MARK: "mark",
 	Kind.LANE_CUT: "lane_cut", Kind.CHASE: "chase", Kind.INTERCEPT: "intercept",
 	Kind.RECEIVE: "receive", Kind.SUPPORT: "support", Kind.RUN: "run",
-	Kind.REST_DEFENCE: "rest_defence",
+	Kind.REST_DEFENCE: "rest_defence", Kind.SET_PIECE: "set_piece",
 }
 
 var kind : int = Kind.ZONE

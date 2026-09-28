@@ -90,8 +90,8 @@ static func simulate(pos: Vector2, vel: Vector2, height: float, height_vel: floa
 	return path
 
 ## The path a pass_to([param destination]) kick from [param from] would take.
-static func for_pass(from: Vector2, destination: Vector2, max_time: float = 4.0) -> BallPath:
-	var launch := Ball.pass_launch(from, destination)
+static func for_pass(from: Vector2, destination: Vector2, max_time: float = 4.0, force_loft: bool = false) -> BallPath:
+	var launch := Ball.pass_launch(from, destination, force_loft)
 	return simulate(from, launch["velocity"], 0.0, launch["height_velocity"], max_time)
 
 ## The live ball's path from its current state (carried → a single point).

@@ -33,6 +33,15 @@ const GROUND_BOUNCE_VERTICAL := 0.5
 ## or play restarts — lets v1's AIBehavior send them to meet it (v2 uses its
 ## own RECEIVE job).
 var intended_receiver: Player = null
+
+## During a restart (MatchWorld RESTART): only this player may collect the
+## placed ball, and not before restart_lock_until (MatchClock seconds). Null
+## outside restarts.
+var restart_lock_player: Player = null
+var restart_lock_until := 0.0
+
+func restart_locked_for(p: Player) -> bool:
+	return restart_lock_player != null and (p != restart_lock_player or MatchClock.now() < restart_lock_until)
 ## Passes past this distance loft into the air instead of staying grounded.
 ## Raised from 130 to 300, then to 520 (~25m): real passes of 15-25m are
 ## mostly driven along the ground, and at 300 (~14m) the v2 AI was playing
@@ -209,8 +218,10 @@ func tumble(tumble_velocity: Vector2) -> void:
 	height_velocity = TUMBLE_HEIGHT_VELOCITY
 	switch_state(Ball.State.FREEFORM)
 	
-func pass_to(destination: Vector2) -> void:
-	var launch := pass_launch(position, destination)
+## [param force_loft]: loft it even under DISTANCE_HIGH_PASS — crosses and
+## corners are played in the air over the defenders, not along the ground.
+func pass_to(destination: Vector2, force_loft: bool = false) -> void:
+	var launch := pass_launch(position, destination, force_loft)
 	_mark_kick()
 	velocity = launch["velocity"]
 	height_velocity = launch["height_velocity"]
@@ -222,10 +233,10 @@ func pass_to(destination: Vector2) -> void:
 ## [param destination]: {"velocity": Vector2, "height_velocity": float}.
 ## Static so BallPredictor/PassModel evaluate exactly the kick the engine
 ## would actually perform.
-static func pass_launch(from: Vector2, destination: Vector2) -> Dictionary:
+static func pass_launch(from: Vector2, destination: Vector2, force_loft: bool = false) -> Dictionary:
 	var direction := from.direction_to(destination)
 	var distance := from.distance_to(destination)
-	if distance > DISTANCE_HIGH_PASS:
+	if distance > DISTANCE_HIGH_PASS or force_loft:
 		# Lofted. BallState.process_gravity() adds height_velocity to height
 		# once per physics TICK (not scaled by delta) and subtracts
 		# GRAVITY*delta from height_velocity per tick, so a launch of
@@ -284,8 +295,8 @@ func long_kick(destination: Vector2) -> void:
 ## kick is sized to decelerate to exactly zero at the target, so its flight
 ## time is just launch-speed / FRICTION_GROUND; a lofted kick is approximated
 ## the same way against FRICTION_AIR.
-func estimate_pass_flight_time(distance: float) -> float:
-	if distance > DISTANCE_HIGH_PASS:
+func estimate_pass_flight_time(distance: float, lofted: bool = false) -> float:
+	if distance > DISTANCE_HIGH_PASS or lofted:
 		return loft_time(distance)  # the launch is solved to land on target at exactly this time
 	var va := GROUND_PASS_ARRIVAL_SPEED
 	return (sqrt(va * va + 2.0 * distance * FRICTION_GROUND) - va) / FRICTION_GROUND
@@ -301,10 +312,10 @@ func estimate_pass_flight_time(distance: float) -> float:
 ## destination whose own flight time actually matches the lead used to reach
 ## it (a fixed point — each pass shrinks the gap since the receiver is always
 ## slower than the ball, so it settles in a handful of steps).
-func estimate_pass_lead_destination(from_position: Vector2, target_position: Vector2, target_velocity: Vector2) -> Vector2:
+func estimate_pass_lead_destination(from_position: Vector2, target_position: Vector2, target_velocity: Vector2, lofted: bool = false) -> Vector2:
 	var destination := target_position
 	for i in 4:
-		var flight_time := estimate_pass_flight_time(from_position.distance_to(destination))
+		var flight_time := estimate_pass_flight_time(from_position.distance_to(destination), lofted)
 		destination = target_position + target_velocity * flight_time
 	return destination
 
@@ -329,6 +340,7 @@ func _on_team_reset() -> void:
 	carrier = null
 	last_touch = null
 	intended_receiver = null
+	restart_lock_player = null
 	position = spawn_position
 	velocity = Vector2.ZERO
 	height = 0.0

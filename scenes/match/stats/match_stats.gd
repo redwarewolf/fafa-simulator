@@ -197,6 +197,9 @@ func _on_shot_taken(shooter: Player, origin: Vector2) -> void:
 	st["shots"] += 1
 	var shot_xg := ShotModel.xg_for_goal(origin, shooter.target_goal)
 	st["xg"] += shot_xg
+	if _sp_live(_side(shooter)):
+		_tel(_side(shooter), "sp_shots_" + _sp["kind"])
+		_tel(_side(shooter), "sp_xg_" + _sp["kind"], shot_xg)
 	if not _acq.is_empty() and _acq["player"] == shooter:
 		var how : String = _acq["how"]
 		_tel(_side(shooter), "shots_after_" + how)
@@ -246,8 +249,11 @@ func _track_shot() -> void:
 	if _ball.carrier != null:
 		_close_shot("collected")
 
-func _on_team_scored_for_shots(_team_conceded: String) -> void:
+func _on_team_scored_for_shots(team_conceded: String) -> void:
 	_close_shot("goal")
+	var scorer := "R" if team_conceded == _world.actors_container.team_left else "L"
+	if _sp_live(scorer):
+		_tel(scorer, "sp_goals_" + _sp["kind"])
 
 func _close_shot(outcome: String) -> void:
 	if _shot.is_empty():
@@ -285,6 +291,15 @@ func _on_restart_awarded(kind: int, team: String, _spot: Vector2) -> void:
 	var side := "L" if team == _world.actors_container.team_left else "R"
 	var key : String = "restarts_" + Restart.KEYS.get(kind, "other")
 	_s[side][key] = _s[side].get(key, 0) + 1
+	# Set-piece outcomes: shots/goals by the awarded side within SP_WINDOW_S.
+	_sp = {"side": side, "kind": Restart.KEYS.get(kind, "other"), "until": MatchClock.now() + SP_WINDOW_S}
+	_tel(side, "sp_awarded_" + _sp["kind"])
+
+const SP_WINDOW_S := 10.0
+var _sp := {}
+
+func _sp_live(side: String) -> bool:
+	return not _sp.is_empty() and _sp["side"] == side and MatchClock.now() <= _sp["until"]
 
 # ─── Sampling ───────────────────────────────────────────────────────────────
 
@@ -495,4 +510,11 @@ const POOLED_RATES := {
 	"conversion_on_target": ["tel_shot_goals_on_target", "tel_shots_on_target"],
 	"opp_keeper_save_share": ["tel_shots_saved", "tel_shots_on_target"],
 	"goals_per_xg": ["goals_raw", "xg"],
+	# Set pieces (shots / xG within 10s of the restart, per restart awarded).
+	# Real top-flight: ~0.2-0.3 shots and ~0.03 xG per corner.
+	"corner_shots_per": ["tel_sp_shots_corner", "tel_sp_awarded_corner"],
+	"corner_xg_per": ["tel_sp_xg_corner", "tel_sp_awarded_corner"],
+	"free_kick_shots_per": ["tel_sp_shots_free_kick", "tel_sp_awarded_free_kick"],
+	"free_kick_xg_per": ["tel_sp_xg_free_kick", "tel_sp_awarded_free_kick"],
+	"throw_in_shots_per": ["tel_sp_shots_throw_in", "tel_sp_awarded_throw_in"],
 }

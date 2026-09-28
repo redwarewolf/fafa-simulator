@@ -25,9 +25,28 @@ var ball_path : BallPredictor.BallPath = null
 var first_left := {"player": null, "time": INF}
 var first_right := {"player": null, "time": INF}
 
+var world: MatchWorld = null
+
 func setup(p_actors: ActorsContainer) -> void:
 	actors = p_actors
 	ball = p_actors.ball
+	world = p_actors.get_parent() as MatchWorld
+
+## The taker of the current set piece, from the award until he plays the ball
+## (pass/shot) or loses it. Play technically resumes the instant he touches
+## the ball, but the delivery comes a moment later — keeping the set-piece
+## shape until then stops the attackers leaving the box before the corner is
+## even taken (the probe measured 0.8-1.8 of them left at the kick otherwise).
+var set_piece_taker : Player = null
+
+## True while a set piece is being organised or is about to be delivered (not
+## goal kicks — the keeper restarts those straight from his hands).
+func restart_active() -> bool:
+	if world == null or world.restart_kind == Restart.Kind.GOAL_KICK or set_piece_taker == null:
+		return false
+	if world.state == MatchWorld.MatchState.RESTART:
+		return true
+	return world.state == MatchWorld.MatchState.IN_PLAY and ball.carrier == set_piece_taker
 
 func _ready() -> void:
 	control.update_all(actors.left_team, actors.right_team)
@@ -36,6 +55,7 @@ func _ready() -> void:
 	GameEvents.possession_gained.connect(_on_possession_gained)
 	GameEvents.restart_awarded.connect(_on_restart)
 	GameEvents.team_reset.connect(_clear_pass)
+	GameEvents.shot_taken.connect(_on_shot)
 	refresh_tactical()
 
 func _exit_tree() -> void:
@@ -44,18 +64,26 @@ func _exit_tree() -> void:
 		[GameEvents.possession_gained, _on_possession_gained],
 		[GameEvents.restart_awarded, _on_restart],
 		[GameEvents.team_reset, _clear_pass],
+		[GameEvents.shot_taken, _on_shot],
 	]:
 		if pair[0].is_connected(pair[1]):
 			pair[0].disconnect(pair[1])
 
 func _on_pass_attempted(passer: Player, receiver: Player, _dest: Vector2) -> void:
 	last_pass = {"passer": passer, "receiver": receiver, "left": passer.is_left_team, "time": MatchClock.now()}
+	set_piece_taker = null
 
-func _on_possession_gained(_p: Player) -> void:
+func _on_possession_gained(p: Player) -> void:
 	_clear_pass()
+	if p != set_piece_taker:
+		set_piece_taker = null
 
 func _on_restart(_kind: int, _team: String, _spot: Vector2) -> void:
 	_clear_pass()
+	set_piece_taker = world.restart_taker if world != null else null
+
+func _on_shot(_shooter: Player, _origin: Vector2) -> void:
+	set_piece_taker = null
 
 func _clear_pass() -> void:
 	last_pass = {}

@@ -29,11 +29,15 @@ func set_dive(target: Vector2, speed: float, duration_ms: int) -> PlayerStateDat
 	dive_duration_ms = duration_ms
 	return self
 
-func set_pass_target(receiver: Player, destination: Vector2, to_feet: bool) -> PlayerStateData:
+## Played in the air regardless of distance (crosses, corners).
+var pass_lofted := false
+
+func set_pass_target(receiver: Player, destination: Vector2, to_feet: bool, lofted: bool = false) -> PlayerStateData:
 	has_pass_target = true
 	pass_receiver = receiver
 	pass_destination = destination
 	pass_to_feet = to_feet
+	pass_lofted = lofted
 	return self
 
 func set_shot_direction(direction: Vector2) -> PlayerStateData:

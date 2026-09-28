@@ -52,6 +52,11 @@ func process() -> void:
 	var ball := ctx.ball
 	var now := MatchClock.now()
 	if player.is_restart_taker:
+		# Set piece: hold behind the ball while both sides organise, then
+		# step onto it (the ball's restart lock releases at the same moment).
+		if ctx.restart_active() and now < ctx.world.restart_ready_at:
+			player.velocity = Vector2.ZERO
+			return
 		player.velocity = player.position.direction_to(ball.position) * _sprint_speed()
 		return
 	if ball.carrier == player:
@@ -98,7 +103,7 @@ func _act_on_ball() -> bool:
 			return true
 		OnBallEvaluator.Kind.PASS:
 			player.switch_state(Player.State.PASSING,
-				PlayerStateData.build().set_pass_target(o.receiver, o.destination, o.to_feet))
+				PlayerStateData.build().set_pass_target(o.receiver, o.destination, o.to_feet, o.lofted))
 			return true
 		OnBallEvaluator.Kind.CARRY:
 			_carry_target = o.destination
@@ -179,6 +184,22 @@ func _think_off_ball() -> void:
 			_target = job.point
 	if MatchRng.randf() < 0.05:
 		_roll_position_error()
+	_respect_restart_distance()
+
+## Opponents of the side taking a set piece must stay the Law's distance from
+## the ball (Restart.retreat_distance) — push any target inside it back out,
+## toward our own goal.
+func _respect_restart_distance() -> void:
+	if not ctx.restart_active() or ctx.world.restart_team_left == player.is_left_team:
+		return
+	var spot := ctx.world.restart_spot
+	var radius := Restart.retreat_distance(ctx.world.restart_kind)
+	if _target.distance_to(spot) >= radius:
+		return
+	var away := spot.direction_to(_target)
+	if away == Vector2.ZERO:
+		away = spot.direction_to(player.own_goal.get_center_target_position())
+	_target = spot + away * radius
 
 func _roll_position_error() -> void:
 	var s := mental.position_noise_px()

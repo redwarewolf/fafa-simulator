@@ -244,7 +244,33 @@ Design:
   - Each shot's outcome is tracked: goal, keeper touch, or other.
   - Reported as `on_target_share`, `conversion_on_target`, `opp_keeper_save_share` and `goals_per_xg`.
 
+## Set pieces (Phase 5, set-piece coordinator)
+
+- **Flow (`MatchWorld`):** v2 players are no longer frozen during a RESTART; v1 players still are.
+  - The ball is locked (`Ball.restart_locked_for`) so only the taker may touch it, and only after release.
+  - Release happens when every box-area `SET_PIECE` post is manned (`TeamBrain.set_piece_ready`, 55px tolerance) and at least 0.8s has passed, or at the maximum wait (`Restart.setup_time`: corner 20s, free kick 8s, other restarts 3s, goal kick 0).
+  - The safety timeout scales with that maximum. A flat 12s had been cutting every corner set-up short.
+- **Set-piece shape lasts until the delivery (`MatchContext.set_piece_taker`).** Play resumes when the taker touches the ball, but the delivery comes a moment later; otherwise the attackers had already left the box.
+- **Templates (`TeamBrain._set_piece_jobs`), assigned with everything else in the Hungarian solve:**
+  - Attacking corner: near post, far post, six-yard centre, penalty spot and two edge-of-box spots, plus a short option. The strongest players (PHY) go to the box posts.
+  - Defending corner: near post, three zonal six-yard spots, edge of the box, a counter outlet, and marks on up to 3 attackers in the box.
+  - Free kick in range (xG ≥ 0.025): a 2–3 man wall at 9.15m on the ball–goal line.
+  - Other restarts: shape plus support or marks around the placed ball, with no pressing or chasing.
+  - Opponents' targets are pushed out of the retreat distance.
+- **Crosses:** lofted (`force_loft`, carried through `Ball.pass_launch` → `BallPredictor` → `PassModel` → `PlayerStatePassing`) to teammates in the box, from corners and from wide attacking positions. There are no direct shots from corners or throw-ins.
+- **Probe:** `tools/setpiece_probe.tscn` awards corners or free kicks repeatedly in live v2 matches and reports set-up time, delivery, box occupancy and outcome. Final corner numbers: 2.3 attackers vs 5.5 defenders in the box at the kick, 71–81% lofted deliveries, a shot after 25–70%, ~0.08 xG per corner (real ~0.035, so somewhat generous). Free kicks: a shot after 37–50%, ~0.05 xG.
+- Getting there, the probe exposed:
+  - the fixed set-up window was too short;
+  - the shape dissolved before the delivery;
+  - the 12s safety timeout was cutting set-ups short;
+  - a probe measurement bug (reading the ball's lift before the kick).
+
 ## Findings log
+9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
+   - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);
+   - passes are fast relative to the players chasing them;
+   - set pieces need ~18s for players to walk into position.
+   - Fixing it changes the tempo of everything, so it belongs to the Phase 7 movement rework, followed by a full re-tune.
 8. **Shots travelled at 7–13 m/s: ✅ CHANGED (2026-09-28).** `PlayerStateShooting.SHOT_SPEED_MIN/MAX` went from 140/274 px/s to 300/560 (~14–27 m/s; real shots are ~20–30 m/s). A keeper that actually reads the ball would save nearly every shot at the old speeds; goals had come mostly from the old keeper's clumsy physics. The old range stays available through the `shot_speed_legacy` knob for before/after comparisons.
 7. **Ground passes died at the target, and most mid-range passes were lofted: ✅ CHANGED (2026-09-28).**
    - Problem: ground passes were sized to decelerate to a dead stop exactly at the receiver, so they crawled through their last metres. Every pass over 300px (~14m) was lofted, so the v2 AI played more lofted passes than ground passes (222 vs 184 per 8 matches).
