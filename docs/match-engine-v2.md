@@ -175,6 +175,16 @@ Open issues (next tuning rounds):
 - The keeper is still v1.
 
 ## Findings log
+7. **Ground passes died at the target, and most mid-range passes were lofted: ✅ CHANGED (2026-09-28).**
+   - Problem: ground passes were sized to decelerate to a dead stop exactly at the receiver, so they crawled through their last metres. Every pass over 300px (~14m) was lofted, so the v2 AI played more lofted passes than ground passes (222 vs 184 per 8 matches).
+   - Fix: `Ball.GROUND_PASS_ARRIVAL_SPEED` (110 px/s, still an easy first touch) and `DISTANCE_HIGH_PASS` 300 → 520px (~25m).
+   - Result, v2 vs v2 (8 × 180s): ground:lofted went from 184:222 to 393:93. Forward share is 55% ✓, progressive share 16–18% ✓, average pass 23m ✓, and **28/37 metrics are in band**, the best yet.
+   - Exposed next problem: sterile possession, with 8.1 passes per possession, 93% completion and ~1.3 shots per 180s. That's the chance-creation work.
+6. **No first-touch difficulty: ✅ ADDED (2026-09-28).**
+   - Problem: every ball within reach stuck to the player instantly, so a 40m lofted ball was as safe as a 5m roll. Once lofted passes worked (Finding #5), hoofing long from the back was the rational v2 choice: 94–96% of passes from its own third went forward, averaging 32–36m.
+   - Fix: `Player.control_chance(speed, height)`. Difficulty rises with arrival speed above 160 px/s and with height above 10px; dribbling and passing skill cancel up to 75% of it. A failed touch (`BallStateFreeform._heavy_touch`) slows the ball, deflects it up to 70° and leaves the player a short cooldown before they can touch it again. It fires `GameEvents.heavy_touch`.
+   - `PassModel` multiplies in the expected control at arrival (speed and height from the predicted path), with 40% of fumbles still recovered.
+   - Result: lofted passes are now fumbled 14–21% of the time, and 66–74% reach the receiver. v2 vs v1 went from 0W 5D 3L to 2W 6D 0L.
 5. **The recurring "long passes fall short" bug, root causes: ✅ FIXED (2026-09-28).** The user flagged it as an old, recurring bug. Git history shows the lofted-pass launch was re-derived in Nov 2025, in May 2026 and again in Finding #2. Every attempt was checked against an idealised replay, never against live play.
    - **How it was found.** `PassTracer` (`scenes/match/stats/pass_tracer.gd`, enabled with `BATCH_PASSTRACE=1`) follows every real pass from kick to whatever ends it.
    - **Cause 1: the ball was caught in mid-flight.** Ball pickup was a flat 2D area check that ignored height, so any player the ball passed *over* collected it. 28–38% of lofted passes ended that way, at 18–27px height, many within the first 40% of the flight and mostly by opponents. That was the visible symptom, and it's invisible to any launch-maths fix.

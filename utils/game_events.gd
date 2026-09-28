@@ -59,5 +59,8 @@ signal tackle_resolved(tackler: Player, carrier: Player, won: bool, foul: bool)
 ## Fired for fouls too, alongside foul_called.
 signal restart_awarded(kind: int, team: String, spot: Vector2)
 
+## [param player] failed to control an arriving ball (first touch).
+signal heavy_touch(player: Player)
+
 ## The assistant flagged [param offender] offside (OffsideJudge).
 signal offside_called(offender: Player)

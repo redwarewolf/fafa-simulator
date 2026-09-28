@@ -26,10 +26,11 @@ func setup(world: MatchWorld) -> void:
 	GameEvents.pass_attempted.connect(_on_pass)
 	GameEvents.possession_gained.connect(_on_possession)
 	GameEvents.restart_awarded.connect(_on_restart)
+	GameEvents.heavy_touch.connect(_on_heavy_touch)
 
 func _exit_tree() -> void:
 	for pair in [[GameEvents.pass_attempted, _on_pass], [GameEvents.possession_gained, _on_possession],
-			[GameEvents.restart_awarded, _on_restart]]:
+			[GameEvents.restart_awarded, _on_restart], [GameEvents.heavy_touch, _on_heavy_touch]]:
 		if pair[0].is_connected(pair[1]):
 			pair[0].disconnect(pair[1])
 
@@ -51,6 +52,10 @@ func _physics_process(_delta: float) -> void:
 		_cur["was_air"] = true
 	elif _cur["was_air"]:
 		_cur["landed"] = true
+
+func _on_heavy_touch(_p: Player) -> void:
+	if not _cur.is_empty():
+		_cur["fumbled"] = true
 
 func _on_possession(p: Player) -> void:
 	if _cur.is_empty():
@@ -74,7 +79,7 @@ func _close(outcome: String, collector: Player) -> void:
 		"lofted": _cur["dist"] > LOFT_PX, "dist": _cur["dist"], "outcome": outcome,
 		"reach": along / maxf(_cur["dist"], 1.0), "height": _ball.height,
 		"in_air_before_landing": _cur["was_air"] and not _cur["landed"],
-		"time": MatchClock.now() - _cur["t0"], "max_h": _cur["max_h"],
+		"time": MatchClock.now() - _cur["t0"], "max_h": _cur["max_h"], "fumbled": _cur.get("fumbled", false),
 		"collector_dist_to_dest": collector.position.distance_to(dest) if collector != null else -1.0,
 	})
 	_cur = {}
@@ -90,7 +95,10 @@ static func summarize(all: Array) -> String:
 		var reach_sum := 0.0
 		var air := 0
 		var h_sum := 0.0
+		var fumbles := 0
 		for r in subset:
+			if r.get("fumbled", false):
+				fumbles += 1
 			by[r["outcome"]] = by.get(r["outcome"], 0) + 1
 			reach_sum += r["reach"]
 			h_sum += r["height"]
@@ -99,9 +107,9 @@ static func summarize(all: Array) -> String:
 		var outcomes := []
 		for k in by:
 			outcomes.append("%s %d%%" % [k, roundi(100.0 * by[k] / subset.size())])
-		lines.append("%s passes: n=%d  mean reach %.0f%% of intended  collected mid-air before 1st landing %d%%  mean height at end %.1f  | %s" % [
+		lines.append("%s passes: n=%d  mean reach %.0f%% of intended  collected mid-air before 1st landing %d%%  fumbled %d%%  mean height at end %.1f  | %s" % [
 			"LOFTED" if lofted else "GROUND", subset.size(), 100.0 * reach_sum / subset.size(),
-			roundi(100.0 * air / subset.size()), h_sum / subset.size(), ", ".join(outcomes)])
+			roundi(100.0 * air / subset.size()), roundi(100.0 * fumbles / subset.size()), h_sum / subset.size(), ", ".join(outcomes)])
 		# Reach histogram for the ones that did NOT reach the receiver.
 		var short_hist := [0, 0, 0, 0, 0]
 		for r in subset:

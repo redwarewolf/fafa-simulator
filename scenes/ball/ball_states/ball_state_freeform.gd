@@ -15,10 +15,29 @@ func _try_collect(body: Player) -> bool:
 	# overlap poll below re-checks every frame).
 	if ball.height > Player.MAX_COLLECT_HEIGHT:
 		return false
+	# First touch: a fast or dropping ball can squirm away (Player.control_chance).
+	if MatchRng.randf() > body.control_chance(ball.velocity.length(), ball.height):
+		_heavy_touch(body)
+		return false
 	ball.carrier = body
 	body.control_ball()
 	state_transition_requested.emit(Ball.State.CARRIED)
 	return true
+
+## Speed kept, and max deflection, when a touch fails.
+const HEAVY_TOUCH_SPEED_KEEP := 0.35
+const HEAVY_TOUCH_MAX_DEFLECT_DEG := 70.0
+
+## The ball bounces off the player instead of being controlled: slowed, knocked
+## off-line, and briefly un-collectable by that same player (kick cooldown),
+## so it's a genuine loose ball others can contest.
+func _heavy_touch(body: Player) -> void:
+	var deflect := deg_to_rad(MatchRng.randf_range(-HEAVY_TOUCH_MAX_DEFLECT_DEG, HEAVY_TOUCH_MAX_DEFLECT_DEG))
+	ball.velocity = ball.velocity.rotated(deflect) * HEAVY_TOUCH_SPEED_KEEP
+	ball.height_velocity = minf(ball.height_velocity, 0.0)
+	ball.last_touch = body
+	ball.mark_touch(body)
+	GameEvents.heavy_touch.emit(body)
 
 func _physics_process(delta: float) -> void:
 	set_ball_animation_from_velocity()

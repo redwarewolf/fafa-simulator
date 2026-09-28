@@ -12,6 +12,33 @@ const BALL_CONTROL_HEIGHT_MAX := 10.0
 ## of the recurring "long passes fall short" bug. See docs/match-engine-v2.md
 ## Findings #5.
 const MAX_COLLECT_HEIGHT := 20.0
+
+## First touch. Controlling a fast or dropping ball is harder than a slow
+## ground pass; a failed touch knocks the ball loose instead of sticking to
+## the player's feet. Before this, every ball within reach stuck instantly, so
+## a 40m lofted pass was as safe as a 5m roll — which made hoofing long from
+## the back the rational choice for the v2 AI (94-96% of its passes from its
+## own third went forward, averaging 32-36m). See docs/match-engine-v2.md
+## Findings #6. Difficulty rises with arrival speed above
+## TOUCH_EASY_SPEED and with height above BALL_CONTROL_HEIGHT_MAX; skill
+## (dribbling, then passing) cancels up to TOUCH_SKILL_MITIGATION of it.
+const TOUCH_EASY_SPEED := 160.0
+const TOUCH_SPEED_RANGE := 380.0
+const TOUCH_SPEED_WEIGHT := 0.55
+const TOUCH_HEIGHT_WEIGHT := 0.25
+const TOUCH_SKILL_MITIGATION := 0.75
+
+## Probability this player cleanly controls a ball arriving at [param speed]
+## (px/s) and [param ball_height].
+func control_chance(speed: float, ball_height: float) -> float:
+	return control_chance_for(dribbling, passing, speed, ball_height)
+
+static func control_chance_for(dri: float, pas: float, speed: float, ball_height: float) -> float:
+	var difficulty := clampf((speed - TOUCH_EASY_SPEED) / TOUCH_SPEED_RANGE, 0.0, 1.0) * TOUCH_SPEED_WEIGHT
+	if ball_height > BALL_CONTROL_HEIGHT_MAX:
+		difficulty += TOUCH_HEIGHT_WEIGHT
+	var skill := (0.7 * dri + 0.3 * pas) / 100.0
+	return clampf(1.0 - difficulty * (1.0 - TOUCH_SKILL_MITIGATION * skill), 0.05, 1.0)
 ## Reuses the celebration jump's height/height_velocity mechanic for a quick
 ## "dodge" hop when a tackle whiffs — smaller than PlayerStateCelebrating's
 ## JUMP_HEIGHT (2.0) so it reads as a dodge, not a goal celebration.

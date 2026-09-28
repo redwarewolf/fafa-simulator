@@ -120,6 +120,24 @@ func _on_possession_gained(p: Player) -> void:
 		var key := "turnovers_by_" + group_name
 		_s[_side(_last_possessor)][key] = _s[_side(_last_possessor)].get(key, 0) + 1
 	_last_possessor = p
+	if _in_play():
+		var n := PitchSpace.normalised(p.position, p.is_left_team)
+		if n.x > 2.0 / 3.0:
+			_tel(side, "att_third_receptions")
+		if n.x > BOX_DEPTH and absf(n.y - 0.5) < BOX_HALF_WIDTH:
+			_tel(side, "box_receptions")
+
+## Penalty area in team-normalised units: 16.5m deep, 40.3m wide.
+const BOX_DEPTH := 1.0 - 16.5 / 105.0
+const BOX_HALF_WIDTH := 20.16 / 68.0
+
+## Free-form telemetry counters ("tel_" prefix) — exported per side by
+## build_result() automatically, so new diagnostics don't need plumbing.
+func _tel(side: String, key: String, amount: float = 1.0) -> void:
+	_s[side]["tel_" + key] = _s[side].get("tel_" + key, 0.0) + amount
+
+static func _third(nx: float) -> String:
+	return "def" if nx < 1.0 / 3.0 else ("mid" if nx < 2.0 / 3.0 else "att")
 
 func _on_turnover(loser: String, gainer: String, where: Vector2) -> void:
 	_s[loser]["turnovers"] += 1
@@ -152,6 +170,11 @@ func _on_pass_attempted(passer: Player, receiver: Player, destination: Vector2) 
 			st["passes_progressive"] += 1
 		if d1 < d0:
 			st["passes_forward"] += 1
+		var third := _third(PitchSpace.normalised(passer.position, passer.is_left_team).x)
+		_tel(side, "passes_from_" + third)
+		if d1 < d0:
+			_tel(side, "passes_forward_from_" + third)
+		_tel(side, "pass_len_m_from_" + third, PitchSpace.distance_m(passer.position, destination))
 		if in_zone:
 			_s[_other(side)]["opp_buildup_passes"] += 1
 	_pending_pass = {"side": side, "in_ppda_zone": in_zone}
@@ -335,6 +358,8 @@ func build_result() -> Dictionary:
 			"turnovers_by_defense": st["turnovers_by_defense"],
 			"turnovers_by_midfield": st["turnovers_by_midfield"],
 			"turnovers_by_offense": st["turnovers_by_offense"],
+			"tel_att_third_receptions": st.get("tel_att_third_receptions", 0.0),
+			"tel_box_receptions": st.get("tel_box_receptions", 0.0),
 			# Raw numerators/denominators, so the harness can pool rates
 			# across matches (sum/sum) instead of averaging per-match ratios —
 			# a match with zero shots would otherwise drag xg_per_shot to 0.
@@ -349,6 +374,11 @@ func build_result() -> Dictionary:
 				"opp_buildup_passes": st["opp_buildup_passes"], "high_def_actions": st["high_def_actions"],
 			},
 		}
+	# Every other "tel_" counter goes into raw, so the harness pools it.
+	for side in ["L", "R"]:
+		for k in _s[side]:
+			if String(k).begins_with("tel_"):
+				out[side]["raw"][k] = _s[side][k]
 	return out
 
 ## Rate metrics recomputed from pooled raw counts: name -> [numerator, denominator].
@@ -363,4 +393,11 @@ const POOLED_RATES := {
 	"tackle_success": ["tackles_won", "tackles"],
 	"turnovers_def_third_share": ["turnovers_def_third", "turnovers"],
 	"ppda": ["opp_buildup_passes", "high_def_actions"],
+	"forward_share_def": ["tel_passes_forward_from_def", "tel_passes_from_def"],
+	"forward_share_mid": ["tel_passes_forward_from_mid", "tel_passes_from_mid"],
+	"forward_share_att": ["tel_passes_forward_from_att", "tel_passes_from_att"],
+	"pass_len_m_def": ["tel_pass_len_m_from_def", "tel_passes_from_def"],
+	"pass_len_m_mid": ["tel_pass_len_m_from_mid", "tel_passes_from_mid"],
+	"pass_len_m_att": ["tel_pass_len_m_from_att", "tel_passes_from_att"],
+	"box_receptions_per_shot": ["tel_box_receptions", "shots"],
 }

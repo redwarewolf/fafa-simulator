@@ -34,9 +34,17 @@ const GROUND_BOUNCE_VERTICAL := 0.5
 ## own RECEIVE job).
 var intended_receiver: Player = null
 ## Passes past this distance loft into the air instead of staying grounded.
-## Raised from 130: most real exchanges (100-300px) should stay fast, direct,
-## grounded balls — lofting was previously the common case, not the exception.
-const DISTANCE_HIGH_PASS := 300
+## Raised from 130 to 300, then to 520 (~25m): real passes of 15-25m are
+## mostly driven along the ground, and at 300 (~14m) the v2 AI was playing
+## more lofted passes than ground ones (see docs/match-engine-v2.md
+## Findings #7).
+const DISTANCE_HIGH_PASS := 520
+## A ground pass arrives at the target still rolling at this speed (px/s)
+## rather than dying exactly there — sized from v0² = v_a² + 2·a·d. The old
+## "stop dead at the target" sizing made every ground pass decelerate to a
+## crawl over its last metres, spending ages in the lane. Kept under
+## Player.TOUCH_EASY_SPEED so a well-weighted pass is trivially controlled.
+const GROUND_PASS_ARRIVAL_SPEED := 110.0
 ## Lofted-pass airtime (seconds) as a function of distance: LOFT_TIME_BASE +
 ## distance × LOFT_TIME_PER_PX, clamped. The launch is solved so the ball's
 ## FIRST LANDING is on the target (see pass_launch).
@@ -179,6 +187,11 @@ func _mark_kick() -> void:
 		_kicker = carrier
 		_kick_time_ms = MatchClock.now_ms()
 
+## A failed first touch: [param p] can't re-collect for KICK_COOLDOWN_MS either.
+func mark_touch(p: Player) -> void:
+	_kicker = p
+	_kick_time_ms = MatchClock.now_ms()
+
 func is_kick_cooldown(p: Player) -> bool:
 	return p == _kicker and MatchClock.now_ms() - _kick_time_ms < KICK_COOLDOWN_MS
 
@@ -223,9 +236,10 @@ static func pass_launch(from: Vector2, destination: Vector2) -> Dictionary:
 		var t := loft_time(distance)
 		var speed := (distance + 0.5 * FRICTION_AIR * t * t) / t
 		return {"velocity": speed * direction, "height_velocity": BallState.GRAVITY * t * 0.5}
-	# Grounded: height stays 0 the whole flight, so sizing off
-	# FRICTION_GROUND is exact — this is the friction it'll actually see.
-	return {"velocity": sqrt(2 * distance * FRICTION_GROUND) * direction, "height_velocity": 0.0}
+	# Grounded: height stays 0 the whole flight, so FRICTION_GROUND is the
+	# exact deceleration; launch so it arrives at GROUND_PASS_ARRIVAL_SPEED.
+	var v0 := sqrt(GROUND_PASS_ARRIVAL_SPEED * GROUND_PASS_ARRIVAL_SPEED + 2.0 * distance * FRICTION_GROUND)
+	return {"velocity": v0 * direction, "height_velocity": 0.0}
 
 static func loft_time(distance: float) -> float:
 	return clampf(LOFT_TIME_BASE + distance * LOFT_TIME_PER_PX, LOFT_TIME_MIN, LOFT_TIME_MAX)
@@ -273,7 +287,8 @@ func long_kick(destination: Vector2) -> void:
 func estimate_pass_flight_time(distance: float) -> float:
 	if distance > DISTANCE_HIGH_PASS:
 		return loft_time(distance)  # the launch is solved to land on target at exactly this time
-	return sqrt(2.0 * distance / FRICTION_GROUND)
+	var va := GROUND_PASS_ARRIVAL_SPEED
+	return (sqrt(va * va + 2.0 * distance * FRICTION_GROUND) - va) / FRICTION_GROUND
 
 ## Where to actually aim a pass so it meets a moving receiver instead of
 ## where they are right now. Leading by target_velocity * flight_time(current

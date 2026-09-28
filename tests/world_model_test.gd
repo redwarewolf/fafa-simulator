@@ -19,14 +19,16 @@ func _free_players() -> void:
 
 # ─── BallPredictor ──────────────────────────────────────────────────────────
 
-## A grounded pass_to() is sized to decelerate to a stop exactly at the target.
-func test_ground_pass_stops_at_target() -> void:
+## A grounded pass_to() arrives at the target still rolling at
+## Ball.GROUND_PASS_ARRIVAL_SPEED, at the time estimate_pass_flight_time says.
+func test_ground_pass_arrives_with_pace() -> void:
 	var from := Vector2(600, 600)
-	for dist in [120.0, 250.0]:
+	for dist in [120.0, 250.0, 480.0]:
 		var to := from + Vector2(dist, 0)
 		var path := BallPredictor.for_pass(from, to, 6.0)
-		assert_true(path.stop_time != INF, "ground pass %d stops" % dist)
-		assert_near(path.end_position().distance_to(to), 0.0, dist * 0.03, "ground pass %d lands within 3%%" % dist)
+		var t := (sqrt(Ball.GROUND_PASS_ARRIVAL_SPEED ** 2 + 2.0 * dist * Ball.FRICTION_GROUND) - Ball.GROUND_PASS_ARRIVAL_SPEED) / Ball.FRICTION_GROUND
+		assert_near(path.position_at(t).x, to.x, dist * 0.04, "ground pass %d reaches the target on time" % dist)
+		assert_true(path.end_position().x > to.x, "ground pass %d rolls on past the target" % dist)
 
 ## Ball.pass_launch solves a lofted pass so its FIRST LANDING is on the target
 ## (it used to land at ~26-30% of the distance — Findings #2). Samples are
@@ -36,7 +38,7 @@ func test_ground_pass_stops_at_target() -> void:
 ## 97-98% of the distance).
 func test_lofted_pass_first_landing_near_target() -> void:
 	var from := Vector2(400, 600)
-	for dist in [350.0, 600.0, 900.0]:
+	for dist in [600.0, 900.0]:
 		var to := from + Vector2(dist, 0)
 		var path := BallPredictor.for_pass(from, to, 6.0)
 		var at_landing := path.position_at(Ball.loft_time(dist))
@@ -70,6 +72,15 @@ func test_open_pass_is_likely_blocked_pass_is_not() -> void:
 	var tight := PassModel.evaluate(passer.position, receiver.position, passer, receiver, [passer, receiver], [marked])
 	assert_true(tight.p_success < open.p_success - 0.2, "tightly marked receiver scores lower (%.2f vs %.2f)" % [tight.p_success, open.p_success])
 	_free_players()
+
+## First touch: a slow ground ball is trivial, a fast dropping one is not, and
+## skill helps with the hard ones.
+func test_first_touch_difficulty() -> void:
+	assert_near(Player.control_chance_for(50, 50, 40.0, 0.0), 1.0, 0.001, "slow ground ball")
+	var hard_avg := Player.control_chance_for(50, 50, 480.0, 15.0)
+	var hard_good := Player.control_chance_for(95, 90, 480.0, 15.0)
+	assert_between(hard_avg, 0.4, 0.75, "fast dropping ball, average player")
+	assert_true(hard_good > hard_avg + 0.15, "skilled player controls it better (%.2f vs %.2f)" % [hard_good, hard_avg])
 
 ## A lofted pass flies over a defender standing under its apex (the recurring
 ## long-pass bug: pickup used to ignore height), but not over one standing

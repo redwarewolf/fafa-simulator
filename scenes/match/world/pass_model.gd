@@ -41,6 +41,7 @@ class PassEval:
 	var p_success := 0.0
 	var p_intercept := 0.0
 	var p_reception := 0.0
+	var p_control := 1.0
 	var flight_time := 0.0
 	var path : BallPredictor.BallPath = null
 
@@ -86,5 +87,17 @@ static func evaluate(from: Vector2, to: Vector2, passer: Player, receiver: Playe
 		t_opp = minf(t_opp, PitchControl.time_to_reach(to, o))
 	# Nobody can collect it before the ball gets there anyway.
 	e.p_reception = p_first(maxf(t_att, e.flight_time), maxf(t_opp, e.flight_time))
-	e.p_success = (1.0 - e.p_intercept) * e.p_reception
+	# First touch (Player.control_chance): how hard the ball is to control at
+	# arrival. A fumble isn't always lost — FUMBLE_RECOVERY of them are still
+	# won back by the receiving side.
+	var speed := 0.0
+	if arrive_i > 0:
+		var dt := maxf(path.times[arrive_i] - path.times[arrive_i - 1], 0.001)
+		speed = path.positions[arrive_i].distance_to(path.positions[arrive_i - 1]) / dt
+	var h := path.heights[arrive_i]
+	e.p_control = receiver.control_chance(speed, h) if receiver != null \
+		else Player.control_chance_for(60.0, 60.0, speed, h)
+	e.p_success = (1.0 - e.p_intercept) * e.p_reception * (e.p_control + (1.0 - e.p_control) * FUMBLE_RECOVERY)
 	return e
+
+const FUMBLE_RECOVERY := 0.4
