@@ -47,6 +47,9 @@ func _ready() -> void:
 	MatchConfig.headless = true
 	MatchConfig.disable_random_events = true
 	MatchConfig.match_duration_override = float(_args["duration"])
+	Tuning.set_from_string(String(_args.get("param", "")))
+	if not Tuning.overrides.is_empty():
+		print("tuning overrides: %s" % str(Tuning.overrides))
 	_make_clubs()
 	_run.call_deferred()
 
@@ -225,6 +228,8 @@ func _aggregate(results: Array) -> Dictionary:
 	var record := {"A_wins": 0, "draws": 0, "B_wins": 0}
 	var match_level := {"bunching_index": 0.0, "passes_per_possession": 0.0, "possessions_3plus_share": 0.0,
 		"ctx_usec_mean": 0.0, "ctx_usec_max": 0.0}
+	var xg_diffs : Array[float] = []
+	var goal_diffs : Array[float] = []
 	for r in results:
 		var a_side : String = r["a_side"]
 		var b_side := "R" if a_side == "L" else "L"
@@ -238,6 +243,8 @@ func _aggregate(results: Array) -> Dictionary:
 				sums[pair[0]][k] = sums[pair[0]].get(k, 0.0) + float(side_stats[k])
 		var ga : int = r[a_side]["goals"]
 		var gb : int = r[b_side]["goals"]
+		xg_diffs.append(float(r[a_side]["xg"]) - float(r[b_side]["xg"]))
+		goal_diffs.append(float(ga - gb))
 		if ga > gb:
 			record["A_wins"] += 1
 		elif gb > ga:
@@ -259,10 +266,30 @@ func _aggregate(results: Array) -> Dictionary:
 		match_level[k] /= n
 	return {
 		"matches": results.size(),
+		"xg_diff": _mean_se(xg_diffs),
+		"goal_diff": _mean_se(goal_diffs),
 		"version_a": _args["a"], "version_b": _args["b"],
 		"record": record, "means": means, "match_level": match_level,
 		"timeouts": results.filter(func(r): return r.get("timed_out", false)).size(),
 	}
+
+## [mean, standard error] — the headline A-vs-B numbers. Goals per side per
+## match are ~0.2, so W/D/L over a few dozen matches is mostly noise; the xG
+## difference is the steadier signal. A difference is only worth acting on
+## when |mean| is well above ~2·SE.
+static func _mean_se(values: Array[float]) -> Array:
+	var n := values.size()
+	if n == 0:
+		return [0.0, 0.0]
+	var mean := 0.0
+	for v in values:
+		mean += v
+	mean /= n
+	var var_sum := 0.0
+	for v in values:
+		var_sum += (v - mean) * (v - mean)
+	var sd := sqrt(var_sum / maxf(n - 1, 1))
+	return [mean, sd / sqrt(n)]
 
 const TARGETS_PATH := "res://tools/targets.json"
 
@@ -295,6 +322,8 @@ func _print_summary(s: Dictionary) -> void:
 		s["matches"], s["version_a"], s["version_b"], s["wall_s_total"]])
 	print("record: A %d / D %d / B %d   timeouts: %d" % [
 		s["record"]["A_wins"], s["record"]["draws"], s["record"]["B_wins"], s["timeouts"]])
+	print("xG diff (A-B) per match: %+.3f ± %.3f SE    goal diff: %+.3f ± %.3f SE" % [
+		s["xg_diff"][0], s["xg_diff"][1], s["goal_diff"][0], s["goal_diff"][1]])
 	for k in s["match_level"]:
 		var mark := _band_mark(match_bands, k, s["match_level"][k])
 		if mark != "":

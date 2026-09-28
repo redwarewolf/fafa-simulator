@@ -174,6 +174,35 @@ Open issues (next tuning rounds):
 - No set-piece routines yet: restarts use the Phase 2 placeholder.
 - The keeper is still v1.
 
+## Tuning round 4: chance creation (2026-09-28)
+
+Measurement upgrades:
+- **Per-possession rates** (`shots_per_possession`, `xg_per_possession`, `box_receptions_per_possession`) replace compressed-time totals as targets. 360s stands for 90 minutes but players move at real speed, so a match fits only ~1/3 of a real match's possessions. Measured per possession, v2 is already realistic: ~0.17 shots and ~0.02 xG per possession.
+- **Shot creation** (`shot_share_after_pass/won/loose`, `xg_per_shot_after_*`, `shot_carry_m`): how each shooter got the ball and how far they carried it before shooting.
+- **`tools/run_parallel.sh`** runs parallel shards and merges them with `batch_match --merge` (32 matches in ~3 min on 16 cores). Same seeds give identical results at scale.
+- **`Tuning` knobs + `--param` / `PARAMS=`** run variants on the same code and seeds. The summary now reports the **xG difference and goal difference per match with standard errors**. At 32 matches the W/D/L record swung from 7-20-5 to 2-25-5 to 4-19-9 on small changes, so records are noise; judge by xG difference with |mean| > 2·SE.
+
+Changes:
+- **Forward (breakaway) potential** (dynamic programming over the control grid toward goal). Through balls into the space behind a high line had been valued at ~0.01, below a sideways carry. v2 vs v2 xG per side went from ~0.12 to ~0.3.
+- **Tackle judgement**: commit only on good duel odds (`Player.tackle_win_chance`), stricter in our own third, looser when the carrier is about to shoot; otherwise jockey goal-side. v2 had been making 16.7 tackles per 180s at 53% success.
+- **One-step shot lookahead** (`SHOT_FOLLOWUP`): carries and passes are also worth the shot that could follow from the destination. Telemetry showed v2 shooting first-time on receipt (0.6m carried, 0.08 xG/shot) while v1 drove 12m closer first (0.23 xG/shot).
+  - A follow-up trace at the moment v2 chose to shoot showed its carry options only had a 52% chance of keeping the ball, so shooting was actually the right call there. The real asymmetry was defensive, which led to the next change.
+- **Must-stop danger check uses geometry-only xG.** The contextual xG counted the jockeying defender as a blocker, so he suppressed his own danger signal and backed off to the penalty spot.
+- **Variant evaluation, v2 vs v1, 64 × 180s each, seeds 700+** (xG diff = v2 − v1 per match, ± SE):
+
+  | Variant | xG diff | v1 xG | v2 tackles |
+  |---|---|---|---|
+  | A: lookahead + tackle judgement + geometric must-stop | −0.125 ± 0.070 | 0.265 | 10.3 |
+  | B: A without the shot lookahead | −0.063 ± 0.056 | 0.216 | 11.0 |
+  | C: A with the contextual must-stop check | −0.022 ± 0.043 | 0.190 | 10.2 |
+  | D: A without tackle judgement | **+0.027 ± 0.034** | **0.117** | 15.6 |
+  | **E (adopted): no lookahead, no tackle judgement** | +0.024 ± 0.054 | 0.173 | |
+
+  - **Neither change survived.** The earlier 32-match "improvement" from tackle judgement (5-18-9 → 7-20-5) was noise. Committing on every tackle in range concedes less than jockeying, even at ~52% duel odds.
+  - Both changes are disabled by default but kept behind the `Tuning` knobs `shot_followup` and `tackle_judgement`, to re-test after the Phase 7 movement/tackle rework.
+  - v2 vs v2 with E: 28/37 in band, 87% completion, 5.5 passes per possession.
+  - **A-vs-A check:** this same-AI run came out +0.122 ± 0.052 (2.3 SE). That's either a ~1-in-50 fluke or SE underestimating the true noise. Until an A-vs-A calibration is run, treat differences under ~3 SE as unproven.
+
 ## Findings log
 7. **Ground passes died at the target, and most mid-range passes were lofted: ✅ CHANGED (2026-09-28).**
    - Problem: ground passes were sized to decelerate to a dead stop exactly at the receiver, so they crawled through their last metres. Every pass over 300px (~14m) was lofted, so the v2 AI played more lofted passes than ground passes (222 vs 184 per 8 matches).

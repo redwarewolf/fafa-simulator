@@ -226,10 +226,24 @@ func _should_commit_tackle(carrier: Player) -> bool:
 	var p_win := Player.tackle_win_chance(player.defense, carrier.dribbling)
 	var own_depth := PitchSpace.normalised(carrier.position, player.is_left_team).x
 	var threshold := TACKLE_ODDS_OWN_THIRD if own_depth < 1.0 / 3.0 else TACKLE_ODDS_ELSEWHERE
-	if ShotModel.xg(carrier.position, carrier.target_goal, player.get_teammates()) > MUST_STOP_XG:
+	# Geometry-only xG: the contextual ShotModel.xg counts this very defender
+	# as a blocker, so a jockeying defender suppressed his own danger signal
+	# and kept backing off to the penalty spot (v1 carried 13m before
+	# shooting, 0.21 xG/shot against v2).
+	var danger := ShotModel.xg_for_goal(carrier.position, carrier.target_goal) \
+		if Tuning.b("tackle_must_stop_geo", true) \
+		else ShotModel.xg(carrier.position, carrier.target_goal, player.get_teammates())
+	if danger > MUST_STOP_XG:
 		threshold = TACKLE_ODDS_MUST_STOP
 	# Aggressive players commit on slightly worse odds, cautious ones wait.
 	threshold -= (mental.tackle_eagerness() - 0.85) * 0.2
+	# DISABLED by default: a 64-match A/B against v1 showed committing on
+	# every chance in range concedes LESS (v1 xG 0.117 vs 0.19-0.27 with
+	# judgement on; v2-v1 xG diff +0.027±0.034, best of 4 variants). Kept
+	# behind the `tackle_judgement` knob for re-testing after Phase 7's
+	# tackle/movement rework.
+	if not Tuning.b("tackle_judgement", false):
+		return true
 	return p_win >= threshold
 
 func _maybe_tackle() -> void:

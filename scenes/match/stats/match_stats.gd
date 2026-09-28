@@ -31,6 +31,7 @@ var _shape_timer := 0.0
 
 var _last_possessor: Player = null
 var _pending_pass: Dictionary = {}  # side, origin, destination, receiver, in_ppda_zone
+var _acq: Dictionary = {}  # how the current carrier got the ball: player, how (pass/won/loose), pos
 var _passes_in_possession := 0
 var _possession_lengths: Array[int] = []  # completed passes per possession, both sides pooled
 
@@ -101,6 +102,13 @@ func _on_possession_gained(p: Player) -> void:
 	if not _in_play() and _world.state not in [MatchWorld.MatchState.KICKOFF, MatchWorld.MatchState.RESTART]:
 		return
 	var side := _side(p)
+	# Shot-creation telemetry: how this player came to have the ball.
+	var how := "loose"
+	if not _pending_pass.is_empty() and _pending_pass["side"] == side:
+		how = "pass"
+	elif _last_possessor != null and _side(_last_possessor) != side:
+		how = "won"
+	_acq = {"player": p, "how": how, "pos": p.position}
 	if not _pending_pass.is_empty():
 		var ps : Dictionary = _pending_pass
 		_pending_pass = {}
@@ -185,7 +193,14 @@ func _on_shot_taken(shooter: Player, origin: Vector2) -> void:
 		return
 	var st : Dictionary = _s[_side(shooter)]
 	st["shots"] += 1
-	st["xg"] += ShotModel.xg_for_goal(origin, shooter.target_goal)
+	var shot_xg := ShotModel.xg_for_goal(origin, shooter.target_goal)
+	st["xg"] += shot_xg
+	if not _acq.is_empty() and _acq["player"] == shooter:
+		var how : String = _acq["how"]
+		_tel(_side(shooter), "shots_after_" + how)
+		_tel(_side(shooter), "xg_after_" + how, shot_xg)
+		_tel(_side(shooter), "shot_carry_m", PitchSpace.distance_m(_acq["pos"], origin))
+		_tel(_side(shooter), "shots_with_acq")
 	st["shot_dist_m_sum"] += PitchSpace.distance_m(origin, shooter.target_goal.get_center_target_position())
 	_pending_pass = {}
 
@@ -407,4 +422,11 @@ const POOLED_RATES := {
 	"shots_per_possession": ["shots", "tel_possessions"],
 	"xg_per_possession": ["xg", "tel_possessions"],
 	"box_receptions_per_possession": ["tel_box_receptions", "tel_possessions"],
+	"shot_share_after_pass": ["tel_shots_after_pass", "tel_shots_with_acq"],
+	"shot_share_after_won": ["tel_shots_after_won", "tel_shots_with_acq"],
+	"shot_share_after_loose": ["tel_shots_after_loose", "tel_shots_with_acq"],
+	"xg_per_shot_after_pass": ["tel_xg_after_pass", "tel_shots_after_pass"],
+	"xg_per_shot_after_won": ["tel_xg_after_won", "tel_shots_after_won"],
+	"xg_per_shot_after_loose": ["tel_xg_after_loose", "tel_shots_after_loose"],
+	"shot_carry_m": ["tel_shot_carry_m", "tel_shots_with_acq"],
 }

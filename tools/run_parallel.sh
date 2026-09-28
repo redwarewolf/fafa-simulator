@@ -8,6 +8,7 @@
 # Each shard k plays seeds base_seed + k*1000 + i. Keep matches_per_shard a
 # multiple of 4 so every shard is balanced for sides and club pairings.
 # Extra env vars (BATCH_PASSTRACE, ...) pass through to every shard.
+# PARAMS="knob=value,..." sets Tuning overrides for every shard.
 set -u
 label=$1; a=$2; b=$3; shards=$4; per=$5; dur=$6; base=${7:-400}
 G="${GODOT:-C:/Users/pjara/OneDrive/Desktop/Programs/Godot/Godot_v4.7.2-stable_win64_console.exe}"
@@ -19,6 +20,7 @@ for ((k=0; k<shards; k++)); do
 	out="user://par_${label}_$k.json"
 	"$G" --path . --headless --fixed-fps 60 res://tools/batch_match.tscn -- \
 		--matches "$per" --seed "$seed" --duration "$dur" --a "$a" --b "$b" --quiet --out "$out" \
+		${PARAMS:+--param "$PARAMS"} \
 		> "$ud/par_${label}_$k.log" 2>&1 &
 	files+=("$ud/par_${label}_$k.json")
 done

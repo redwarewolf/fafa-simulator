@@ -39,13 +39,19 @@ const HOLD_EXPOSURE_S := 0.45
 const LOSS_POINT := 0.55
 ## How much a receiver's control of the landing spot scales the pass value.
 const RECEIVE_SECURITY := 0.4
-## Shot appetite by formation group, and max shooting range (px). Pure
-## value-maximising agents under-shoot compared with real players (a shot
-## "cashes in" a chance a keep-ball option only probably keeps); 1.35/1.15/0.9
-## gave ~2 shots per side per 180s even once chances were created — about half
-## the real rate for 45 compressed minutes.
-const SHOT_BIAS := {Positions.Group.OFFENSE: 1.9, Positions.Group.MIDFIELD: 1.55, Positions.Group.DEFENSE: 1.1}
+## Shot appetite by formation group, and max shooting range (px).
+const SHOT_BIAS := {Positions.Group.OFFENSE: 1.4, Positions.Group.MIDFIELD: 1.2, Positions.Group.DEFENSE: 0.95}
 const SHOT_RANGE_PX := 600.0
+## One-step shot lookahead: carrying or passing to a spot is also worth the
+## shot that could FOLLOW from it (discounted — it happens later, defenders
+## close in), not just the spot's possession value. Without it v2 shot
+## first-time on receipt from ~20m (0.6m carried, 0.08 xG/shot) while v1
+## drove 12m closer before shooting (0.23 xG/shot) — carrying toward a better
+## shot looked worthless to a value function that only knew xT.
+## DISABLED by default (0): a 64-match A/B against v1 showed no benefit
+## (xG diff -0.125±0.070 with it vs -0.063±0.056 without). Kept behind the
+## `shot_followup` Tuning knob for re-testing once movement/dribbling change.
+const SHOT_FOLLOWUP := 0.0
 ## Through balls: how far ahead of a runner the ball is played into space.
 const THROUGH_LEADS := [140.0, 230.0]
 ## Verticality — a tactical instruction, value per unit of pitch depth gained
@@ -76,6 +82,20 @@ static func _record(player: Player, options: Array, pick: Option) -> void:
 	var nx := PitchSpace.normalised(player.position, player.is_left_team).x
 	var third := "def" if nx < 1.0 / 3.0 else ("mid" if nx < 2.0 / 3.0 else "att")
 	AIProfile.count("choice_%s_%s" % [third, KIND_NAMES[pick.kind]], pick.value)
+	if pick.kind == Kind.SHOOT:
+		var best := {Kind.PASS: null, Kind.CARRY: null}
+		for o in options:
+			if best.has(o.kind) and (best[o.kind] == null or o.value > best[o.kind].value):
+				best[o.kind] = o
+		AIProfile.count("shot_pick_value", pick.value)
+		AIProfile.count("shot_pick_xg", pick.p_success)
+		AIProfile.count("shot_pick_dist_m", PitchSpace.distance_m(player.position, player.target_goal.get_center_target_position()))
+		if best[Kind.CARRY] != null:
+			AIProfile.count("shot_pick_best_carry_value", best[Kind.CARRY].value)
+			AIProfile.count("shot_pick_best_carry_p", best[Kind.CARRY].p_success)
+		if best[Kind.PASS] != null:
+			AIProfile.count("shot_pick_best_pass_value", best[Kind.PASS].value)
+			AIProfile.count("shot_pick_best_pass_p", best[Kind.PASS].p_success)
 	var best_through : Option = null
 	for o in options:
 		if o.kind == Kind.SHOOT:
@@ -139,7 +159,7 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 		shot.kind = Kind.SHOOT
 		var xg := ShotModel.xg(from, goal, opponents)
 		shot.p_success = xg
-		shot.value = xg * float(SHOT_BIAS.get(Positions.group(player.role), 1.0))
+		shot.value = xg * float(SHOT_BIAS.get(Positions.group(player.role), 1.0)) * Tuning.f("shot_bias_scale", 1.0)
 		out.append(shot)
 
 	if restart and _has_kind(out, Kind.PASS):
@@ -157,7 +177,7 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 		carry.destination = q
 		var t_opp := _best_time(q, opponents) + _skill_edge(player, q, opponents)
 		carry.p_success = PassModel.p_first(CARRY_HORIZON_S, t_opp)
-		carry.value = carry.p_success * ctx.possession_value(q, left) \
+		carry.value = carry.p_success * _future_value(ctx, q, player, opponents) \
 			- (1.0 - carry.p_success) * risk * ctx.possession_value(from.lerp(q, 0.5), not left)
 		out.append(carry)
 
@@ -187,9 +207,19 @@ static func _pass_option(player: Player, receiver: Player, dest: Vector2, to_fee
 	o.to_feet = to_feet
 	o.p_success = e.p_success
 	var loss := player.position.lerp(dest, LOSS_POINT)
-	o.value = e.p_success * ctx.possession_value(dest, left) \
+	o.value = e.p_success * _future_value(ctx, dest, player, opponents) \
 		- (1.0 - e.p_success) * risk * ctx.possession_value(loss, not left)
 	return o
+
+## What having the ball at [param p] is worth to [param player]'s side: its
+## possession value, or the shot that could follow from there, whichever is
+## better (see SHOT_FOLLOWUP).
+static func _future_value(ctx: MatchContext, p: Vector2, player: Player, opponents: Array) -> float:
+	var v := ctx.possession_value(p, player.is_left_team)
+	var goal := player.target_goal
+	if p.distance_to(goal.get_center_target_position()) < SHOT_RANGE_PX:
+		v = maxf(v, ShotModel.xg(p, goal, opponents) * Tuning.f("shot_followup", SHOT_FOLLOWUP))
+	return v
 
 ## How much losing the ball hurts relative to gaining threat: protecting a
 ## lead late (low mentality) is more cautious, chasing a game more reckless.
