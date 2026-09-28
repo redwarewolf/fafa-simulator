@@ -265,6 +265,44 @@ Design:
   - the 12s safety timeout was cutting set-ups short;
   - a probe measurement bug (reading the ball's lift before the kick).
 
+## Phase 7 notes: movement
+
+**Part 1: realistic speed, acceleration, tackle angle** (`b0beec1`), v2 players only (Tuning knob `realistic_movement`):
+- **Speed and acceleration:** top speed 6.4–9.4 m/s from PAC; acceleration 3.2–5.5 m/s² from PAC/PHY, with braking 1.8× stronger.
+  - Brains set a *desired* velocity; `Player.steer_velocity` reaches it within those limits, so runs curve and players can't reverse instantly.
+  - `Player.pace` now holds the stat and `speed` the movement speed; v1 is unchanged.
+- **Kinematic time-to-reach:** standing start vs flying start, and braking first when moving away (`PitchControl.kinematic_time`).
+  - The grid's hot loop inlines it and skips players who can't beat the current best; the grid refreshes at 12 Hz.
+  - Pitch control costs 0.86 ms/frame and the whole v2 AI ~1.5 ms/frame.
+- **Tackle angle:** tackling from behind costs up to −0.12 on the duel odds; foul chance = 0.06 + 0.35·behind + 0.12·aggression.
+
+**Effect (v2 vs v2, 64 × 180s):**
+
+| per side, per 180s | old speed | realistic speed |
+|---|---|---|
+| goals | 0.22–0.25 | 0.52–0.58 |
+| shots | 1.8 | 3.4 |
+| turnovers | 4.9 | 14 |
+| corners | 0.03 | 0.5 |
+| W/D/L | 10/42/12 | 18/27/19 |
+| pass completion | 90% | **69%** |
+| passes per possession | 7.5 | **1.4** |
+
+Keeper saves (72–74%) and goals/xG stayed calibrated.
+
+**Re-tune:**
+- **Pass-model calibration (PassTracer predicted vs actual):** the raw model was overconfident at the new tempo (0.78 predicted → 0.60 actual, 0.91 → 0.81, 0.99 → 0.91).
+- **Platt scaling (0.6, −0.3) fixed the calibration but made play worse:** 64% completion, 73% forward, 48% progressive. Flattening every probability erased the difference between safe and risky passes. Disabled; kept as the `pass_cal_a/b` knobs.
+- **The real lever: the price of losing the ball.** `OnBallEvaluator.RISK_SCALE` 1 → 3.5 means a midfield turnover now costs what the opponent's counter into our space is worth, not just their static xT there. Sweep:
+
+  | variant (uncalibrated) | completion | forward | progressive | avg pass |
+  |---|---|---|---|---|
+  | risk ×2 | 71% | 65% | 30% | 25m |
+  | **risk ×3.5 (adopted)** | 72–74% | 61–64% | 27–28% | 25m |
+
+- **Still open:** passes per possession ~1.6, and the out-of-possession block at ~49m long (target ≤40).
+- **Not done yet:** touch-based dribbling (the ball running ahead between touches).
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);

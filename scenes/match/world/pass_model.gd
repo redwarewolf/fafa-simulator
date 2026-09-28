@@ -38,7 +38,8 @@ static func p_first(a_time: float, b_time: float) -> float:
 	return logistic(b_time - a_time)
 
 class PassEval:
-	var p_success := 0.0
+	var p_success := 0.0  # calibrated (see calibrate())
+	var p_raw := 0.0      # the physical model's own estimate
 	var p_intercept := 0.0
 	var p_reception := 0.0
 	var p_control := 1.0
@@ -97,7 +98,29 @@ static func evaluate(from: Vector2, to: Vector2, passer: Player, receiver: Playe
 	var h := path.heights[arrive_i]
 	e.p_control = receiver.control_chance(speed, h) if receiver != null \
 		else Player.control_chance_for(60.0, 60.0, speed, h)
-	e.p_success = (1.0 - e.p_intercept) * e.p_reception * (e.p_control + (1.0 - e.p_control) * FUMBLE_RECOVERY)
+	e.p_raw = (1.0 - e.p_intercept) * e.p_reception * (e.p_control + (1.0 - e.p_control) * FUMBLE_RECOVERY)
+	e.p_success = calibrate(e.p_raw)
 	return e
 
 const FUMBLE_RECOVERY := 0.4
+
+## Platt calibration of the physical model's raw probability:
+##     p' = logistic(A · logit(p) + B)
+## Fitted against PassTracer's predicted-vs-actual table once players moved at
+## realistic speed (Phase 7): the raw model rated passes it gave 0.78 at 0.60
+## actual, 0.91 at 0.81, 0.99 at 0.91 — overconfident exactly where most
+## passes are chosen, so the AI kept picking riskier passes than it knew.
+## Tuning knobs `pass_cal_a` / `pass_cal_b`; (1, 0) = uncalibrated.
+## DISABLED (1, 0): with (0.6, -0.3) the estimates became honest, but flattening
+## every probability erased the difference between safe and risky passes and
+## play got MORE direct (completion 64%, 73% forward, 48% progressive). The
+## real lever was the price of losing the ball (OnBallEvaluator.RISK_SCALE).
+const CAL_A := 1.0
+const CAL_B := 0.0
+
+static func calibrate(p: float) -> float:
+	var a := Tuning.f("pass_cal_a", CAL_A)
+	var b := Tuning.f("pass_cal_b", CAL_B)
+	var q := clampf(p, 0.001, 0.999)
+	var logit := log(q / (1.0 - q))
+	return 1.0 / (1.0 + exp(-(a * logit + b)))

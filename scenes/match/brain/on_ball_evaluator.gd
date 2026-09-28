@@ -252,7 +252,15 @@ static func _risk(team: TeamBrain) -> float:
 	var r := lerpf(1.4, 0.7, (team.preset.mentality + 1.0) * 0.5)
 	if team.tactical.phase == TacticalBrain.Phase.TRANSITION_ATTACK:
 		r *= 0.85
-	return r
+	# A turnover costs more than the opponent's static threat at the loss
+	# point: at realistic speed they counter into the space our committed
+	# players left. Scale tuned in the harness (Phase 7 re-tune).
+	return r * Tuning.f("risk_scale", RISK_SCALE)
+
+## Sweep (64 matches each, v2 vs v2, uncalibrated pass model): ×1 → 69%
+## completion; ×2 → 71%, 65% forward, 30% progressive; ×3.5 → 72-74%, 61-64%
+## forward, 27-28% progressive, 25m average pass.
+const RISK_SCALE := 3.5
 
 ## Dribbling vs. the nearest defender's defending, as a head start in seconds.
 static func _skill_edge(player: Player, at: Vector2, opponents: Array) -> float:

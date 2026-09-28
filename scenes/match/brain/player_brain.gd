@@ -29,6 +29,10 @@ var mental : MentalAttributes = null
 var job : Job = null
 var opponent_area : Area2D = null
 
+## The success probability PassModel predicted for this player's latest pass
+## (telemetry: PassTracer checks predictions against outcomes).
+var last_pass_p := -1.0
+
 var _target := Vector2.ZERO
 var _next_think := 0.0
 var _had_ball := false
@@ -114,6 +118,7 @@ func _act_on_ball() -> bool:
 				PlayerStateData.build().set_shot_power(player.power).set_shot_direction(dir.rotated(err)))
 			return true
 		OnBallEvaluator.Kind.PASS:
+			last_pass_p = o.p_success
 			player.switch_state(Player.State.PASSING,
 				PlayerStateData.build().set_pass_target(o.receiver, o.destination, o.to_feet, o.lofted))
 			return true

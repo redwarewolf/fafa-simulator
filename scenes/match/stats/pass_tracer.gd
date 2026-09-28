@@ -38,7 +38,12 @@ func _on_pass(passer: Player, receiver: Player, dest: Vector2) -> void:
 	_close("superseded", null)
 	if receiver == null:
 		return
+	var predicted := -1.0
+	if passer.brain != null:
+		predicted = passer.brain.last_pass_p
+		passer.brain.last_pass_p = -1.0
 	_cur = {
+		"predicted": predicted,
 		"passer": passer, "receiver": receiver, "origin": passer.position, "dest": dest,
 		"dist": passer.position.distance_to(dest), "t0": MatchClock.now(),
 		"max_h": 0.0, "landed": false, "was_air": false,
@@ -80,6 +85,7 @@ func _close(outcome: String, collector: Player) -> void:
 		"reach": along / maxf(_cur["dist"], 1.0), "height": _ball.height,
 		"in_air_before_landing": _cur["was_air"] and not _cur["landed"],
 		"time": MatchClock.now() - _cur["t0"], "max_h": _cur["max_h"], "fumbled": _cur.get("fumbled", false),
+		"predicted": _cur["predicted"],
 		"collector_dist_to_dest": collector.position.distance_to(dest) if collector != null else -1.0,
 	})
 	_cur = {}
@@ -116,4 +122,23 @@ static func summarize(all: Array) -> String:
 			if r["outcome"] != "receiver":
 				short_hist[clampi(int(r["reach"] * 5.0), 0, 4)] += 1
 		lines.append("    non-receiver endings by reach (0-20/20-40/40-60/60-80/80+%%): %s" % str(short_hist))
+	# Calibration: the pass model's predicted success vs what happened (kept
+	# by the passing side = receiver or another teammate).
+	var buckets := [[0.0, 0.5], [0.5, 0.7], [0.7, 0.85], [0.85, 0.95], [0.95, 1.01]]
+	var cal := []
+	for bk in buckets:
+		var n := 0
+		var kept := 0
+		var pred_sum := 0.0
+		for r in all:
+			var p : float = r.get("predicted", -1.0)
+			if p < 0.0 or r["outcome"] == "superseded" or p < bk[0] or p >= bk[1]:
+				continue
+			n += 1
+			pred_sum += p
+			if r["outcome"] in ["receiver", "teammate"]:
+				kept += 1
+		if n > 0:
+			cal.append("pred %.2f→actual %.2f (n=%d)" % [pred_sum / n, float(kept) / n, n])
+	lines.append("CALIBRATION (v2 passes): " + "  ".join(cal))
 	return "\n".join(lines)
