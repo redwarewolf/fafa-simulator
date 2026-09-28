@@ -97,7 +97,7 @@ func _recompute_pressing(team: Array[Player], ball: Ball) -> void:
 
 	candidates.sort_custom(func(a, b): return a.position.distance_squared_to(reference) < b.position.distance_squared_to(reference))
 	var closest: Player = candidates[0]
-	var now := Time.get_ticks_msec()
+	var now := MatchClock.now_ms()
 
 	if current_presser == null or not (current_presser in candidates):
 		current_presser = closest

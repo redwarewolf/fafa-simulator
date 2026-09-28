@@ -34,3 +34,23 @@ signal game_over
 ## [param fouled_player] will take the free kick; [param incident_position] is
 ## where the foul happened, for the referee to run to.
 signal foul_called(fouled_player: Player, incident_position: Vector2)
+
+# ─── Match-analytics events (engine v2 — see docs/match-engine-v2.md) ────────
+# Typed, player-carrying counterparts to the name-only ball_possessed above.
+# Consumed by MatchStats (headless batch harness) and, from Phase 2, the
+# offside judge / restart manager. Nothing in the match flow depends on them.
+
+## A player took control of the ball (Ball.carrier went from anything to them).
+signal possession_gained(player: Player)
+
+## A pass was kicked. [param receiver] is the intended teammate, or null for
+## an untargeted kick (e.g. a goalkeeper clearance). [param destination] is
+## where the ball was aimed (already led for a moving receiver).
+signal pass_attempted(passer: Player, receiver: Player, destination: Vector2)
+
+## A shot was struck (ground shot, header, volley or bicycle kick).
+signal shot_taken(shooter: Player, origin: Vector2)
+
+## A tackle made contact with the carrier. [param won] = ball changed hands
+## (cleanly or via foul); [param foul] = the referee called it.
+signal tackle_resolved(tackler: Player, carrier: Player, won: bool, foul: bool)

@@ -140,7 +140,7 @@ var cover_shadow_point: Vector2 = Vector2.ZERO
 ## role players independently computing the same depth formula off the same
 ## ball position. Written once per team tick by TeamTacticalState.
 var team_line_bias: float = 0.0
-## Time.get_ticks_msec() this player's give-and-go run window expires — set
+## MatchClock.now_ms() this player's give-and-go run window expires — set
 ## by RoleAI._decide_on_ball() the instant they pass, read by
 ## RoleAI._off_ball_base_position() to bias their off-ball target forward
 ## for a brief window afterward (the classic 1-2). 0 (the default) is
@@ -366,14 +366,17 @@ func on_tackle_player(player_hit : Player) -> void:
 		if player_hit.current_state != null and player_hit.current_state.is_holding_ball():
 			return  # Keeper holding the ball is immune to tackles
 		if not _wins_tackle_duel(player_hit):
+			GameEvents.tackle_resolved.emit(self, player_hit, false, false)
 			player_hit.dodge_hop()  # Tackle whiffs — carrier hops away and keeps the ball
 			return
 		ball.play_kick_sound()  # Won the duel — the ball changes feet, same as any other kick
-		if randf() < FOUL_CHANCE_ON_TACKLE_WIN:
+		if MatchRng.randf() < FOUL_CHANCE_ON_TACKLE_WIN:
+			GameEvents.tackle_resolved.emit(self, player_hit, true, true)
 			var incident_position := player_hit.position
 			player_hit.get_hurt(position.direction_to(player_hit.position))
 			GameEvents.foul_called.emit(player_hit, incident_position)
 		else:
+			GameEvents.tackle_resolved.emit(self, player_hit, true, false)
 			player_hit.get_dispossessed(position.direction_to(player_hit.position))
 
 ## Small vertical hop that visually reads as dodging a failed tackle, without
@@ -387,7 +390,7 @@ func dodge_hop() -> void:
 ## Equal stats → 50/50. Clamped so no stat gap makes the outcome a certainty.
 func _wins_tackle_duel(carrier: Player) -> bool:
 	var win_chance := clampf(0.5 + (defense - carrier.dribbling) / 200.0, 0.1, 0.9)
-	return randf() < win_chance
+	return MatchRng.randf() < win_chance
 
 # ─── Debug helpers ────────────────────────────────────────────────────────────
 

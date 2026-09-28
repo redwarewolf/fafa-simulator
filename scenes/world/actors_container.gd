@@ -27,7 +27,7 @@ const KICKOFF_COMPRESSION := 0.5
 var left_team : Array[Player] = []
 var right_team : Array[Player] = []
 
-var time_since_last_tactical_refresh := Time.get_ticks_msec()
+var time_since_last_tactical_refresh := MatchClock.now_ms()
 var _field_zones : FieldZones = null
 var _team_tactical_left := TeamTacticalState.new()
 var _team_tactical_right := TeamTacticalState.new()
@@ -180,13 +180,13 @@ func spawn_players(team : String, own_goal : Goal, spawns) -> Array[Player]:
 const DEBUG_PITCH_CONTROL_CELL := 110.0
 
 func _process(_delta: float) -> void:
-	if Time.get_ticks_msec() - time_since_last_tactical_refresh > DURATION_TACTICAL_REFRESH:
-		time_since_last_tactical_refresh = Time.get_ticks_msec()
+	if MatchClock.now_ms() - time_since_last_tactical_refresh > DURATION_TACTICAL_REFRESH:
+		time_since_last_tactical_refresh = MatchClock.now_ms()
 		var time_fraction_remaining := 1.0
 		var score_left := 0
 		var score_right := 0
 		if _match_world != null:
-			time_fraction_remaining = clampf(1.0 - _match_world.match_time / _match_world.MATCH_DURATION, 0.0, 1.0)
+			time_fraction_remaining = clampf(1.0 - _match_world.match_time / _match_world.match_duration(), 0.0, 1.0)
 			score_left = _match_world.score_left
 			score_right = _match_world.score_right
 		var left_mode := player_manual_mentality_mode if is_player_team_left else TacticPreset.ManualMode.AUTO

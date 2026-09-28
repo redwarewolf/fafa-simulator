@@ -128,10 +128,9 @@ func _exit_tree() -> void:
 ## active before pausing rather than always snapping back to 1x. Useful for
 ## AI debugging (see docs/ai-overhaul.md Phase 6): freezing a moment lets
 ## you inspect positions/debug overlays without the match continuing to
-## simulate. AITick/timer logic (Time.get_ticks_msec()-based, e.g.
-## TeamTacticalState's press commitment window) isn't scaled by
-## Engine.time_scale, so decisions keep recomputing in the background while
-## paused — harmless, since nothing visibly moves either way.
+## simulate. All match timers read MatchClock, which advances by the scaled
+## frame delta, so pausing freezes AI ticks and state timers too, and higher
+## speeds keep the AI's decision rate constant in game time.
 func _toggle_pause() -> void:
 	_paused = not _paused
 	if _paused:

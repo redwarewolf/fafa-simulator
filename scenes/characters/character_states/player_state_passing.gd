@@ -45,7 +45,7 @@ func _enter_tree() -> void:
 
 	if _windup_duration_ms > 0.0:
 		_winding_up = true
-		_windup_start_ms = Time.get_ticks_msec()
+		_windup_start_ms = MatchClock.now_ms()
 		player.play_anim("prep_kick")
 	else:
 		player.play_anim("kick")
@@ -57,7 +57,7 @@ func _enter_tree() -> void:
 ## never fired again after the first loop, leaving the player stuck in
 ## prep_kick forever with the ball never released.
 func _process(_delta: float) -> void:
-	if _winding_up and Time.get_ticks_msec() - _windup_start_ms >= _windup_duration_ms:
+	if _winding_up and MatchClock.now_ms() - _windup_start_ms >= _windup_duration_ms:
 		_winding_up = false
 		player.play_anim("kick")
 
@@ -80,6 +80,7 @@ func on_animation_complete() -> void:
 				_pass_target.velocity, destination,
 				CandidatePointScorer.nearest_opponent_distance(destination, opponents)
 			])
+		GameEvents.pass_attempted.emit(player, _pass_target, destination)
 		ball.pass_to(destination)
 		if player.role == Positions.Role.GK and GoalieAI.DEBUG_LOG_DISTRIBUTION:
 			print("[GK %s] PASSING.kick: ball released — vel=%s speed=%.1f" % [player.full_name, ball.velocity, ball.velocity.length()])

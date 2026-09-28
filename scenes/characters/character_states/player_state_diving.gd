@@ -3,7 +3,7 @@ extends PlayerState
 
 const DURATION_DIVE := 500
 
-var time_start_dive := Time.get_ticks_msec()
+var time_start_dive := MatchClock.now_ms()
 
 func _enter_tree() -> void:
 	# Predict where the ball will cross the goal line so the keeper dives to intercept,
@@ -21,9 +21,9 @@ func _enter_tree() -> void:
 	else:
 		player.play_anim("dive_up")
 	player.velocity = direction * player.speed
-	time_start_dive = Time.get_ticks_msec()
+	time_start_dive = MatchClock.now_ms()
 
 func _process(_delta: float) -> void:
-	if Time.get_ticks_msec() - time_start_dive > DURATION_DIVE:
+	if MatchClock.now_ms() - time_start_dive > DURATION_DIVE:
 		player.velocity = Vector2.ZERO
 		transition_state(Player.State.RECOVERING)

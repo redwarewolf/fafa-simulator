@@ -5,7 +5,7 @@ const DURATION_TACKLE := 200
 const GROUND_FRICTION := 250
 
 var is_tackle_complete := false
-var time_finish_tackle := Time.get_ticks_msec()
+var time_finish_tackle := MatchClock.now_ms()
 
 func _enter_tree() -> void:
 	player.play_anim("tackle")
@@ -16,9 +16,9 @@ func _process(delta: float) -> void:
 		player.velocity = player.velocity.move_toward(Vector2.ZERO, delta*GROUND_FRICTION)
 		if player.velocity == Vector2.ZERO:
 			is_tackle_complete = true
-			time_finish_tackle = Time.get_ticks_msec()
+			time_finish_tackle = MatchClock.now_ms()
 			
-	elif Time.get_ticks_msec() - time_finish_tackle > DURATION_TACKLE:
+	elif MatchClock.now_ms() - time_finish_tackle > DURATION_TACKLE:
 		transition_state(Player.State.RECOVERING)
 
 func _exit_tree() -> void:

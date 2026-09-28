@@ -65,7 +65,7 @@ func get_target_position() -> Vector2:
 		if player.position.distance_to(ball.position) < INTERCEPT_DISTANCE:
 			return ball.position
 
-	if ball.carrier == null and Time.get_ticks_msec() > _catch_cooldown_end:
+	if ball.carrier == null and MatchClock.now_ms() > _catch_cooldown_end:
 		if player.position.distance_to(ball.position) < SCOOP_DISTANCE and ball.velocity.length() < MAX_CATCHABLE_SPEED:
 			return ball.position
 
@@ -92,7 +92,7 @@ func make_decisions() -> void:
 		_dive_reaction_start = 0
 		return
 
-	if ball.carrier == null and Time.get_ticks_msec() > _catch_cooldown_end:
+	if ball.carrier == null and MatchClock.now_ms() > _catch_cooldown_end:
 		var dist := player.position.distance_to(ball.position)
 		if dist < CATCH_DISTANCE and ball.velocity.length() < MAX_CATCHABLE_SPEED:
 			player.switch_state(Player.State.HOLDING_BALL)
@@ -107,8 +107,8 @@ func make_decisions() -> void:
 			_dive_reaction_start = 0  # close enough to run — cancel any pending dive
 		else:
 			if _dive_reaction_start == 0:
-				_dive_reaction_start = Time.get_ticks_msec()
-			elif Time.get_ticks_msec() - _dive_reaction_start >= REACTION_DELAY:
+				_dive_reaction_start = MatchClock.now_ms()
+			elif MatchClock.now_ms() - _dive_reaction_start >= REACTION_DELAY:
 				_dive_reaction_start = 0
 				player.switch_state(Player.State.DIVING)
 	else:
@@ -119,12 +119,12 @@ func _make_holding_decisions() -> void:
 	# already sitting there means there's no reason to make the keeper stand
 	# still for the full cautious delay — release quickly instead.
 	if _hold_start_time == 0:
-		_hold_start_time = Time.get_ticks_msec()
+		_hold_start_time = MatchClock.now_ms()
 		_hold_has_quick_outlet = _find_long_kick_target() != null
 		return
 
 	var decision_delay := QUICK_RELEASE_DELAY if _hold_has_quick_outlet else HOLD_DECISION_DELAY
-	if Time.get_ticks_msec() - _hold_start_time < decision_delay:
+	if MatchClock.now_ms() - _hold_start_time < decision_delay:
 		return
 
 	_hold_start_time = 0  # Reset — either we release, or we restart the wait
@@ -139,7 +139,7 @@ func _make_holding_decisions() -> void:
 			DebugDraw.cross(long_target.position, Color.YELLOW, 5.0, 2.0)
 		if DEBUG_LOG_DISTRIBUTION:
 			print("[GK %s] DECISION: LONG KICK → %s at %s" % [player.full_name, long_target.full_name, long_target.position])
-		_release_long_kick(long_target.position)
+		_release_long_kick(long_target.position, long_target)
 		return
 
 	# Must match what PlayerStatePassing will actually kick to (it calls this
@@ -158,7 +158,7 @@ func _make_holding_decisions() -> void:
 				player.full_name, short_target.full_name, short_target.position, short_target.velocity, lead
 			])
 		_face_toward(short_target.position)
-		_catch_cooldown_end = Time.get_ticks_msec() + CATCH_COOLDOWN
+		_catch_cooldown_end = MatchClock.now_ms() + CATCH_COOLDOWN
 		_hold_retry_count = 0
 		player.switch_state(Player.State.PASSING)
 		return
@@ -175,9 +175,11 @@ func _make_holding_decisions() -> void:
 	_hold_retry_count = 0
 	_clear_ball()
 
-func _release_long_kick(destination: Vector2) -> void:
+## [param receiver] null = an untargeted clearance (see _clear_ball).
+func _release_long_kick(destination: Vector2, receiver: Player = null) -> void:
 	_face_toward(destination)
-	_catch_cooldown_end = Time.get_ticks_msec() + CATCH_COOLDOWN
+	_catch_cooldown_end = MatchClock.now_ms() + CATCH_COOLDOWN
+	GameEvents.pass_attempted.emit(player, receiver, destination)
 	ball.long_kick(destination)
 	player.switch_state(Player.State.MOVING)
 
@@ -187,8 +189,8 @@ func _release_long_kick(destination: Vector2) -> void:
 ## imprecise hoof instead of just another long_kick with no target.
 func _clear_ball() -> void:
 	var forward := player.position.direction_to(target_goal.get_center_target_position())
-	var aim := forward.rotated(deg_to_rad(randf_range(-CLEAR_ANGLE_JITTER_DEG, CLEAR_ANGLE_JITTER_DEG)))
-	var destination := player.position + aim * randf_range(CLEAR_MIN_DISTANCE, CLEAR_MAX_DISTANCE)
+	var aim := forward.rotated(deg_to_rad(MatchRng.randf_range(-CLEAR_ANGLE_JITTER_DEG, CLEAR_ANGLE_JITTER_DEG)))
+	var destination := player.position + aim * MatchRng.randf_range(CLEAR_MIN_DISTANCE, CLEAR_MAX_DISTANCE)
 	if DebugDraw.SHOW_GK_DISTRIBUTION:
 		DebugDraw.line(player.position, destination, Color.RED, 2.0)
 		DebugDraw.cross(destination, Color.RED, 5.0, 2.0)

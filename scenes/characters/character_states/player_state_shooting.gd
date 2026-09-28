@@ -30,4 +30,5 @@ func on_animation_complete() -> void:
 	
 func shoot_ball() -> void:
 	var actual_speed := SHOT_SPEED_MIN + (state_data.shot_power / 100.0) * (SHOT_SPEED_MAX - SHOT_SPEED_MIN)
+	GameEvents.shot_taken.emit(player, player.position)
 	ball.shoot(state_data.shot_direction * actual_speed)

@@ -1,0 +1,27 @@
+{
+  "_comment": "Target bands for batch-harness metrics (docs/match-engine-v2.md). Rates only: sim time is compressed (360s ~ 90min), so totals are not comparable to real matches except where noted. Sources: typical top-flight open-play figures (Opta/StatsBomb/Wyscout public summaries). Bands are deliberately wide first-pass estimates; tighten as calibration progresses.",
+  "per_side": {
+    "pass_completion":           [0.72, 0.88],
+    "progressive_share":         [0.08, 0.25],
+    "forward_share":             [0.35, 0.60],
+    "avg_pass_length_m":         [12.0, 24.0],
+    "xg_per_shot":               [0.07, 0.16],
+    "avg_shot_dist_m":           [12.0, 21.0],
+    "tackle_success":            [0.40, 0.70],
+    "possession_share":          [0.30, 0.70],
+    "turnovers_def_third_share": [0.08, 0.30],
+    "ppda":                      [5.0, 18.0],
+    "line_height_out_m":         [25.0, 48.0],
+    "length_out_m":              [22.0, 40.0],
+    "width_out_m":               [28.0, 52.0],
+    "length_in_m":               [30.0, 55.0],
+    "width_in_m":                [40.0, 64.0],
+    "shots":                     [4.0, 16.0],
+    "goals":                     [0.6, 2.2]
+  },
+  "match_level": {
+    "passes_per_possession":     [2.5, 6.0],
+    "possessions_3plus_share":   [0.30, 0.65],
+    "bunching_index":            [0.0, 0.8]
+  }
+}

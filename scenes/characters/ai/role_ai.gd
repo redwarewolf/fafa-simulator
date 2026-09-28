@@ -141,7 +141,7 @@ func _decide_on_ball() -> void:
 			# teammate", so this can't reuse _apply_run_support's own
 			# is_ball_carried_by_teammate() gate — it needs its own
 			# independent timestamp window. See docs/ai-overhaul.md Phase 9.
-			player.give_and_go_until_ms = Time.get_ticks_msec() + GIVE_AND_GO_WINDOW_MS
+			player.give_and_go_until_ms = MatchClock.now_ms() + GIVE_AND_GO_WINDOW_MS
 		_:
 			pass  # DRIBBLE/HOLD — keep moving toward the carrier target, no state change
 
@@ -245,7 +245,7 @@ func _off_ball_base_position() -> Vector2:
 		var shape_offset := ball.carrier.anchor_position - player.anchor_position
 		var mirrored := ball.carrier.position - shape_offset * support_shape_factor()
 		return _apply_run_support(mirrored)
-	if Time.get_ticks_msec() < player.give_and_go_until_ms:
+	if MatchClock.now_ms() < player.give_and_go_until_ms:
 		return _give_and_go_target()
 	return _ball_depth_base_position()
 

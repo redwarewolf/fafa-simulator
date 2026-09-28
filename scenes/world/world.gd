@@ -68,17 +68,30 @@ var _kickoff_team : String = ""
 ## up to the ball to start play. See _setup_kickoff().
 var _kickoff_taker : Player = null
 
+## Parent _enter_tree runs before any child's _enter_tree/_ready — the only
+## hook early enough to reset the sim clock and seed MatchRng before
+## ActorsContainer spawns players (whose AIBehavior already draws from
+## MatchRng in its own _ready). See docs/match-engine-v2.md Phase 1.
+func _enter_tree() -> void:
+	MatchClock.reset()
+	MatchRng.seed_match(MatchConfig.match_seed)
+
 func _ready() -> void:
 	GameEvents.team_scored.connect(_on_team_scored)
 	GameEvents.kickoff_ready.connect(_on_kickoff_ready)
 	GameEvents.ball_possessed.connect(_on_ball_possessed)
 	GameEvents.foul_called.connect(_on_foul_called)
 	match_summary_popup.continue_pressed.connect(_on_back_to_hub_pressed)
-	_setup_stadium()
+	if not MatchConfig.headless:
+		_setup_stadium()
 	# Opening kickoff: a proper restart, same as after a goal, just with a
 	# randomly chosen team instead of the conceding one.
-	_kickoff_team = [actors_container.team_left, actors_container.team_right].pick_random()
+	_kickoff_team = MatchRng.pick([actors_container.team_left, actors_container.team_right])
 	_transition(MatchState.KICKOFF)
+
+## MATCH_DURATION unless the batch harness overrides it (MatchConfig).
+func match_duration() -> float:
+	return MatchConfig.match_duration_override if MatchConfig.match_duration_override > 0.0 else MATCH_DURATION
 
 ## Rolls this match's attendance once (kickoff_ready fires only after a goal,
 ## never at match start, so _ready() is the only correct one-time hook) and
@@ -119,10 +132,10 @@ func _process(delta: float) -> void:
 		MatchState.IN_PLAY:
 			match_time += delta
 			GameEvents.match_time_updated.emit(match_time)
-			if match_time >= MATCH_DURATION:
+			if match_time >= match_duration():
 				_transition(MatchState.GAMEOVER)
 				return
-			if not _match_event_fired and match_time >= _next_event_check:
+			if not MatchConfig.disable_random_events and not _match_event_fired and match_time >= _next_event_check:
 				_next_event_check += EVENT_CHECK_INTERVAL
 				_maybe_trigger_match_event()
 		MatchState.SCORED:
@@ -201,9 +214,9 @@ func _pick_kickoff_taker(team: String) -> Player:
 		if p.role in KICKOFF_TAKER_ROLES:
 			forwards.append(p)
 	if not forwards.is_empty():
-		return forwards.pick_random()
+		return MatchRng.pick(forwards)
 	if not outfield.is_empty():
-		return outfield.pick_random()
+		return MatchRng.pick(outfield)
 	return null
 
 ## A successful tackle was just ruled a foul (see Player.on_tackle_player).
@@ -295,6 +308,8 @@ func _transition(new_state: MatchState) -> void:
 		MatchState.GAMEOVER:
 			actors_container.process_mode = Node.PROCESS_MODE_DISABLED
 			GameEvents.game_over.emit()
+			if MatchConfig.headless:
+				return  # Harness reads the result itself — no season bookkeeping, save or popup.
 			_write_back_stamina()
 			var match_result := {}
 			if not SeasonManager.pending_player_fixture.is_empty():

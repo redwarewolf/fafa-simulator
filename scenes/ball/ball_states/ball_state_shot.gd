@@ -5,17 +5,17 @@ const DURATION := 1000
 const SHOT_HEIGHT := 5
 const SHOT_SPRITE_SCALE := 0.8
 
-var time_since_shot := Time.get_ticks_msec()
+var time_since_shot := MatchClock.now_ms()
 
 func _enter_tree() -> void:
 	set_ball_animation_from_velocity()
 	ball_sprite.scale.y = SHOT_SPRITE_SCALE
 	ball.height = SHOT_HEIGHT # Escalarlo según poder a futuro.
-	time_since_shot = Time.get_ticks_msec()
+	time_since_shot = MatchClock.now_ms()
 	
 
 func _physics_process(delta: float) -> void:
-	if (Time.get_ticks_msec() - time_since_shot > DURATION): #Escalarlo según poder
+	if (MatchClock.now_ms() - time_since_shot > DURATION): #Escalarlo según poder
 		# This state never calls process_gravity, so height/height_velocity are
 		# still sitting at their _enter_tree values (SHOT_HEIGHT, 0) no matter
 		# how long the shot has been flying. Left alone, FREEFORM sees

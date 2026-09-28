@@ -72,6 +72,7 @@ var carrier: Player:
 			return
 		if value != null:
 			GameEvents.ball_possessed.emit(value.full_name)
+			GameEvents.possession_gained.emit(value)
 		else:
 			GameEvents.ball_released.emit()
 var velocity := Vector2.ZERO
