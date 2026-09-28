@@ -36,6 +36,7 @@ var _args := {
 	"out": "user://batch_results.json", "quiet": false,
 }
 var _clubs : Array[ClubResource] = []
+var _traced_passes : Array = []
 
 func _ready() -> void:
 	_parse_args()
@@ -123,6 +124,8 @@ func _run() -> void:
 	var summary := _aggregate(results)
 	summary["wall_s_total"] = (Time.get_ticks_msec() - t0) / 1000.0
 	_print_summary(summary)
+	if not _traced_passes.is_empty():
+		print("\n══════ PASS TRACE ══════\n" + PassTracer.summarize(_traced_passes))
 	_write_json({"args": _args, "summary": summary, "matches": results})
 	get_tree().quit(0)
 
@@ -133,6 +136,11 @@ func _play_one() -> Dictionary:
 	stats.name = "MatchStats"
 	stats.setup(world)
 	world.add_child(stats)
+	var tracer : PassTracer = null
+	if OS.has_environment("BATCH_PASSTRACE"):
+		tracer = PassTracer.new()
+		tracer.setup(world)
+		world.add_child(tracer)
 	var duration := world.match_duration()
 	var max_frames := int(duration * 60.0 * MAX_FRAMES_PER_MATCH_FACTOR)
 	var frames := 0
@@ -174,6 +182,8 @@ func _play_one() -> Dictionary:
 						"L" if q.is_left_team else "R", q.full_name, q.position.distance_to(b.position),
 						Player.State.keys()[q._current_state_type], qj, q.velocity.length(), q.process_mode, q.can_carry_ball()])
 	var r := stats.build_result()
+	if tracer != null:
+		_traced_passes.append_array(tracer.passes)
 	r["timed_out"] = world.state != MatchWorld.MatchState.GAMEOVER
 	r["sim_frames"] = frames
 	world.queue_free()

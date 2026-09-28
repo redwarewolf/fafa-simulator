@@ -175,6 +175,25 @@ Open issues (next tuning rounds):
 - The keeper is still v1.
 
 ## Findings log
+5. **The recurring "long passes fall short" bug, root causes: ✅ FIXED (2026-09-28).** The user flagged it as an old, recurring bug. Git history shows the lofted-pass launch was re-derived in Nov 2025, in May 2026 and again in Finding #2. Every attempt was checked against an idealised replay, never against live play.
+   - **How it was found.** `PassTracer` (`scenes/match/stats/pass_tracer.gd`, enabled with `BATCH_PASSTRACE=1`) follows every real pass from kick to whatever ends it.
+   - **Cause 1: the ball was caught in mid-flight.** Ball pickup was a flat 2D area check that ignored height, so any player the ball passed *over* collected it. 28–38% of lofted passes ended that way, at 18–27px height, many within the first 40% of the flight and mostly by opponents. That was the visible symptom, and it's invisible to any launch-maths fix.
+     - Fix: `Player.MAX_COLLECT_HEIGHT` (20px, about chest reach) is enforced in `BallStateFreeform._try_collect`. The overlap poll from Finding #3 re-checks every frame, so the ball becomes collectable as it comes down.
+     - `BallPredictor.earliest_intercept` and `PassModel` skip samples above reach height, so the AI models agree with the engine.
+   - **Cause 2: the ball hopped over the receiver.** Ground bounces kept 80% of vertical speed, so the first hop rose to 64% of the arc and skipped over a receiver standing on the landing spot. It also kept 80% of horizontal speed, so missed long balls rolled on and 19% went out of play.
+     - Fix: new `Ball.GROUND_BOUNCE_VERTICAL` (0.5) and `GROUND_BOUNCE_ROLL` (0.6). Wall rebounds keep `BOUNCINESS` 0.8.
+   - **Cause 3: v1 receivers didn't go to the ball.** v1 had no receive behaviour; the intended receiver kept running their role target.
+     - Fix: `Ball.intended_receiver` (set on `pass_attempted`). v1's `AIBehavior` now sends that player to the predicted, height-aware meeting point. v2 already had RECEIVE.
+   - **Result** (pass tracer, 4 × 180s, seeds 300–303):
+
+     | | v1 before | v1 after | v2 before | v2 after |
+     |---|---|---|---|---|
+     | Lofted pass reaches the receiver | 11% | **77%** | 69% | **79%** |
+     | Lofted pass won by an opponent | 48% | 14% | 7% | 11% |
+     | Lofted pass goes out of play | 18% | 0% | 19% | 8% |
+
+     v1 ground passes reaching the receiver rose from 28% to 63%. v1 overall pass completion (6 × 180s) rose from **45% to ~73%**.
+   - Tests: `test_lofted_pass_flies_over_midway_defender`; `tools/ball_probe.tscn` still measures first landing at 97–98% of the target.
 3. **Loose ball never collected by a player already standing on it: ✅ FIXED (2026-09-28).** Pickup only fired on `body_entered`. A player who reached a stopped ball while unable to carry it (mid-tackle or recovering), or a chaser who stopped exactly on it, never re-entered, so the ball sat dead for 50+ seconds. Found with the harness heartbeat trace. `BallStateFreeform` now also polls overlaps each physics frame. `Ball.KICK_COOLDOWN_MS` (300 ms) stops the kicker from re-collecting their own kick.
 4. **Tactics frozen for a whole match after the first one in a session: ✅ FIXED (2026-09-28). A regression I introduced in Phase 1.**
    - Cause: `ActorsContainer.time_since_last_tactical_refresh` was initialised from `MatchClock.now_ms()` when the scene was *instantiated*, before `MatchWorld._enter_tree()` reset the clock to 0. After a previous match that captured value was huge, so the refresh check stayed false for as long as the previous match had lasted.

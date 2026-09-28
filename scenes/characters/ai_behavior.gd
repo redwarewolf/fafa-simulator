@@ -66,6 +66,21 @@ func perform_ai_movement() -> void:
 		_debug_intent_kind = "press"
 		player.velocity = player.position.direction_to(restart_target) * player.speed * Locomotion.SPRINT_MULTIPLIER * player.get_stamina_factor()
 		return
+	# Intended receiver of a pass in flight: go and meet the ball where it
+	# can actually be collected (BallPredictor skips the part of a lofted
+	# ball's flight that's over everyone's head). Without this the receiver
+	# kept running their role target while the ball arrived, and lofted
+	# passes mostly ended with an opponent — see docs/match-engine-v2.md
+	# Findings #5.
+	if ball.carrier == null and ball.intended_receiver == player:
+		var path := BallPredictor.for_ball(ball, 3.0)
+		var t := BallPredictor.earliest_intercept(path, player)
+		var meet := path.position_at(t) if t != INF else path.end_position()
+		_debug_intent_target = meet
+		_debug_intent_kind = "role"
+		player.velocity = player.position.direction_to(meet) * player.speed * Locomotion.SPRINT_MULTIPLIER * player.get_stamina_factor() \
+			if player.position.distance_to(meet) > 6.0 else Vector2.ZERO
+		return
 	# Primary presser: close down the carrier/ball, bypassing formation and
 	# marking. Any outfield player can be the presser — role doesn't matter,
 	# only distance (and commitment — see TeamTacticalState). Same

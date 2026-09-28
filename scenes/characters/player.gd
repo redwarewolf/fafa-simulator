@@ -4,6 +4,14 @@ extends CharacterBody2D
 const DURATION_TACKLE := 200
 const GRAVITY := 8.0
 const BALL_CONTROL_HEIGHT_MAX := 10.0
+## Highest ball (height px) a standing outfield player can collect — about
+## chest/head reach. A lofted ball above this flies OVER players instead of
+## sticking to whoever it passes above: the ball's pickup Area2D is flat 2D,
+## so before this check anyone under the flight path "caught" it mid-air —
+## 28-38% of lofted passes ended that way in the pass tracer, the real cause
+## of the recurring "long passes fall short" bug. See docs/match-engine-v2.md
+## Findings #5.
+const MAX_COLLECT_HEIGHT := 20.0
 ## Reuses the celebration jump's height/height_velocity mechanic for a quick
 ## "dodge" hop when a tackle whiffs — smaller than PlayerStateCelebrating's
 ## JUMP_HEIGHT (2.0) so it reads as a dodge, not a goal celebration.

@@ -11,6 +11,10 @@ func on_player_enter(body: Player) -> void:
 func _try_collect(body: Player) -> bool:
 	if ball.carrier != null or not body.can_carry_ball() or ball.is_kick_cooldown(body):
 		return false
+	# Out of reach overhead — it'll be collectable once it comes down (the
+	# overlap poll below re-checks every frame).
+	if ball.height > Player.MAX_COLLECT_HEIGHT:
+		return false
 	ball.carrier = body
 	body.control_ball()
 	state_transition_requested.emit(Ball.State.CARRIED)
@@ -20,7 +24,7 @@ func _physics_process(delta: float) -> void:
 	set_ball_animation_from_velocity()
 	var friction = ball.FRICTION_AIR if ball.height > 0 else ball.FRICTION_GROUND
 	ball.velocity = ball.velocity.move_toward(Vector2.ZERO, friction*delta)
-	process_gravity(delta,ball.BOUNCINESS)
+	process_gravity(delta, Ball.GROUND_BOUNCE_VERTICAL)
 	move_and_bounce(delta)
 	# body_entered only fires on ENTERING the pickup area. A player already
 	# overlapping the ball when they become able to carry it (getting up from

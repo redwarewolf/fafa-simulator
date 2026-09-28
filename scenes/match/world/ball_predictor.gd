@@ -74,8 +74,8 @@ static func simulate(pos: Vector2, vel: Vector2, height: float, height_vel: floa
 				if height <= 0.0:
 					height = 0.0
 					if height_vel < 0.0:
-						height_vel = -height_vel * Ball.BOUNCINESS
-						vel *= Ball.BOUNCINESS
+						height_vel = -height_vel * Ball.GROUND_BOUNCE_VERTICAL
+						vel *= Ball.GROUND_BOUNCE_ROLL
 			pos += vel * DT
 		t += DT
 		step += 1
@@ -109,6 +109,8 @@ static func for_ball(ball: Ball, max_time: float = 3.0) -> BallPath:
 ## the path. Once the ball has stopped, arriving any time later still counts.
 static func earliest_intercept(path: BallPath, player: Player) -> float:
 	for i in path.size():
+		if path.heights[i] > Player.MAX_COLLECT_HEIGHT:
+			continue  # flying overhead — nobody can take it there
 		if PitchControl.time_to_reach(path.positions[i], player) <= path.times[i]:
 			return path.times[i]
 	if path.stop_time != INF:

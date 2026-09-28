@@ -18,6 +18,21 @@ const FRICTION_AIR := 35.0
 ## so shot distances didn't change when this dropped.
 const FRICTION_GROUND := 150.0
 const BOUNCINESS := 0.8
+## Horizontal speed kept when the ball bounces on the GROUND (grass eats more
+## of it than a wall rebound, which still uses BOUNCINESS). At 0.8 a lofted
+## ball nobody collected kept skipping on at near full pace — 19% of long
+## passes rolled out of play in the pass tracer.
+const GROUND_BOUNCE_ROLL := 0.6
+## Vertical restitution of a ground bounce (a football on grass is ~0.5-0.6).
+## At 0.8 a lofted pass's first hop rose to 64% of its arc — e.g. ~29px after
+## a 45px arc, above Player.MAX_COLLECT_HEIGHT — so it skipped straight over
+## the receiver standing on the landing spot.
+const GROUND_BOUNCE_VERTICAL := 0.5
+
+## The teammate the ball was last passed to, until someone gains possession
+## or play restarts — lets v1's AIBehavior send them to meet it (v2 uses its
+## own RECEIVE job).
+var intended_receiver: Player = null
 ## Passes past this distance loft into the air instead of staying grounded.
 ## Raised from 130: most real exchanges (100-300px) should stay fast, direct,
 ## grounded balls — lofting was previously the common case, not the exception.
@@ -77,6 +92,7 @@ var carrier: Player:
 			return
 		if value != null:
 			last_touch = value
+			intended_receiver = null
 			GameEvents.ball_possessed.emit(value.full_name)
 			GameEvents.possession_gained.emit(value)
 		else:
@@ -105,6 +121,8 @@ func _ready() -> void:
 	spawn_position = position
 	switch_state(State.FREEFORM)
 	GameEvents.team_reset.connect(_on_team_reset)
+	GameEvents.pass_attempted.connect(func(_p, receiver, _d): intended_receiver = receiver)
+	GameEvents.restart_awarded.connect(func(_k, _t, _s): intended_receiver = null)
 	_scoring_raycast = RayCast2D.new()
 	_scoring_raycast.collision_mask = Goal.SCORING_COLLISION_LAYER
 	_scoring_raycast.target_position = Vector2(RAYCAST_LENGTH, 0.0)
@@ -295,6 +313,7 @@ func is_headed_for_scoring_area(goal: Goal) -> bool:
 func _on_team_reset() -> void:
 	carrier = null
 	last_touch = null
+	intended_receiver = null
 	position = spawn_position
 	velocity = Vector2.ZERO
 	height = 0.0

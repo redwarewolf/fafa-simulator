@@ -65,8 +65,8 @@ static func evaluate(from: Vector2, to: Vector2, passer: Player, receiver: Playe
 	var worst := 0.0
 	for i in range(arrive_i + 1):
 		var t := path.times[i]
-		if t < SKIP_FIRST_S:
-			continue
+		if t < SKIP_FIRST_S or path.heights[i] > Player.MAX_COLLECT_HEIGHT:
+			continue  # too early, or flying over everyone's head
 		var pos := path.positions[i]
 		var t_def := INF
 		for o in opponents:

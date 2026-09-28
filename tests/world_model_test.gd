@@ -71,6 +71,20 @@ func test_open_pass_is_likely_blocked_pass_is_not() -> void:
 	assert_true(tight.p_success < open.p_success - 0.2, "tightly marked receiver scores lower (%.2f vs %.2f)" % [tight.p_success, open.p_success])
 	_free_players()
 
+## A lofted pass flies over a defender standing under its apex (the recurring
+## long-pass bug: pickup used to ignore height), but not over one standing
+## where it comes down.
+func test_lofted_pass_flies_over_midway_defender() -> void:
+	var passer := _player(Vector2(500, 600))
+	var receiver := _player(Vector2(1100, 600))
+	var under_apex := _player(Vector2(800, 600))
+	var over := PassModel.evaluate(passer.position, receiver.position, passer, receiver, [passer, receiver], [under_apex])
+	assert_true(over.p_intercept < 0.2, "defender under the apex can't reach it (p_intercept %.2f)" % over.p_intercept)
+	var at_landing := _player(Vector2(1085, 600))
+	var met := PassModel.evaluate(passer.position, receiver.position, passer, receiver, [passer, receiver], [at_landing])
+	assert_true(met.p_success < over.p_success - 0.3, "defender at the landing spot contests it (%.2f vs %.2f)" % [met.p_success, over.p_success])
+	_free_players()
+
 func test_through_ball_into_space_needs_the_runner_to_win_the_race() -> void:
 	var passer := _player(Vector2(900, 600))
 	var runner := _player(Vector2(1300, 600), 90.0, Vector2(100, 0))

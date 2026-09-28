@@ -39,7 +39,7 @@ func process_gravity(delta: float, bounciness: float = 0.0) -> void:
 			ball.height = 0
 			if bounciness > 0.0 and ball.height_velocity < 0:
 				ball.height_velocity = -ball.height_velocity * bounciness
-				ball.velocity *= bounciness
+				ball.velocity *= Ball.GROUND_BOUNCE_ROLL
 			
 			
 func can_air_interact() -> bool:
