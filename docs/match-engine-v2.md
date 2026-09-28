@@ -41,7 +41,7 @@ Full plan: see the phase list below. The code lives in `scenes/match/`. The old 
 | 0 | Checkpoint commit + this doc | ✅ done (tag `pre-engine-v2` → `7d8802c`) |
 | 1 | Deterministic clock, seeded RNG, stats, headless batch harness | ✅ done (`babab77`); pre-rules v1 baseline running |
 | 2 | Rules: offside, throw-ins, corners, goal kicks | ✅ done: unit tests + 7/7 live rules probe |
-| 3 | World model: ball predictor, pitch-control grid, xT, pass/shot models, MatchContext | pending |
+| 3 | World model: ball predictor, pitch-control grid, xT, pass/shot models, MatchContext | ✅ done (`b479e90`), incl. lofted-pass physics fix |
 | 4 | Tactical Brain: phase classification + hysteresis, live team shape, instructions | pending |
 | 5 | Coordinators: defensive / attacking / set-piece role assignment (Hungarian) | pending |
 | 6 | Player Brain: mental attributes, grid off-ball positioning, EPV on-ball decisions, receiving | pending |
@@ -108,5 +108,31 @@ Verification:
 
 Observation: in two 90s v1 smoke matches no throw-ins or corners happened at all. A position probe showed the ball never came within 5% of any line; in one match it stayed between 50% and 66% of the pitch length for 90 seconds, with one pass. That's the v1 AI stuck in a midfield scrum, not a rules bug. It's a useful baseline data point for v2.
 
+## Phase 3 notes
+
+What landed (`scenes/match/world/`):
+- **`BallPredictor`** replays the engine's own ball arithmetic step by step: the freeform air/ground friction switch, the per-tick (un-delta-scaled) height integration and bounce, and the shot's friction-free first second. A closed form would drift on exactly those quirks.
+  - `tools/ball_probe.tscn` compares it with the real ball in a match scene: within ~10px along whole paths.
+  - API: `for_pass`, `for_ball`, `earliest_intercept`, `first_to_ball`.
+- **`PassModel.evaluate(from, to, passer, receiver|null, …)`** is a Spearman-style race.
+  - Interception en route: max over path samples of P(fastest opponent reaches that point before the ball).
+  - Reception at the target: receiver, or the fastest teammate for a pass into space, against the fastest opponent.
+  - It uses the logistic `1/(1+exp(-π/(√3·0.45)·Δt))`.
+- **`PitchControlGrid`**: 24×10 cells in trapezoid-normalised space, best time-to-reach per team through the same logistic.
+  - Refreshed a third of the rows per frame (20 Hz at 60 fps).
+  - Measured at **0.77 ms/frame mean**, 2.7 ms max, with a concurrent batch competing for CPU.
+- **`XtGrid`**: an *analytic* xT surface (a progression term plus 0.8×xG), calibrated to published landmarks and covered by tests. It will be re-fitted from harness data by value iteration in Phase 10.
+- **`ShotModel.xg()`**: `xg_basic` discounted by blockers in the shot triangle and by pressure within 2m.
+- **`MatchContext`** (a node under ActorsContainer): owns the grid, answers `control_at` / `xt_at` / `value_at`, and draws the debug overlays (`SHOW_PITCH_CONTROL`, `SHOW_XT`, `SHOW_BALL_PREDICTION`, `SHOW_PASS_FAN`). It's only created when a side runs v2 or an analytics overlay is on.
+- The pass launch was extracted into `Ball.pass_launch()`, so the models evaluate exactly the kick the engine performs.
+
+Tests: 26/26 (`tests/world_model_test.gd`: pass stopping/landing accuracy, shot hot phase, intercept ordering, open/blocked/marked passes, through-ball race, pitch-control symmetry, xT landmarks and mirroring).
+
 ## Findings log
+2. **Every lofted pass fell short at ~26–30% of its intended distance: ✅ FIXED (2026-09-28).** Found by validating BallPredictor against the real ball (`tools/ball_probe.tscn`): 350px → 90px, 600px → 180px, 900px → 264px.
+   - Cause: `pass_to`'s lofted branch sized speed for air friction but set `height_velocity` via a sqrt(dt) scale. Under the engine's per-tick height integration that gave ~0.3s of airtime, so the ball landed almost at once and ground friction stopped it early.
+   - Consequence: in v1, every pass over 300px, including switches, through balls and long outlets, went to nobody. That's a large hidden contributor to v1's poor completion and scrum-like play.
+   - Fix: `Ball.pass_launch()` picks an airtime from distance (`loft_time`, 0.7–1.6s), sets `height_velocity = GRAVITY·T/2` from the discrete scheme, and sizes speed as `(d + ½·a_air·T²)/T`. Measured first landing is now 97–98% of the target.
+   - Follow-up for Phase 7: after landing, a missed long ball rolls far past the target (the bounce keeps 80% of horizontal speed). The receiving/first-touch work should handle this, and arc heights (45–190px) should be reviewed once height starts to matter for interceptions.
+   - The pre-rules v1 baseline predates this fix.
 1. **The pitch is drawn in perspective** (2026-09-28). The end-line walls in `world.tscn` are slanted polygons, not vertical lines, so `ActorsContainer.FIELD_LEFT/RIGHT` are only approximations of the goal lines. Phase 2's out-of-play detection must use the real wall lines. It keeps the walls as a physical backstop and detects the ball crossing a line just inside them.
