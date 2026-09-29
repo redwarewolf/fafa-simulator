@@ -477,6 +477,19 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
   | **+ g5 (adopted)** | **1.7** | 28 | 1.4–1.5 | 59–68% | 20–21m |
   | + g6 | 1.7 | 26 | 1.4–1.6 | 59–68% | 20–22m |
 
+- **v2 is now the default for watched matches.** v2 vs v1, 64 full 480s matches:
+
+  | per match | v2 | v1 |
+  |---|---|---|
+  | wins | 33 | 7 (24 draws) |
+  | goals | 1.06 | 0.33 |
+  | xG | 1.05 | 0.19 |
+  | shots | 5.5 | 0.7 |
+  | completion | 87% | 77% |
+
+  - xG diff **+0.86 ± 0.10**, goal diff +0.73 ± 0.15.
+  - `GameState.match_ai_version` defaults to "v2". Settings saved before `ai_default_rev` 2 are migrated once, since they only stored "v1" because any settings change wrote the old default.
+  - The pause-menu toggle still switches back to v1.
 - **Harness note:** `run_parallel.sh ... 180` now plays 180s matches *with* a half-time at 90s. Use duration 480 for full matches; earlier 180s numbers are comparable as rates, not totals.
 
 ## Findings log
