@@ -90,7 +90,9 @@ func test_steer_velocity_limits_turning() -> void:
 	var p := _player(Vector2.ZERO, 100.0, Vector2(150, 0))
 	p.max_accel = 100.0
 	p.steer_velocity(Vector2(-150, 0), 0.1)
-	assert_near(p.velocity.x, 150.0 - 100.0 * Player.BRAKE_FACTOR * 0.1, 0.01, "braking limited per frame")
+	# Reversing: speed drops at the braking rate (the running direction also
+	# starts rotating — Player._turn_and_run — so check the true speed).
+	assert_near(PitchSpace.iso_len(p.velocity), 150.0 - 100.0 * Player.BRAKE_FACTOR * 0.1, 0.01, "braking limited per frame")
 	var q := _player(Vector2.ZERO, 100.0, Vector2(150, 0))
 	q.steer_velocity(Vector2(-150, 0), 0.1)
 	assert_near(q.velocity.x, -150.0, 0.01, "v1 (max_accel 0) snaps as before")
@@ -146,6 +148,28 @@ func test_movement_is_true_distance_in_every_direction() -> void:
 			p.steer_velocity(dir * 150.0, 1.0 / 60.0)
 		var ms := Vector2(p.velocity.x * mpp.x, p.velocity.y * mpp.y).length()
 		assert_near(ms, 150.0 * mpp.x, 0.05, "top speed %s = %.2f m/s" % [str(dir), ms])
+	_free_players()
+
+## Turning like a runner, not a puck: reversing at full speed brakes and
+## turns within a few metres instead of sliding on; a slow player pivots.
+func test_turning_brakes_then_turns() -> void:
+	var p := _player(Vector2(1100, 600), 150.0)
+	p.max_accel = 90.0
+	var top := 150.0 * Locomotion.SPRINT_MULTIPLIER
+	p.velocity = Vector2.RIGHT * top
+	var start_x := p.position.x
+	var furthest := start_x
+	for i in 180:
+		p.steer_velocity(Vector2.LEFT * top, 1.0 / 60.0)
+		p.position += p.velocity / 60.0
+		furthest = maxf(furthest, p.position.x)
+	assert_true(p.velocity.x < -0.5 * top, "heading back left at speed (vx %.0f)" % p.velocity.x)
+	var overrun_m := (furthest - start_x) * PitchSpace.metres_per_px().x
+	assert_true(overrun_m < 6.0, "overran %.1fm before turning (sliding on would be more)" % overrun_m)
+	# Slow: turns on the spot.
+	p.velocity = Vector2.RIGHT * 10.0
+	p.steer_velocity(Vector2.DOWN * top, 1.0 / 60.0)
+	assert_true(p.velocity.normalized().dot(Vector2.DOWN) > 0.99, "a slow player pivots at once")
 	_free_players()
 
 ## A pass arrives with pace and rolls on: a runner who only gets there late

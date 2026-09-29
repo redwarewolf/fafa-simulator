@@ -167,11 +167,51 @@ func steer_velocity(desired: Vector2, delta: float) -> void:
 		velocity = PitchSpace.from_iso(d_iso)
 		return
 	var v_iso := PitchSpace.iso(velocity)
-	# Braking/turning (the desired vector doesn't extend the current one)
-	# uses the stronger braking limit.
-	var extending := d_iso.length() >= v_iso.length() and d_iso.dot(v_iso) >= 0.0
-	var limit := max_accel * (1.0 if extending else BRAKE_FACTOR) * delta
-	velocity = PitchSpace.from_iso(v_iso.move_toward(d_iso, limit))
+	if not Tuning.b("turn_model", true):
+		# Old blend: velocity slides linearly toward the desired one.
+		var extending := d_iso.length() >= v_iso.length() and d_iso.dot(v_iso) >= 0.0
+		var limit := max_accel * (1.0 if extending else BRAKE_FACTOR) * delta
+		velocity = PitchSpace.from_iso(v_iso.move_toward(d_iso, limit))
+		return
+	velocity = PitchSpace.from_iso(_turn_and_run(v_iso, d_iso, delta))
+
+# ─── Turning ─────────────────────────────────────────────────────────────────
+# Direction and speed change separately, like a runner rather than a puck.
+# The old steering slid the velocity vector linearly toward the new one, so a
+# change of direction at speed drifted sideways/backwards through the old
+# momentum — it read as skating. Now the running direction ROTATES toward the
+# new one at a rate limited by grip (TURN_GRIP × acceleration ÷ speed: fast
+# runs curve wide, slow ones turn tight); a turn sharper than SHARP_TURN_DEG
+# brakes hard to pivot speed first; below pivot speed a player just turns.
+# Knob `turn_model`.
+
+## Lateral grip, as a multiple of the player's acceleration (~7-10 m/s²).
+const TURN_GRIP := 1.8
+## Below this fraction of top speed a player turns on the spot.
+const PIVOT_FRAC := 0.3
+## Turns sharper than this brake to pivot speed instead of carving round.
+const SHARP_TURN_DEG := 75.0
+
+func _turn_and_run(v: Vector2, d: Vector2, delta: float) -> Vector2:
+	var s := v.length()
+	var s_d := d.length()
+	var pivot := speed * Locomotion.SPRINT_MULTIPLIER * PIVOT_FRAC
+	var dir : Vector2
+	var target := s_d
+	if s <= pivot or s < 1.0:
+		# Slow: face wherever you want to go.
+		dir = d / s_d if s_d > 0.0 else (v / s if s > 0.0 else Vector2.ZERO)
+	else:
+		dir = v / s
+		if s_d > 0.0:
+			var ang := dir.angle_to(d / s_d)
+			var max_turn := TURN_GRIP * max_accel / s * delta
+			dir = dir.rotated(clampf(ang, -max_turn, max_turn))
+			if absf(ang) > deg_to_rad(SHARP_TURN_DEG):
+				target = minf(s_d, pivot)  # plant: brake into the turn
+	var ns := minf(target, s + max_accel * delta) if target > s \
+		else maxf(target, s - max_accel * BRAKE_FACTOR * delta)
+	return dir * ns
 
 ## Kept for stamina read/write-back only (see stamina below) — everything
 ## else about this player already got copied into plain fields above.
