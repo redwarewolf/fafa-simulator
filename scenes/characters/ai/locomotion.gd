@@ -31,7 +31,10 @@ const OPPONENT_AVOID_AHEAD_DOT := 0.2
 ## "sprinting tires you out faster."
 const SPRINT_MULTIPLIER := 1.25
 
-static func compute_velocity(player: Player, target: Vector2, ball: Ball, opponent_detection_area: Area2D) -> Vector2:
+## [param max_speed] (px/s, before fatigue): the gait the brain chose for an
+## off-ball player (PlayerBrain._gait_speed); < 0 = full sprint. The carrier
+## always moves at their dribble speed.
+static func compute_velocity(player: Player, target: Vector2, ball: Ball, opponent_detection_area: Area2D, max_speed: float = -1.0) -> Vector2:
 	var dist := player.position.distance_to(target)
 	var seek := player.position.direction_to(target) * clampf(dist / 30.0, 0.2, 1.0)
 
@@ -43,7 +46,8 @@ static func compute_velocity(player: Player, target: Vector2, ball: Ball, oppone
 	# Carrying the ball is slower than running free (see
 	# Player.get_dribble_speed) — a chasing defender running at full `speed`
 	# needs to actually be faster than the carrier to ever close the gap.
-	var move_speed := player.get_dribble_speed() if ball.carrier == player else player.speed * SPRINT_MULTIPLIER
+	var move_speed := player.get_dribble_speed() if ball.carrier == player \
+		else (max_speed if max_speed >= 0.0 else player.speed * SPRINT_MULTIPLIER)
 	# Fatigue (see Player.stamina/get_stamina_factor) scales both cases down
 	# together, so the relative chase dynamic above still holds late in a
 	# match — a tired carrier and a tired chaser both slow down, not just one.

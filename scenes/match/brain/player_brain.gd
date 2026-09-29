@@ -236,7 +236,7 @@ func _roll_position_error() -> void:
 func _move_off_ball() -> void:
 	player.mark_target = job.subject if job != null and job.kind == Job.Kind.MARK else null
 	if job == null:
-		player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area)
+		player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area, _gait_speed())
 		return
 	var carrier := ctx.ball.carrier
 	var own_goal := player.own_goal.get_center_target_position()
@@ -250,7 +250,7 @@ func _move_off_ball() -> void:
 						# for better odds instead of diving in.
 						_target = carrier.position + carrier.velocity * 0.2 \
 							+ carrier.position.direction_to(own_goal) * JOCKEY_DIST
-						player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area)
+						player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area, _gait_speed())
 						return
 					var lead := clampf(PitchSpace.iso_len(carrier.position - player.position) / maxf(player.speed, 1.0), 0.0, 1.0)
 					var aim := carrier.position + carrier.velocity * lead
@@ -283,7 +283,71 @@ func _move_off_ball() -> void:
 			player.velocity = player.position.direction_to(_target) * minf(_sprint_speed(), _arrival_cap(dt - 6.0)) \
 				if dt > 6.0 else Vector2.ZERO
 			return
-	player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area)
+	player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area, _gait_speed())
+
+# ─── Gaits ──────────────────────────────────────────────────────────────────
+# Real players jog most of the time and sprint only when it matters (~2 m/s
+# average over a match, sprinting 1-3% of the time). Everything used to move
+# at full sprint — 4.8 m/s average, sprinting 25% of the time — which read as
+# everyone darting about too fast. Pressing to win the ball, chasing or
+# intercepting a loose ball and receiving always sprint (their own code paths
+# above); positional jobs pick a gait here, stepping up the further the player
+# is from where they should be. Knob `gaits` (off = always sprint).
+
+## Gait speeds as fractions of the sprint (top) speed.
+const WALK_FRAC := 0.22
+const JOG_FRAC := 0.45
+const RUN_FRAC := 0.7
+## Distance from the target (m): below WALK_GAP_M a shape job just walks
+## (small adjustments); beyond RUN_GAP_M it runs, beyond SPRINT_GAP_M sprints.
+const WALK_GAP_M := 4.0
+const RUN_GAP_M := 8.0
+## Defensive jobs (press/cover/mark/lane cut) sprint beyond this gap.
+const DEF_SPRINT_GAP_M := 3.0
+## Players within this distance of the ball are "in the play".
+const NEAR_BALL_M := 20.0
+const SPRINT_GAP_M := 20.0
+
+func _gait_speed() -> float:
+	var top := _sprint_speed()
+	if not Tuning.b("gaits", true):
+		return top
+	var m_per_px := PitchSpace.metres_per_px().x
+	var gap_m := PitchSpace.iso_len(_target - player.position) * m_per_px
+	var kind := job.kind if job != null else Job.Kind.ZONE
+	var defending := team.tactical.out_of_possession()
+	# Involvement: near the ball, everyone out of position works at full
+	# intensity; the relaxed gaits are for players away from the play (a first
+	# cut calmed everyone equally: 97% completion, PPDA 26-29, 0.3 goals).
+	var ball_m := PitchSpace.iso_len(ctx.ball.position - player.position) * m_per_px
+	if ball_m < NEAR_BALL_M and gap_m > WALK_GAP_M:
+		return top if defending or gap_m > RUN_GAP_M else top * RUN_FRAC
+	match kind:
+		Job.Kind.PRESS, Job.Kind.COVER, Job.Kind.MARK, Job.Kind.LANE_CUT:
+			# Defending the ball and the danger: sprint to close any real gap
+			# (with only a run here the first cut conceded 97% completion and a
+			# PPDA of 20 — nobody could get near the ball); a marker at least
+			# keeps pace with his runner.
+			if gap_m > DEF_SPRINT_GAP_M:
+				return top
+			var pace := top * RUN_FRAC
+			if kind == Job.Kind.MARK and job.subject != null:
+				pace = maxf(pace, minf(top, PitchSpace.iso_len(job.subject.velocity) * 1.1))
+			return pace
+		Job.Kind.RUN:
+			# A run in behind: hold the line at a run, sprint once it's on (a
+			# teammate has the ball) or when well off the line.
+			var on := ctx.ball.carrier != null and ctx.ball.carrier.is_left_team == player.is_left_team
+			return top if on or gap_m > RUN_GAP_M else top * RUN_FRAC
+		_:
+			# Shape (zone / rest defence / support / set pieces): jog, run when
+			# out of position, sprint to recover a long way in a transition.
+			if gap_m > SPRINT_GAP_M and team.tactical.phase in [TacticalBrain.Phase.TRANSITION_DEFENCE, TacticalBrain.Phase.TRANSITION_ATTACK]:
+				return top
+			# Out of possession the block shifts with the ball at a run.
+			if gap_m > (WALK_GAP_M if defending else RUN_GAP_M):
+				return top * RUN_FRAC
+			return top * JOG_FRAC if gap_m > WALK_GAP_M else top * WALK_FRAC
 
 ## Final approach to a loose ball: within this distance, stop running to the
 ## predicted meeting point and go at the ball itself. The pickup reach is only

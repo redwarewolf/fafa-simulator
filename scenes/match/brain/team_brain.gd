@@ -39,10 +39,14 @@ const FORBIDDEN := 1.0e6
 # ─── Defensive coordinator constants ────────────────────────────────────────
 const COVER_DIST := 95.0
 const CONTAIN_DIST := 70.0
-const MAX_MARKS := 4
+## Up to this many man-marks. With realistic movement (true-distance running
+## and gaits, Phase 7 part 5) the zonal block alone left receivers ~14m free
+## and 97% of passes completed; marking every threat down to 0.003 xT (with
+## press_on_pass) brought pressure on release to ~30% and goals to ~2/match.
+const MAX_MARKS := 6
 ## Opponents less threatening than this (xT at their spot, run-adjusted) are
 ## left to the zonal shape rather than man-marked.
-const MARK_DANGER_MIN := 0.012
+const MARK_DANGER_MIN := 0.003
 const TIGHT_MARK_PX := 22.0
 const LOOSE_MARK_PX := 48.0
 ## Carrier this close to one of ours counts as pressured (ball-pressure rule).
@@ -186,7 +190,7 @@ func _defensive_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dict
 const PRESS_ON_PASS_GOALSIDE_PX := 30.0
 
 func _press_on_pass(specials: Array, own_goal: Vector2) -> Player:
-	if not Tuning.b("press_on_pass", false) or ctx.last_pass.is_empty() or ctx.ball_path == null:
+	if not Tuning.b("press_on_pass", true) or ctx.last_pass.is_empty() or ctx.ball_path == null:
 		return null
 	if ctx.last_pass["left"] == team_left:
 		return null
