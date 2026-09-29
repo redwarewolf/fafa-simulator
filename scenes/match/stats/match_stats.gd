@@ -32,6 +32,8 @@ var _shape_timer := 0.0
 var _last_possessor: Player = null
 var _pending_pass: Dictionary = {}  # side, origin, destination, receiver, in_ppda_zone
 var _acq: Dictionary = {}  # how the current carrier got the ball: player, how (pass/won/loose), pos
+var _intercepted_pass := false
+var _last_tackle_win_t := -100.0
 var _passes_in_possession := 0
 var _possession_lengths: Array[int] = []  # completed passes per possession, both sides pooled
 
@@ -111,6 +113,7 @@ func _on_possession_gained(p: Player) -> void:
 	elif _last_possessor != null and _side(_last_possessor) != side:
 		how = "won"
 	_acq = {"player": p, "how": how, "pos": p.position}
+	_intercepted_pass = not _pending_pass.is_empty() and _pending_pass["side"] != side
 	if not _pending_pass.is_empty():
 		var ps : Dictionary = _pending_pass
 		_pending_pass = {}
@@ -124,6 +127,17 @@ func _on_possession_gained(p: Player) -> void:
 				_s[side]["high_def_actions"] += 1
 	if _last_possessor != null and _side(_last_possessor) != side:
 		_on_turnover(_side(_last_possessor), side, p.position)
+		# Why possession changed hands (from the loser's point of view).
+		var cause := "loose"
+		if _world.state in [MatchWorld.MatchState.RESTART, MatchWorld.MatchState.KICKOFF]:
+			cause = "restart"
+		elif p.role == Positions.Role.GK:
+			cause = "keeper"
+		elif how == "won" and MatchClock.now() - _last_tackle_win_t < 1.0:
+			cause = "tackled"
+		elif _intercepted_pass:
+			cause = "pass_intercepted"
+		_tel(_side(_last_possessor), "turnover_by_" + cause)
 		# Who lost it, by formation group — diagnoses e.g. keeper distribution.
 		var group_name : String = "gk" if _last_possessor.role == Positions.Role.GK \
 			else String(Positions.Group.keys()[Positions.group(_last_possessor.role)]).to_lower()
@@ -271,6 +285,7 @@ func _on_tackle_resolved(tackler: Player, carrier: Player, won: bool, foul: bool
 	_s[side]["tackles"] += 1
 	if won:
 		_s[side]["tackles_won"] += 1
+		_last_tackle_win_t = MatchClock.now()
 	if foul:
 		_s[side]["fouls"] += 1
 	# A tackle on a carrier in their own build-up zone is a high defensive action.
@@ -286,6 +301,18 @@ func _on_foul_called(_fouled: Player, _where: Vector2) -> void:
 ## Counted for the side AWARDED the restart ("corners won", "throw-ins",
 ## "offsides won" = the defending side was awarded the free kick).
 func _on_restart_awarded(kind: int, team: String, _spot: Vector2) -> void:
+	# What sent the ball out (before _on_restart clears the pending pass).
+	if kind in [Restart.Kind.THROW_IN, Restart.Kind.CORNER, Restart.Kind.GOAL_KICK]:
+		var loser := "R" if team == _world.actors_container.team_left else "L"
+		var what := "carry"
+		if not _shot.is_empty():
+			what = "shot"
+		elif not _pending_pass.is_empty():
+			what = "pass" if _pending_pass["side"] == loser else "opp_pass"
+		elif _ball.last_touch != null and _last_possessor != null and _ball.last_touch != _last_possessor:
+			what = "deflection"
+		_tel(loser, "out_by_" + what)
+		_tel(loser, "out_total")
 	_on_restart()
 	_close_shot("stoppage")
 	var side := "L" if team == _world.actors_container.team_left else "R"
@@ -517,4 +544,15 @@ const POOLED_RATES := {
 	"free_kick_shots_per": ["tel_sp_shots_free_kick", "tel_sp_awarded_free_kick"],
 	"free_kick_xg_per": ["tel_sp_xg_free_kick", "tel_sp_awarded_free_kick"],
 	"throw_in_shots_per": ["tel_sp_shots_throw_in", "tel_sp_awarded_throw_in"],
+	# Turnover causes, as shares of all turnovers.
+	"to_share_tackled": ["tel_turnover_by_tackled", "turnovers"],
+	"to_share_pass_intercepted": ["tel_turnover_by_pass_intercepted", "turnovers"],
+	"to_share_keeper": ["tel_turnover_by_keeper", "turnovers"],
+	"to_share_restart": ["tel_turnover_by_restart", "turnovers"],
+	"to_share_loose": ["tel_turnover_by_loose", "turnovers"],
+	"out_share_pass": ["tel_out_by_pass", "tel_out_total"],
+	"out_share_carry": ["tel_out_by_carry", "tel_out_total"],
+	"out_share_shot": ["tel_out_by_shot", "tel_out_total"],
+	"out_share_deflection": ["tel_out_by_deflection", "tel_out_total"],
+	"out_share_opp_pass": ["tel_out_by_opp_pass", "tel_out_total"],
 }

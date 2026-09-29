@@ -303,6 +303,24 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
 - **Still open:** passes per possession ~1.6, and the out-of-possession block at ~49m long (target ≤40).
 - **Not done yet:** touch-based dribbling (the ball running ahead between touches).
 
+**Part 2: defensive shape and short possessions** (all 64 × 180s, v2 vs v2):
+- **Compactness:** new knobs `def_length_scale` and `counterpress_line_step`. The back line steps up behind a high counter-press. Adopted (0.75, +0.1): block length 49 → 46m, completion 76%, 28/43 metrics in band (was 24).
+  - `press_trigger_shift` sweeps (−0.2 to +0.1) changed nothing measurable, so it stays at 0.
+- **New telemetry: why possession ends** (`to_share_*`):
+
+  | cause | share |
+  |---|---|
+  | ball out of play | 41–45% |
+  | pass intercepted | 34–39% |
+  | keeper | 13–15% |
+  | loose | 6–8% |
+  | tackled | ~1% |
+
+- **New telemetry: why the ball went out** (`out_share_*`). Shots and carries were about 1/3 each, passes about 1/4, deflections about 5%.
+- **Touchline margins:** carries must end ≥9% of the width inside the touchline (was 4%). Pass targets must be ≥8% inside (was 4%). Knobs: `carry_margin_x/y`, `pass_margin_y`.
+  - Throw-ins fell from 2.2 to 1.6 per side and the carries-out share from 0.38 to 0.33. Completion rose to 76%.
+- **In context:** since 180s ≈ a half, real football has *more* restarts than we do (≈10 throw-ins per side per half). Restarts are therefore not what makes possessions short. What remains is passes intercepted and the tempo of realistic movement. Ball-glued dribbling means a carrier can only lose the ball to a tackle (1%). Touch dribbling (next) will change that.
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);

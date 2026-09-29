@@ -56,6 +56,13 @@ const LINE_MIN_LOW := 0.14
 const LINE_MIN_HIGH := 0.22
 const LINE_MAX_LOW := 0.36
 const LINE_MAX_HIGH := 0.52
+## Out-of-possession block length multiplier and the counter-press line
+## step — Phase 7 re-tune knobs. The block measured ~49m at realistic speed;
+## a 3x64-match sweep picked (0.75, +0.1): 46.5m, completion 76%, forward
+## 59%, progressive 20-23%, 28/43 metrics in band (vs 24/43).
+const DEF_LENGTH_SCALE := 0.75
+const COUNTERPRESS_LINE_STEP := 0.1
+
 ## How far behind the ball the defensive line sits (fraction of pitch length).
 const LINE_GAP_LOW := 0.26
 const LINE_GAP_HIGH := 0.17
@@ -86,10 +93,15 @@ static func params_for(phase: int, mentality: float, press: float, ball_n: Vecto
 			p.width = 0.92
 			p.shift_y = 0.12
 		_:
-			p.length = lerpf(0.34, 0.28, press)
+			p.length = lerpf(0.34, 0.28, press) * Tuning.f("def_length_scale", DEF_LENGTH_SCALE)
 			var gap := lerpf(LINE_GAP_LOW, LINE_GAP_HIGH, press)
+			var line_max := lerpf(LINE_MAX_LOW, LINE_MAX_HIGH, press)
+			# Counter-pressing high up the pitch: the back line steps up behind
+			# the pressers instead of leaving a 50m gap.
+			if phase == TacticalBrain.Phase.TRANSITION_DEFENCE and ball_n.x > 0.5:
+				line_max += Tuning.f("counterpress_line_step", COUNTERPRESS_LINE_STEP)
 			p.back_x = clampf(ball_n.x - gap + line_adjust,
-				lerpf(LINE_MIN_LOW, LINE_MIN_HIGH, press), lerpf(LINE_MAX_LOW, LINE_MAX_HIGH, press))
+				lerpf(LINE_MIN_LOW, LINE_MIN_HIGH, press), line_max)
 			p.width = 0.64
 			p.shift_y = 0.38
 	return p

@@ -62,7 +62,7 @@ func update(ctx: MatchContext, now: float) -> void:
 	# Transitions decay into settled phases.
 	if phase == Phase.TRANSITION_ATTACK and now - owner_since > TRANSITION_ATTACK_S:
 		_set_phase(Phase.ATTACK)
-	elif phase == Phase.TRANSITION_DEFENCE and now - owner_since > TRANSITION_DEFENCE_S:
+	elif phase == Phase.TRANSITION_DEFENCE and now - owner_since > Tuning.f("counterpress_s", TRANSITION_DEFENCE_S):
 		_set_phase(Phase.DEFENCE)
 
 func _set_phase(p: int) -> void:

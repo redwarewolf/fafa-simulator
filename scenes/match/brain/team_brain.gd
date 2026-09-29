@@ -193,10 +193,14 @@ func _line_adjust(active: Array, _ball_n: Vector2) -> float:
 ## Engage (go and win it) vs contain (shadow goal-side). High-press sides
 ## engage further up the pitch; everyone engages in their own third, in the
 ## counter-press window, and on the classic pressing triggers.
+const PRESS_TRIGGER_SHIFT := 0.0
+
 func _should_engage(carrier: Player, ball_n: Vector2) -> bool:
 	if tactical.phase == TacticalBrain.Phase.TRANSITION_DEFENCE or ball_n.x < 0.35:
 		return true
-	var trigger := lerpf(0.5, 1.01, preset.press_intensity)
+	# press_trigger_shift < 0 = engage only further back (Phase 7 re-tune: at
+	# realistic speed the press strangled possessions, PPDA ~3 vs real 8-15).
+	var trigger := lerpf(0.5, 1.01, preset.press_intensity) + Tuning.f("press_trigger_shift", PRESS_TRIGGER_SHIFT)
 	if ball_n.x <= trigger:
 		return true
 	# Pressing triggers: carrier running back toward his own goal, or

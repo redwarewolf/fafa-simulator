@@ -194,7 +194,7 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 	var reach := speed * CARRY_HORIZON_S
 	for deg in CARRY_ANGLES:
 		var q : Vector2 = from + attack_dir.rotated(deg_to_rad(deg)) * reach
-		if not _on_pitch(q, left):
+		if not _carry_safe(q):
 			continue
 		var carry := Option.new()
 		carry.kind = Kind.CARRY
@@ -281,9 +281,26 @@ static func _best_time(p: Vector2, team: Array) -> float:
 		best = minf(best, PitchControl.time_to_reach(p, o))
 	return best
 
+## A carry has to end well inside the lines: at realistic speed a carrier
+## can't stop on a dime and the ball runs ahead of his feet, and with the old
+## 4% margin 29-35% of all balls out of play were players dribbling it out
+## (MatchStats out_share_carry).
+const CARRY_MARGIN_X := 0.05
+const CARRY_MARGIN_Y := 0.09
+## Same for pass destinations near the touchlines (0.04 before): a pass led
+## toward the line overruns it. 64-match A/B: throw-ins 2.2 → 1.6 per side.
+const PASS_MARGIN_Y := 0.08
+
+static func _carry_safe(p: Vector2) -> bool:
+	var n := PitchSpace.absolute_normalised(p)
+	var mx := Tuning.f("carry_margin_x", CARRY_MARGIN_X)
+	var my := Tuning.f("carry_margin_y", CARRY_MARGIN_Y)
+	return n.x > mx and n.x < 1.0 - mx and n.y > my and n.y < 1.0 - my
+
 static func _on_pitch(p: Vector2, left: bool) -> bool:
 	var n := PitchSpace.normalised(p, left)
-	return n.x > 0.02 and n.x < 0.98 and n.y > 0.04 and n.y < 0.96
+	var my := Tuning.f("pass_margin_y", PASS_MARGIN_Y)
+	return n.x > 0.02 and n.x < 0.98 and n.y > my and n.y < 1.0 - my
 
 static func _has_kind(options: Array, kind: int) -> bool:
 	for o in options:
