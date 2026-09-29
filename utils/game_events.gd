@@ -74,5 +74,8 @@ signal dribble_poked(defender: Player, carrier: Player)
 ## control of it (it's now a loose ball).
 signal dribble_loose_touch(carrier: Player)
 
+## The first half is over (MatchWorld); the second half kicks off after a pause.
+signal half_time
+
 ## The assistant flagged [param offender] offside (OffsideJudge).
 signal offside_called(offender: Player)

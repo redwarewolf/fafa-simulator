@@ -39,7 +39,7 @@ func _ready() -> void:
 
 	_load_logos()
 	_update_score()
-	time_label.text = "0:00"
+	time_label.text = "0'"
 	player_label.text = ""
 	goal_scorer_label.modulate.a = 0.0
 	score_info_label.modulate.a = 0.0
@@ -53,6 +53,7 @@ func _ready() -> void:
 	GameEvents.match_time_updated.connect(_on_match_time_updated)
 	GameEvents.game_over.connect(_on_game_over)
 	GameEvents.restart_awarded.connect(_on_restart_awarded)
+	GameEvents.half_time.connect(_on_half_time)
 	cam_mode_button.pressed.connect(_on_cam_mode_button_pressed)
 	mentality_button.pressed.connect(_on_mentality_button_pressed)
 
@@ -109,9 +110,13 @@ func _on_team_reset() -> void:
 	if _world.score_left > 0 or _world.score_right > 0:
 		animation_player.play("goal_hide")
 
-func _on_match_time_updated(elapsed: float) -> void:
-	var total_sec := int(elapsed)
-	time_label.text = "%d:%02d" % [total_sec / 60, total_sec % 60]
+## The match clock: real seconds scaled to 0'-90' (MatchWorld.game_minute).
+func _on_match_time_updated(_elapsed: float) -> void:
+	time_label.text = "%d'" % _world.game_minute()
+
+func _on_half_time() -> void:
+	foul_label.text = tr("ENTRETIEMPO")
+	animation_player.play("foul_flash")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _world == null or _world.state == MatchWorld.MatchState.GAMEOVER:

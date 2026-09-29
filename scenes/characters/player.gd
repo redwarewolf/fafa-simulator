@@ -175,10 +175,11 @@ var stamina : float = 100.0
 ## Baseline depletion per second, plus an activity-scaled extra term so
 ## sprinting drains faster than jogging/standing — see get_stamina_factor().
 ## Tuned so a mostly-active outfield player over MatchWorld.MATCH_DURATION
-## (360s, representing 90 minutes) ends up noticeably but not crushingly
-## tired; flagged as a Phase 6 tuning candidate.
-const STAMINA_DECAY_PER_SEC := 0.11
-const STAMINA_DECAY_ACTIVITY_SCALE := 0.09
+## ends up noticeably but not crushingly tired; flagged as a Phase 6 tuning
+## candidate. Originally 0.11 / 0.09 for a 360s match; scaled by 360/480 when
+## matches became two 240s halves, so end-of-match fatigue is unchanged.
+const STAMINA_DECAY_PER_SEC := 0.0825
+const STAMINA_DECAY_ACTIVITY_SCALE := 0.0675
 ## Speed multiplier at 0 stamina — never below this, so fatigue is felt
 ## without a fully-drained player becoming unable to function.
 const STAMINA_FACTOR_MIN := 0.7

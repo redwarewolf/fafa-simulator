@@ -154,7 +154,11 @@ func _shot_error_deg() -> float:
 		if o.position.distance_to(player.position) < SHOT_PRESSURE_PX:
 			e += SHOT_ERROR_PRESSURE_DEG
 			break
-	return e * Tuning.f("shot_error_scale", 1.0)
+	return e * Tuning.f("shot_error_scale", SHOT_ERROR_SCALE)
+
+## Goal tuning (user's choice: more goals over strict realism): finishing
+## error halved. See OnBallEvaluator.SHOT_BIAS_SCALE.
+const SHOT_ERROR_SCALE := 0.5
 
 ## Aim just inside whichever post is farther (angularly) from the keeper.
 func _shot_aim() -> Vector2:

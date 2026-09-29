@@ -7,10 +7,17 @@ extends Node2D
 ## detours IN_PLAY → RESTART → IN_PLAY (see award_restart() and Restart.Kind).
 ## HUD rendering is delegated to MatchHUD (match_hud.tscn).
 
-enum MatchState { IN_PLAY, SCORED, RESET, KICKOFF, GAMEOVER, EVENT, RESTART }
+enum MatchState { IN_PLAY, SCORED, RESET, KICKOFF, GAMEOVER, EVENT, RESTART, HALFTIME }
 
-## Total match duration in seconds (6 minutes).
-const MATCH_DURATION := 360.0
+## Total match duration in seconds: two halves of 240s (8 minutes), shown on
+## the HUD as a 0'-90' match clock (game_minute). Was 360s in one half; at
+## engine-v2's realistic movement that fitted only ~16 possessions a side and
+## ~1 goal a match (docs/match-engine-v2.md, attack funnel).
+const MATCH_DURATION := 480.0
+## Minutes on the displayed match clock for a full match.
+const MATCH_MINUTES := 90
+## Half-time pause before the second-half kickoff (watched matches only).
+const DURATION_HALFTIME := 2.5
 ## How long to stay in SCORED state (celebration pause) before resetting.
 const DURATION_SCORED := 3.0
 ## Safety net only — KICKOFF normally ends the instant the kickoff taker
@@ -114,11 +121,40 @@ func _ready() -> void:
 	# Opening kickoff: a proper restart, same as after a goal, just with a
 	# randomly chosen team instead of the conceding one.
 	_kickoff_team = MatchRng.pick([actors_container.team_left, actors_container.team_right])
+	_first_kickoff_team = _kickoff_team
 	_transition(MatchState.KICKOFF)
 
 ## MATCH_DURATION unless the batch harness overrides it (MatchConfig).
 func match_duration() -> float:
 	return MatchConfig.match_duration_override if MatchConfig.match_duration_override > 0.0 else MATCH_DURATION
+
+## The match clock shown to the player: real match seconds scaled to 0'-90'.
+func game_minute() -> int:
+	return minute_at(match_time, match_duration())
+
+static func minute_at(seconds: float, duration: float) -> int:
+	return clampi(int(seconds / maxf(duration, 1.0) * MATCH_MINUTES), 0, MATCH_MINUTES)
+
+## "37'" — used for the HUD clock and goal times (watched and simulated).
+static func minute_label(seconds: float, duration: float = MATCH_DURATION) -> String:
+	return "%d'" % minute_at(seconds, duration)
+
+## True once the second half has kicked off.
+var second_half := false
+## Who kicked off the first half — the other side kicks off the second.
+var _first_kickoff_team := ""
+
+## Half-time: a short pause, then everyone resets and the side that didn't
+## start the match kicks off. (Ends aren't swapped: pitch direction is baked
+## into every team's frame of reference.)
+func _start_half_time() -> void:
+	second_half = true
+	match_time = match_duration() * 0.5
+	GameEvents.match_time_updated.emit(match_time)
+	_kickoff_team = actors_container.team_right if _first_kickoff_team == actors_container.team_left \
+		else actors_container.team_left
+	GameEvents.half_time.emit()
+	_transition(MatchState.HALFTIME)
 
 ## Rolls this match's attendance once (kickoff_ready fires only after a goal,
 ## never at match start, so _ready() is the only correct one-time hook) and
@@ -162,6 +198,9 @@ func _process(delta: float) -> void:
 			if match_time >= match_duration():
 				_transition(MatchState.GAMEOVER)
 				return
+			if not second_half and match_time >= match_duration() * 0.5:
+				_start_half_time()
+				return
 			if not MatchConfig.disable_random_events and not _match_event_fired and match_time >= _next_event_check:
 				_next_event_check += EVENT_CHECK_INTERVAL
 				_maybe_trigger_match_event()
@@ -171,6 +210,10 @@ func _process(delta: float) -> void:
 		MatchState.SCORED:
 			_state_timer += delta
 			if _state_timer >= DURATION_SCORED:
+				_transition(MatchState.RESET)
+		MatchState.HALFTIME:
+			_state_timer += delta
+			if MatchConfig.headless or _state_timer >= DURATION_HALFTIME:
 				_transition(MatchState.RESET)
 		MatchState.KICKOFF:
 			_state_timer += delta
@@ -212,7 +255,7 @@ func _on_team_scored(team: String) -> void:
 	_scorers.append({
 		"player": _last_ball_carrier,
 		"team": scoring_team,
-		"time_str": "%d:%02d" % [int(match_time) / 60, int(match_time) % 60],
+		"time_str": minute_label(match_time, match_duration()),
 	})
 	GameEvents.score_changed.emit()
 	_transition(MatchState.SCORED)
@@ -418,10 +461,14 @@ func _transition(new_state: MatchState) -> void:
 	state = new_state
 	match new_state:
 		MatchState.RESET:
+			# Coming out of HALFTIME the actors are frozen; the kickoff taker
+			# has to be able to walk up to the ball.
+			actors_container.process_mode = Node.PROCESS_MODE_INHERIT
 			GameEvents.team_reset.emit()
-		MatchState.EVENT:
-			# Freeze play while Pepito Perinola narrates — same mechanism
-			# GAMEOVER uses, just resumed afterward instead of staying off.
+		MatchState.EVENT, MatchState.HALFTIME:
+			# Freeze play while Pepito Perinola narrates (or for the half-time
+			# whistle) — same mechanism GAMEOVER uses, just resumed afterward
+			# (RESET → KICKOFF → IN_PLAY re-enables the actors).
 			actors_container.process_mode = Node.PROCESS_MODE_DISABLED
 		MatchState.IN_PLAY:
 			actors_container.process_mode = Node.PROCESS_MODE_INHERIT

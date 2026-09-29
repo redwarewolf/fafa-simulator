@@ -638,7 +638,7 @@ func _invent_scorers(club: ClubResource, count: int) -> Array[Dictionary]:
 		scorers.append({
 			"player": scorer.full_name,
 			"team": club.display_name,
-			"time_str": "%d:%02d" % [int(seconds) / 60, int(seconds) % 60],
+			"time_str": MatchWorld.minute_label(seconds),
 			"_seconds": seconds,
 		})
 	return scorers

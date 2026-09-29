@@ -45,7 +45,9 @@ const SHOT_MIN_SPEED := 150.0
 ## Calibrated in the harness so goals ≈ xG and ~70% of on-target shots are
 ## saved (see the Phase 8 notes).
 const SAVE_SCALE_PX := 18.0
-const SAVE_BIAS := 0.0
+## Goal tuning (user's choice: more goals over strict realism): -0.1 takes
+## save share from ~70% to ~60-68%. 0.0 = the calibrated keeper.
+const SAVE_BIAS := -0.1
 ## Fast shots are harder to hold/parry cleanly even when reached.
 const HANDLING_SPEED_START := 300.0
 const HANDLING_SPEED_RANGE := 350.0

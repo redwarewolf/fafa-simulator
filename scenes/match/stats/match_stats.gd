@@ -9,7 +9,7 @@ extends Node
 ## Sides are keyed "L"/"R" (Player.is_left_team), not by club name, so A/B
 ## runs can swap clubs between sides freely.
 ##
-## Match time is compressed (MatchWorld.MATCH_DURATION = 360s stands in for
+## Match time is compressed (MatchWorld.MATCH_DURATION = 480s stands in for
 ## 90 minutes), so totals aren't comparable to real matches — the harness
 ## compares RATES instead (completion %, xG/shot, passes per possession...).
 ## See docs/match-engine-v2.md Phase 1 and tools/targets.json.

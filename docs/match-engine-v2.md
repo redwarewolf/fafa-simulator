@@ -460,6 +460,25 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
   - At realistic per-possession rates that gives ~1 goal per 360s match.
   - More goals needs either longer matches or a deliberate step away from per-possession realism. That is a design decision.
 
+**Scoring decision (user):** more goals over strict realism, via two halves plus tuning.
+- **Tuning alone inside 360s tops out around 1.9 goals per match** (sweep g1–g7, 64 × 180s each).
+  - Shot volume is capped by possessions: even shooting at almost any chance only took shots per side per half from 1.9 to 2.4.
+  - g7 reached 1.9 per match only with goals/xG 2.3 and 22m average shots.
+- **Match structure:** `MATCH_DURATION` 360 → **480s**, two halves of 240s.
+  - At 240s: a 2.5s `HALFTIME` pause ("ENTRETIEMPO"), a reset, and the side that didn't kick off first kicks off.
+  - Ends are not swapped: pitch direction is baked into every team frame.
+  - The HUD clock shows the match minute 0'–90' scaled to the 480s (`MatchWorld.game_minute`). Goal times use the same minutes in watched and simulated matches (`minute_label`).
+  - Stamina drain is scaled by 360/480, so end-of-match fatigue is unchanged.
+- **Goal tuning adopted (g5):** `SHOT_BIAS_SCALE` 1.6, `SHOT_ERROR_SCALE` 0.5, keeper `SAVE_BIAS` −0.1. Full 480s matches, 64 each:
+
+  | | goals per match | draws | goals/xG | keeper save % | avg shot distance |
+  |---|---|---|---|---|---|
+  | halves only | 1.3 | 26 | 1.2–1.3 | 66–69% | 19m |
+  | **+ g5 (adopted)** | **1.7** | 28 | 1.4–1.5 | 59–68% | 20–21m |
+  | + g6 | 1.7 | 26 | 1.4–1.6 | 59–68% | 20–22m |
+
+- **Harness note:** `run_parallel.sh ... 180` now plays 180s matches *with* a half-time at 90s. Use duration 480 for full matches; earlier 180s numbers are comparable as rates, not totals.
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);

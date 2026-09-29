@@ -43,6 +43,10 @@ const RECEIVE_SECURITY := 0.4
 ## Shot appetite by formation group, and max shooting range (px).
 const SHOT_BIAS := {Positions.Group.OFFENSE: 1.4, Positions.Group.MIDFIELD: 1.2, Positions.Group.DEFENSE: 0.95}
 const SHOT_RANGE_PX := 600.0
+## Goal tuning (user's choice: more goals over strict realism) — shooting a
+## bit more readily. With PlayerBrain.SHOT_ERROR_SCALE 0.5 and the keeper's
+## SAVE_BIAS -0.1: 1.3 → 1.7 goals per 480s match (64 matches).
+const SHOT_BIAS_SCALE := 1.6
 ## One-step shot lookahead: carrying or passing to a spot is also worth the
 ## shot that could FOLLOW from it (discounted — it happens later, defenders
 ## close in), not just the spot's possession value. Without it v2 shot
@@ -216,7 +220,7 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 		shot.kind = Kind.SHOOT
 		var xg := ShotModel.xg(from, goal, opponents)
 		shot.p_success = xg
-		shot.value = xg * float(SHOT_BIAS.get(Positions.group(player.role), 1.0)) * Tuning.f("shot_bias_scale", 1.0)
+		shot.value = xg * float(SHOT_BIAS.get(Positions.group(player.role), 1.0)) * Tuning.f("shot_bias_scale", SHOT_BIAS_SCALE)
 		out.append(shot)
 
 	if restart and _has_kind(out, Kind.PASS):
