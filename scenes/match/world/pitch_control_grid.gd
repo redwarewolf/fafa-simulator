@@ -52,7 +52,9 @@ static func _pack(team: Array) -> Array:
 	for p: Player in team:
 		if p.process_mode == Node.PROCESS_MODE_DISABLED:
 			continue
-		out.append([p.position, p.velocity, maxf(p.speed, 1.0), p.max_accel, maxf(p.speed, 1.0) * Locomotion.SPRINT_MULTIPLIER])
+		# Position and velocity in iso space (true distance — see
+		# PitchSpace.ISO_Y); _best_time's cell point is converted likewise.
+		out.append([PitchSpace.iso(p.position), PitchSpace.iso(p.velocity), maxf(p.speed, 1.0), p.max_accel, maxf(p.speed, 1.0) * Locomotion.SPRINT_MULTIPLIER])
 	return out
 
 ## Inlined PitchControl.time_to_reach over a packed team. For engine-v2
@@ -61,8 +63,9 @@ static func _pack(team: Array) -> Array:
 ## current best is skipped — the grid is the single hottest loop in the AI.
 static func _best_time(point: Vector2, packed: Array) -> float:
 	var best := 99.0
+	var point_iso := PitchSpace.iso(point)
 	for d in packed:
-		var to_point : Vector2 = point - d[0]
+		var to_point : Vector2 = point_iso - d[0]
 		var dist := to_point.length()
 		var t := PitchControl.REACTION_TIME
 		var accel : float = d[3]

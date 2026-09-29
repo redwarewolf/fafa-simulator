@@ -457,6 +457,17 @@ func _sample_shape() -> void:
 				continue
 			var m := PitchSpace.to_metres(p.position)
 			pts.append(m)
+			# Running load in real m/s (the pitch's px/m differs by axis).
+			var mpp := PitchSpace.metres_per_px()
+			var v_ms := Vector2(p.velocity.x * mpp.x, p.velocity.y * mpp.y).length()
+			_tel(side, "run_n")
+			_tel(side, "run_speed_sum", v_ms)
+			if v_ms > 5.5:
+				_tel(side, "run_high")
+			if v_ms > 7.0:
+				_tel(side, "run_sprint")
+			if v_ms > 10.0:
+				_tel(side, "run_superhuman")
 			var nx := PitchSpace.normalised(p.position, side == "L").x
 			depths.append(nx)
 			if nx < ball_depth:
@@ -646,6 +657,10 @@ const POOLED_RATES := {
 	"to_share_loose": ["tel_turnover_by_loose", "turnovers"],
 	"to_share_poked": ["tel_turnover_by_poked", "turnovers"],
 	"funnel_reach_mid": ["tel_fun_mid", "tel_fun_n"],
+	"run_avg_speed_ms": ["tel_run_speed_sum", "tel_run_n"],
+	"run_high_share": ["tel_run_high", "tel_run_n"],
+	"run_sprint_share": ["tel_run_sprint", "tel_run_n"],
+	"run_superhuman_share": ["tel_run_superhuman", "tel_run_n"],
 	"funnel_reach_att": ["tel_fun_att", "tel_fun_n"],
 	"funnel_reach_box": ["tel_fun_box", "tel_fun_n"],
 	"funnel_shot": ["tel_fun_shot", "tel_fun_n"],

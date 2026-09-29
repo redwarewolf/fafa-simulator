@@ -130,6 +130,24 @@ func test_through_ball_into_space_needs_the_runner_to_win_the_race() -> void:
 	assert_true(good.p_success > bad.p_success + 0.3, "space pass: runner ahead (%.2f) vs defender already there (%.2f)" % [good.p_success, bad.p_success])
 	_free_players()
 
+## The pitch is drawn squashed vertically (PitchSpace.ISO_Y ≈ 1.62): 20m
+## across the pitch must take as long as 20m along it, and steering must give
+## the same real speed in either direction.
+func test_movement_is_true_distance_in_every_direction() -> void:
+	var mpp := PitchSpace.metres_per_px()
+	var p := _player(Vector2(1100, 600), 150.0)
+	p.max_accel = 90.0
+	var along := PitchControl.time_to_reach(p.position + Vector2(20.0 / mpp.x, 0), p)
+	var across := PitchControl.time_to_reach(p.position + Vector2(0, 20.0 / mpp.y), p)
+	assert_near(along, across, 0.01, "20m along (%.2fs) vs across (%.2fs)" % [along, across])
+	for dir in [Vector2.RIGHT, Vector2.DOWN]:
+		p.velocity = Vector2.ZERO
+		for i in 300:
+			p.steer_velocity(dir * 150.0, 1.0 / 60.0)
+		var ms := Vector2(p.velocity.x * mpp.x, p.velocity.y * mpp.y).length()
+		assert_near(ms, 150.0 * mpp.x, 0.05, "top speed %s = %.2f m/s" % [str(dir), ms])
+	_free_players()
+
 ## A pass arrives with pace and rolls on: a runner who only gets there late
 ## meets it further on, and a ball played toward a line can run out first.
 func test_pass_that_runs_out_before_the_runner_rates_low() -> void:

@@ -10,8 +10,8 @@ extends RefCounted
 ## x: two points on the same "equal-depth" line (e.g. an offside line) have
 ## different x at different y. normalised() maps the trapezoid onto the unit
 ## square so depth comparisons, the offside line, out-of-play detection and
-## every metric work in true pitch coordinates. Movement and steering stay
-## in raw pixels.
+## every metric work in true pitch coordinates. Movement and steering work in
+## iso space (see ISO_Y below).
 ##
 ## Line positions are the INNER edges of the wall colliders in world.tscn
 ## (TopWall/BottomWall/LeftWall/RightWall), i.e. where the ball physically
@@ -82,3 +82,26 @@ static func distance_m(a: Vector2, b: Vector2) -> float:
 static func metres_per_px() -> Vector2:
 	var mid_width := right_line_x((TOP_Y + BOTTOM_Y) * 0.5) - left_line_x((TOP_Y + BOTTOM_Y) * 0.5)
 	return Vector2(LENGTH_M / mid_width, WIDTH_M / (BOTTOM_Y - TOP_Y))
+
+# ─── Isotropic ("true distance") space ───────────────────────────────────────
+# The pitch is drawn squashed vertically: a screen pixel is ~0.048m along the
+# pitch but ~0.079m across it (ISO_Y ≈ 1.62×). Movement used to run in raw
+# pixels, so anyone moving up/down the screen covered 1.62× the real distance
+# for the same "speed" — a pace-100 winger reached ~15 m/s. Player movement,
+# steering and every time-to-reach estimate now work in iso space: the screen
+# with its y axis stretched by ISO_Y, where a pixel is the same real distance
+# (metres_per_px().x) in every direction. Speeds and accelerations keep their
+# existing units (along-pitch px/s), which are exactly iso px/s.
+static var ISO_Y := metres_per_px().y / metres_per_px().x
+
+## Screen vector/offset → iso space.
+static func iso(v: Vector2) -> Vector2:
+	return Vector2(v.x, v.y * ISO_Y)
+
+## Iso space → screen vector/offset.
+static func from_iso(v: Vector2) -> Vector2:
+	return Vector2(v.x, v.y / ISO_Y)
+
+## True length of a screen offset, in along-pitch pixels (= metres × px/m).
+static func iso_len(v: Vector2) -> float:
+	return Vector2(v.x, v.y * ISO_Y).length()

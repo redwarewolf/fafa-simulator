@@ -230,7 +230,8 @@ static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restar
 	var speed := player.get_dribble_speed() * player.get_stamina_factor()
 	var reach := speed * CARRY_HORIZON_S
 	for deg in CARRY_ANGLES:
-		var q : Vector2 = from + attack_dir.rotated(deg_to_rad(deg)) * reach
+		# reach is a real distance: lay it out in iso space (PitchSpace.ISO_Y).
+		var q : Vector2 = from + PitchSpace.from_iso(PitchSpace.iso(attack_dir).normalized().rotated(deg_to_rad(deg)) * reach)
 		if not _carry_safe(q):
 			continue
 		var carry := Option.new()

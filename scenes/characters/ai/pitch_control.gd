@@ -25,14 +25,19 @@ const MAX_EFFECTIVE_SPEED_FACTOR := 1.5
 
 ## Estimated seconds for [param player] to reach [param point].
 static func time_to_reach(point: Vector2, player: Player) -> float:
+	if player.max_accel > 0.0:
+		# Engine-v2 movement: real acceleration, in true distance (PitchSpace
+		# iso space — players move there, see Player.steer_velocity).
+		var to_iso := PitchSpace.iso(point - player.position)
+		var dist_iso := to_iso.length()
+		if dist_iso < 1.0:
+			return REACTION_TIME
+		var along := PitchSpace.iso(player.velocity).dot(to_iso / dist_iso)
+		return REACTION_TIME + kinematic_time(dist_iso, along, player.speed * Locomotion.SPRINT_MULTIPLIER, player.max_accel)
 	var to_point := point - player.position
 	var distance := to_point.length()
 	if distance < 1.0:
 		return REACTION_TIME
-	if player.max_accel > 0.0:
-		# Engine-v2 movement: real acceleration, so use kinematics.
-		var along := player.velocity.dot(to_point / distance)
-		return REACTION_TIME + kinematic_time(distance, along, player.speed * Locomotion.SPRINT_MULTIPLIER, player.max_accel)
 	var speed := maxf(player.speed, 1.0)
 	var current_speed := player.velocity.length()
 	var alignment := 0.0

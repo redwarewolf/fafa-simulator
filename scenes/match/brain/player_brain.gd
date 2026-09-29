@@ -252,7 +252,7 @@ func _move_off_ball() -> void:
 							+ carrier.position.direction_to(own_goal) * JOCKEY_DIST
 						player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area)
 						return
-					var lead := clampf(player.position.distance_to(carrier.position) / maxf(player.speed, 1.0), 0.0, 1.0)
+					var lead := clampf(PitchSpace.iso_len(carrier.position - player.position) / maxf(player.speed, 1.0), 0.0, 1.0)
 					var aim := carrier.position + carrier.velocity * lead
 					player.velocity = player.position.direction_to(aim) * _sprint_speed()
 					return
@@ -279,7 +279,7 @@ func _move_off_ball() -> void:
 		Job.Kind.CHASE, Job.Kind.INTERCEPT, Job.Kind.RECEIVE:
 			if _attack_ball():
 				return
-			var dt := player.position.distance_to(_target)
+			var dt := PitchSpace.iso_len(_target - player.position)
 			player.velocity = player.position.direction_to(_target) * minf(_sprint_speed(), _arrival_cap(dt - 6.0)) \
 				if dt > 6.0 else Vector2.ZERO
 			return
@@ -311,7 +311,7 @@ func _attack_ball() -> bool:
 	var aim := b.position + b.velocity * lead + Vector2(0.0, -2.0)
 	# Match the ball's motion and close the gap at a speed we can still stop
 	# from — sprinting straight at it overran it by a stride.
-	var v := b.velocity + player.position.direction_to(aim) * _arrival_cap(player.position.distance_to(aim))
+	var v := b.velocity + player.position.direction_to(aim) * _arrival_cap(PitchSpace.iso_len(aim - player.position))
 	player.velocity = v.limit_length(sprint)
 	return true
 
@@ -382,5 +382,7 @@ func _maybe_tackle() -> void:
 		or (job.kind == Job.Kind.MARK and job.subject == carrier))
 	if (committed or d < REFLEX_TACKLE_PX) and _should_commit_tackle(carrier):
 		# The slide carries the tackler's current velocity — point it at the ball.
-		player.velocity = player.position.direction_to(ctx.ball.position) * maxf(player.velocity.length(), player.speed)
+		# The lunge carries the tackler's current real speed (iso space).
+		var lunge := maxf(PitchSpace.iso_len(player.velocity), player.speed)
+		player.velocity = PitchSpace.from_iso(PitchSpace.iso(player.position.direction_to(ctx.ball.position)).normalized() * lunge)
 		player.switch_state(Player.State.TACKLING)

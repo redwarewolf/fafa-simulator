@@ -152,16 +152,26 @@ func apply_realistic_movement() -> void:
 
 ## Moves velocity toward [param desired] within the acceleration limits —
 ## turning and stopping take time, so runs curve and a player committed one
-## way can't instantly reverse. v1 players (max_accel 0) snap as before.
+## way can't instantly reverse.
+##
+## Works in true distance (PitchSpace iso space): [param desired] gives the
+## DIRECTION on screen, and its length is read as a real speed in along-pitch
+## px/s — the units every brain already uses (`speed`, `max_accel`). Moving
+## up/down the screen therefore covers the same metres per second as moving
+## along it (it used to be 1.62× faster; see PitchSpace.ISO_Y).
 func steer_velocity(desired: Vector2, delta: float) -> void:
+	var d_iso := PitchSpace.iso(desired)
+	if d_iso != Vector2.ZERO:
+		d_iso = d_iso.normalized() * desired.length()
 	if max_accel <= 0.0 or delta <= 0.0:
-		velocity = desired
+		velocity = PitchSpace.from_iso(d_iso)
 		return
+	var v_iso := PitchSpace.iso(velocity)
 	# Braking/turning (the desired vector doesn't extend the current one)
 	# uses the stronger braking limit.
-	var extending := desired.length() >= velocity.length() and desired.dot(velocity) >= 0.0
+	var extending := d_iso.length() >= v_iso.length() and d_iso.dot(v_iso) >= 0.0
 	var limit := max_accel * (1.0 if extending else BRAKE_FACTOR) * delta
-	velocity = velocity.move_toward(desired, limit)
+	velocity = PitchSpace.from_iso(v_iso.move_toward(d_iso, limit))
 
 ## Kept for stamina read/write-back only (see stamina below) — everything
 ## else about this player already got copied into plain fields above.
