@@ -359,6 +359,33 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
 - **Press on the pass re-tested after the fix:** still −0.5 passes per possession and −3 pts completion for +4 pts of pressure, so it stays off.
   - The remaining gap to real football is on the ball: a pressured carrier should shield, recycle backwards or play first-time, rather than lose it.
 
+**Step 0 diagnostics** (24 traced matches, v2 vs v2; `BATCH_PASSTRACE=1`, `dec_*` counters). They overturn that hypothesis.
+- **Pressure isn't the leak.** Completion at the kick is realistic in every band:
+
+  | band | predicted | actual |
+  |---|---|---|
+  | pressured (<3m) | 0.79 | 0.74 |
+  | 3–6m | 0.84 | 0.78 |
+  | free | 0.93 | 0.88 |
+
+  - Real football is about 65–70% under pressure and 85–90% free.
+  - Pressure arrives during the 0.2–0.3s wind-up on 31–41% of pressured or near passes.
+  - Pressured carriers choose carry 45%, pass 35%, shoot 11%, hold 8%. Tackles and pokes are still about 1% of turnovers.
+- **The leak is long passes into space.** Calibration by pass type:
+
+  | pass type | n | predicted | actual | out of play |
+  |---|---|---|---|---|
+  | to feet, all | 787 | 0.91 | **0.90** | 3% |
+  | to feet, >30m | 102 | 0.71 | 0.69 | **20%** |
+  | into space, <15m | 92 | 0.88 | 0.78 | 0% |
+  | into space, 15–30m | 80 | 0.83 | 0.79 | 8% |
+  | into space, >30m | 109 | **0.65** | **0.32** | **27%** |
+  | cross | 32 | 0.72 | 0.72 | 3% |
+
+  - Passes to feet are well calibrated.
+  - Long balls into space succeed half as often as `PassModel` thinks, and over a quarter of them run out of play. The model has no notion of the ball running out past the receiver.
+- **Shots per possession stay at 0.29–0.30** (target ≤0.22). This is the other way possessions end too early.
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);
