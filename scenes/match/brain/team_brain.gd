@@ -139,6 +139,9 @@ func _defensive_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dict
 		marked[carrier] = true
 	elif not restart:
 		_loose_ball_jobs(specials, false)
+		var r := _press_on_pass(specials, own_goal)
+		if r != null:
+			marked[r] = true
 
 	# Marks: the most dangerous opponents off the ball.
 	var threats := []
@@ -148,11 +151,11 @@ func _defensive_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dict
 		var danger := XtGrid.at(o.position, o.is_left_team)
 		var to_goal := o.position.direction_to(own_goal)
 		danger *= 1.0 + maxf(0.0, o.velocity.dot(to_goal)) / 100.0
-		if danger >= MARK_DANGER_MIN:
+		if danger >= Tuning.f("mark_danger_min", MARK_DANGER_MIN):
 			threats.append([danger, o])
 	threats.sort_custom(func(a, b): return a[0] > b[0])
 	var max_danger : float = threats[0][0] if not threats.is_empty() else 1.0
-	for i in mini(threats.size(), MAX_MARKS):
+	for i in mini(threats.size(), int(Tuning.f("max_marks", MAX_MARKS))):
 		var o : Player = threats[i][1]
 		var tight := clampf(threats[i][0] / max_danger, 0.0, 1.0)
 		var dist := lerpf(LOOSE_MARK_PX, TIGHT_MARK_PX, tight)
@@ -173,6 +176,33 @@ func _defensive_jobs(active: Array, ball_n: Vector2, specials: Array, zone: Dict
 				best = o
 		if best != null:
 			specials.append(Job.make(Job.Kind.LANE_CUT, carrier.position.lerp(best.position, 0.42), best, 1.0))
+
+## Press on the pass: while their pass travels, one of ours runs at where the
+## receiver will take it, arriving goal-side, so the receiver is pressured on
+## the first touch instead of later. Without it receivers had the nearest
+## defender 12m away (8% pressured) though carriers were pressured on release
+## about as often as in real football (22%). Returns the receiver, or null.
+## Tuning knob `press_on_pass`.
+const PRESS_ON_PASS_GOALSIDE_PX := 30.0
+
+func _press_on_pass(specials: Array, own_goal: Vector2) -> Player:
+	if not Tuning.b("press_on_pass", false) or ctx.last_pass.is_empty() or ctx.ball_path == null:
+		return null
+	if ctx.last_pass["left"] == team_left:
+		return null
+	var r : Player = ctx.last_pass["receiver"]
+	if r == null or r.role == Positions.Role.GK or r.process_mode == Node.PROCESS_MODE_DISABLED:
+		return null
+	# Only when they'll get there first — otherwise it's our interception.
+	var t_r := BallPredictor.earliest_intercept(ctx.ball_path, r)
+	if t_r == INF or t_r > ctx.first_to_ball(team_left)["time"]:
+		return null
+	var pt := ctx.ball_path.position_at(t_r)
+	var job := Job.make(Job.Kind.PRESS, clamp_to_pitch(pt + pt.direction_to(own_goal) * PRESS_ON_PASS_GOALSIDE_PX), r, 1.0)
+	job.engage = _should_engage(r, PitchSpace.normalised(pt, team_left))
+	AIProfile.count("press_on_pass", 1.0 if job.engage else 0.0)
+	specials.append(job)
+	return r
 
 ## Ball-pressure rule for the defensive line: drop off when their carrier is
 ## free and running at us, step up when the ball goes backwards.

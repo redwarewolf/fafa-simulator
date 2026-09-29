@@ -47,12 +47,25 @@ func _on_pass(passer: Player, receiver: Player, dest: Vector2) -> void:
 		"passer": passer, "receiver": receiver, "origin": passer.position, "dest": dest,
 		"dist": passer.position.distance_to(dest), "t0": MatchClock.now(),
 		"max_h": 0.0, "landed": false, "was_air": false,
+		"opp_near_dest_m": _nearest_opp_m(passer, dest),
+		"to_feet": receiver.position.distance_to(dest) < 40.0,
 	}
 
 func _physics_process(_delta: float) -> void:
 	if _cur.is_empty():
 		return
 	_cur["max_h"] = maxf(_cur["max_h"], _ball.height)
+	var rcv : Player = _cur["receiver"]
+	if OS.get_environment("BATCH_PASSTRACE") == "2" and _ball.carrier == null and rcv.position.distance_to(_ball.position) < 30.0 and Engine.get_physics_frames() % 3 == 0:
+		print("DBG t=%.2f d=%.1f rel=%s ballv=%.0f h=%.1f rcv_v=%s state=%s job=%s tgt=%s can=%s cd=%s" % [MatchClock.now() - _cur["t0"], rcv.position.distance_to(_ball.position), str(_ball.position - rcv.position), _ball.velocity.length(), _ball.height, str(rcv.velocity.round()), Player.State.keys()[rcv._current_state_type], Job.Kind.keys()[rcv.brain.job.kind] if rcv.brain != null and rcv.brain.job != null else "-", str((rcv.brain._target - rcv.position).round()) if rcv.brain != null else "-", rcv.can_carry_ball(), _ball.is_kick_cooldown(rcv)])
+	var dd := rcv.position.distance_to(_ball.position)
+	if dd < _cur.get("rcv_min_px", INF):
+		_cur["rcv_min_px"] = dd
+		_cur["rcv_min_t"] = MatchClock.now() - _cur["t0"]
+		_cur["rcv_min_state"] = Player.State.keys()[rcv._current_state_type] if "_current_state_type" in rcv else "?"
+		_cur["rcv_min_job"] = Job.Kind.keys()[rcv.brain.job.kind] if rcv.brain != null and rcv.brain.job != null else "-"
+		_cur["rcv_min_ball_h"] = _ball.height
+		_cur["rcv_min_ball_v"] = _ball.velocity.length()
 	if _ball.height > 0.0:
 		_cur["was_air"] = true
 	elif _cur["was_air"]:
@@ -85,7 +98,11 @@ func _close(outcome: String, collector: Player) -> void:
 		"reach": along / maxf(_cur["dist"], 1.0), "height": _ball.height,
 		"in_air_before_landing": _cur["was_air"] and not _cur["landed"],
 		"time": MatchClock.now() - _cur["t0"], "max_h": _cur["max_h"], "fumbled": _cur.get("fumbled", false),
-		"predicted": _cur["predicted"],
+		"predicted": _cur["predicted"], "opp_near_dest_m": _cur["opp_near_dest_m"],
+		"rcv_min_px": _cur.get("rcv_min_px", -1.0), "rcv_min_t": _cur.get("rcv_min_t", -1.0), "rcv_min_state": _cur.get("rcv_min_state", "?"),
+		"rcv_min_job": _cur.get("rcv_min_job", "?"), "rcv_min_ball_h": _cur.get("rcv_min_ball_h", 0.0), "rcv_min_ball_v": _cur.get("rcv_min_ball_v", 0.0),
+		"to_feet": _cur["to_feet"], "rcv_state_end": Player.State.keys()[_cur["receiver"]._current_state_type],
+		"collector_to_path_px": _dist_to_segment(collector.position, origin, dest) if collector != null else -1.0,
 		"collector_dist_to_dest": collector.position.distance_to(dest) if collector != null else -1.0,
 	})
 	_cur = {}
@@ -141,4 +158,66 @@ static func summarize(all: Array) -> String:
 		if n > 0:
 			cal.append("pred %.2f→actual %.2f (n=%d)" % [pred_sum / n, float(kept) / n, n])
 	lines.append("CALIBRATION (v2 passes): " + "  ".join(cal))
+	return "\n".join(lines)
+
+static func _nearest_opp_m(passer: Player, at: Vector2) -> float:
+	var best := INF
+	for o: Player in passer.get_opponents():
+		best = minf(best, PitchSpace.distance_m(o.position, at))
+	return best
+
+static func _dist_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	return p.distance_to(Geometry2D.get_closest_point_to_segment(p, a, b))
+
+## Why "safe" passes (predicted >= [param p_min]) fail: outcome mix and, for
+## interceptions, where along the path and how close to the line the
+## interceptor was, and how free the target spot looked at the kick.
+static func summarize_safe_failures(all: Array, p_min: float = 0.9) -> String:
+	var safe := all.filter(func(r): return r.get("predicted", -1.0) >= p_min and r["outcome"] != "superseded")
+	if safe.is_empty():
+		return ""
+	var fails := safe.filter(func(r): return r["outcome"] not in ["receiver", "teammate"])
+	var by := {}
+	var fumbled := 0
+	var reach := [0, 0, 0, 0, 0]
+	var to_path := [0, 0, 0, 0]  # <15, 15-40, 40-80, 80+ px
+	var dist_sum := 0.0
+	var opp_sum := 0.0
+	var t_sum := 0.0
+	for r in fails:
+		by[r["outcome"]] = by.get(r["outcome"], 0) + 1
+		if r.get("fumbled", false):
+			fumbled += 1
+		reach[clampi(int(r["reach"] * 5.0), 0, 4)] += 1
+		dist_sum += r["dist"]
+		opp_sum += minf(r.get("opp_near_dest_m", 0.0), 30.0)
+		t_sum += r["time"]
+		var cp : float = r.get("collector_to_path_px", -1.0)
+		if cp >= 0.0:
+			to_path[0 if cp < 15.0 else (1 if cp < 40.0 else (2 if cp < 80.0 else 3))] += 1
+	var ok_dist := 0.0
+	var ok_opp := 0.0
+	var oks := safe.filter(func(r): return r["outcome"] in ["receiver", "teammate"])
+	for r in oks:
+		ok_dist += r["dist"]
+		ok_opp += minf(r.get("opp_near_dest_m", 0.0), 30.0)
+	var outs := []
+	for k in by:
+		outs.append("%s %d" % [k, by[k]])
+	var nf := maxi(fails.size(), 1)
+	var no := maxi(oks.size(), 1)
+	return "SAFE PASSES (pred>=%.2f): n=%d failed=%d (%.1f%%) | %s | fumbled %d | fail reach hist %s | collector-to-path px hist(<15/15-40/40-80/80+) %s | mean dist px fail %.0f vs ok %.0f | opp near dest m fail %.1f vs ok %.1f | fail time %.2fs" % [
+		p_min, safe.size(), fails.size(), 100.0 * fails.size() / safe.size(), ", ".join(outs), fumbled,
+		str(reach), str(to_path), dist_sum / nf, ok_dist / no, opp_sum / nf, ok_opp / no, t_sum / nf]
+
+## One line per failed "safe" pass — the receiver's closest approach to the ball.
+static func list_safe_failures(all: Array, p_min: float = 0.9) -> String:
+	var lines := []
+	for r in all:
+		if r.get("predicted", -1.0) < p_min or r["outcome"] in ["receiver", "teammate", "superseded"]:
+			continue
+		lines.append("  fail %-16s dist %4.0fpx reach %.2f feet=%s t=%.2fs | rcv closest %.0fpx at %.2fs state %s job %s ball h %.1f v %.0f | end state %s" % [
+			r["outcome"], r["dist"], r["reach"], str(r.get("to_feet", "?")), r["time"], r.get("rcv_min_px", -1.0),
+			r.get("rcv_min_t", -1.0), r.get("rcv_min_state", "?"), r.get("rcv_min_job", "?"),
+			r.get("rcv_min_ball_h", 0.0), r.get("rcv_min_ball_v", 0.0), r.get("rcv_state_end", "?")])
 	return "\n".join(lines)

@@ -333,6 +333,32 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
   - Pokes (2) and runaway touches (5) are very rare. The nearest opponent is 6–8m away at a typical touch: carriers get the ball, hold briefly and pass, and when they run it's into space.
   - The mechanic works, but **defenders rarely get to a carrier at all** (tackles are ~1% of turnovers too). PPDA ~3 and short possessions come from passes being intercepted, not from duels. Pressing that actually closes a carrier down is the next lever.
 
+**Part 4: pressing vs ball retention, and the receiving bug** (64 × 180s unless noted):
+- **New pressure telemetry:** nearest opponent at reception and at pass release, share within 3m ("pressured"), and time on the ball.
+  - Baseline: pressured at release **22%**, about the same as real football. Pressured at reception only **8%**, with the nearest opponent 12.3m away. Time on the ball before a pass 0.84s.
+- **Pressing experiments** (knobs `press_on_pass`, `mark_danger_min`, `max_marks`). Press on the pass: while their pass travels, one defender runs to a spot goal-side of where the receiver will take it. More marks cover midfield receivers.
+  - Pressure rose monotonically (at reception up to 17%, at release up to 34%). Every step shortened possessions further: passes per possession 1.86 → 1.49, completion −3 pts, PPDA 3.1 → 2.2, and xG against went *up*.
+  - The attacking side simply couldn't keep the ball. All of these stay off by default.
+- **The receiving bug (Finding #10).** PassTracer's new safe-pass breakdown showed passes rated ≥0.9 failing **11%** of the time.
+  - The ball reached the end of its path and the receiver didn't collect it: only 2 were fumbles. The receiver passed **11–17px** from it, sometimes next to a stopped ball, and an opponent picked it up ~3s later.
+  - Cause: pickup reach is only ~8–13px (ball `PlayerDetectionArea` r=4 vs body capsule). At realistic acceleration, a receiver sprinting to the *earliest* reachable meeting point runs through it a stride off-line or late and can't correct.
+  - Fixes in the v2 brain only:
+    - `BallPredictor.earliest_intercept` gained a `slack`. Receivers target the earliest point they can reach **0.5s before the ball** (knob `receive_slack`), falling back to no slack.
+    - Arrival braking to CHASE/INTERCEPT/RECEIVE targets (`_arrival_cap`, knob `arrival_braking`).
+    - A final approach within 45px that matches the ball's motion and closes at a stoppable speed (`_attack_ball`, knob `attack_ball`).
+  - Effect on 8 traced matches: safe-pass failures 11.2% → 5.1% (≥0.97: 8.2% → 3.1%). Calibration at 0.99 predicted went from 0.90 to 0.97 actual.
+
+  | per side | before | slack 0.3 | **slack 0.5 (adopted)** | slack 0.8 |
+  |---|---|---|---|---|
+  | pass completion | 75% | 78% | **80%** | 80–81% |
+  | passes per possession | 1.86 | 2.17 | **2.43** | 2.46 |
+  | turnovers | 12.5 | 11.4 | **10.3** | 10.7 |
+  | metrics in band | 29 | 27 | **30** | 26 |
+
+  - This is very likely the root of the old recurring "long pass bug": long passes reach the spot, and the receiver overruns them.
+- **Press on the pass re-tested after the fix:** still −0.5 passes per possession and −3 pts completion for +4 pts of pressure, so it stays off.
+  - The remaining gap to real football is on the ball: a pressured carrier should shield, recycle backwards or play first-time, rather than lose it.
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);

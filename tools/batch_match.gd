@@ -131,7 +131,12 @@ func _run() -> void:
 	summary["wall_s_total"] = (Time.get_ticks_msec() - t0) / 1000.0
 	_print_summary(summary)
 	if not _traced_passes.is_empty():
-		print("\n══════ PASS TRACE ══════\n" + PassTracer.summarize(_traced_passes))
+		print("
+══════ PASS TRACE ══════
+" + PassTracer.summarize(_traced_passes))
+		print(PassTracer.summarize_safe_failures(_traced_passes, 0.9))
+		print(PassTracer.summarize_safe_failures(_traced_passes, 0.97))
+		print(PassTracer.list_safe_failures(_traced_passes, 0.9))
 	_write_json({"args": _args, "summary": summary, "matches": results})
 	get_tree().quit(0)
 

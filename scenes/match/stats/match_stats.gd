@@ -117,7 +117,9 @@ func _on_possession_gained(p: Player) -> void:
 		how = "pass"
 	elif _last_possessor != null and _side(_last_possessor) != side:
 		how = "won"
-	_acq = {"player": p, "how": how, "pos": p.position}
+	_acq = {"player": p, "how": how, "pos": p.position, "t": MatchClock.now()}
+	if _in_play() and how == "pass" and p.role != Positions.Role.GK:
+		_pressure_tel(side, "recv", p)
 	_intercepted_pass = not _pending_pass.is_empty() and _pending_pass["side"] != side
 	if not _pending_pass.is_empty():
 		var ps : Dictionary = _pending_pass
@@ -194,6 +196,9 @@ func _on_pass_attempted(passer: Player, receiver: Player, destination: Vector2) 
 		st["untargeted_kicks"] += 1
 	else:
 		st["passes"] += 1
+		if not _acq.is_empty() and _acq["player"] == passer and passer.role != Positions.Role.GK:
+			_pressure_tel(side, "rel", passer)
+			_tel(side, "rel_hold_s", MatchClock.now() - _acq["t"])
 		st["pass_length_m_sum"] += PitchSpace.distance_m(passer.position, destination)
 		var goal := passer.target_goal.get_center_target_position()
 		var d0 := PitchSpace.distance_m(passer.position, goal)
@@ -286,6 +291,23 @@ func _close_shot(outcome: String) -> void:
 		elif _shot["keeper_touch"]:
 			_tel(side, "shots_saved")
 	_shot = {}
+
+## "Under pressure" = an opponent within this many metres (StatsBomb-style).
+const PRESSURED_M := 3.0
+
+## Pressure on [param p] at a reception ("recv") or a pass release ("rel"):
+## nearest opponent distance and whether it counts as pressured.
+func _pressure_tel(side: String, key: String, p: Player) -> void:
+	var near := INF
+	for o: Player in p.get_opponents():
+		if o.role != Positions.Role.GK:
+			near = minf(near, PitchSpace.distance_m(o.position, p.position))
+	if near == INF:
+		return
+	_tel(side, key + "_n")
+	_tel(side, key + "_near_m", minf(near, 30.0))
+	if near < PRESSURED_M:
+		_tel(side, key + "_pressured")
 
 ## Touch dribbling (BallStateCarried): counted for the side that lost it.
 func _on_dribble_poked(defender: Player, carrier: Player) -> void:
@@ -571,6 +593,11 @@ const POOLED_RATES := {
 	"to_share_restart": ["tel_turnover_by_restart", "turnovers"],
 	"to_share_loose": ["tel_turnover_by_loose", "turnovers"],
 	"to_share_poked": ["tel_turnover_by_poked", "turnovers"],
+	"recv_near_m": ["tel_recv_near_m", "tel_recv_n"],
+	"recv_pressured_share": ["tel_recv_pressured", "tel_recv_n"],
+	"rel_near_m": ["tel_rel_near_m", "tel_rel_n"],
+	"rel_pressured_share": ["tel_rel_pressured", "tel_rel_n"],
+	"rel_hold_s": ["tel_rel_hold_s", "tel_rel_n"],
 	"out_share_pass": ["tel_out_by_pass", "tel_out_total"],
 	"out_share_carry": ["tel_out_by_carry", "tel_out_total"],
 	"out_share_shot": ["tel_out_by_shot", "tel_out_total"],

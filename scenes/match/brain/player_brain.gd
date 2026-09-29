@@ -195,7 +195,7 @@ func _think_off_ball() -> void:
 			else:
 				_target = job.point + _position_error
 		Job.Kind.RECEIVE:
-			var t := BallPredictor.earliest_intercept(ctx.ball_path, player) if ctx.ball_path != null else INF
+			var t := BallPredictor.earliest_intercept(ctx.ball_path, player, Tuning.f("receive_slack", RECEIVE_SLACK_S)) if ctx.ball_path != null else INF
 			_target = TeamBrain.clamp_to_pitch(ctx.ball_path.position_at(t)) if t != INF else job.point
 		_:
 			_target = job.point
@@ -246,6 +246,13 @@ func _move_off_ball() -> void:
 					player.velocity = player.position.direction_to(aim) * _sprint_speed()
 					return
 				_target = carrier.position + carrier.position.direction_to(own_goal) * CONTAIN_DIST
+			elif carrier == null:
+				# Pressing on the pass (TeamBrain._press_on_pass): sprint to
+				# the goal-side spot by the reception point.
+				_target = job.point
+				player.velocity = player.position.direction_to(_target) * _sprint_speed() \
+					if player.position.distance_to(_target) > 6.0 else Vector2.ZERO
+				return
 		Job.Kind.COVER:
 			if carrier != null:
 				_target = carrier.position + carrier.position.direction_to(own_goal) * TeamBrain.COVER_DIST
@@ -259,10 +266,55 @@ func _move_off_ball() -> void:
 			if carrier != null and job.subject != null:
 				_target = carrier.position.lerp(job.subject.position, 0.42)
 		Job.Kind.CHASE, Job.Kind.INTERCEPT, Job.Kind.RECEIVE:
-			player.velocity = player.position.direction_to(_target) * _sprint_speed() \
-				if player.position.distance_to(_target) > 6.0 else Vector2.ZERO
+			if _attack_ball():
+				return
+			var dt := player.position.distance_to(_target)
+			player.velocity = player.position.direction_to(_target) * minf(_sprint_speed(), _arrival_cap(dt - 6.0)) \
+				if dt > 6.0 else Vector2.ZERO
 			return
 	player.velocity = Locomotion.compute_velocity(player, _target, ctx.ball, opponent_area)
+
+## Final approach to a loose ball: within this distance, stop running to the
+## predicted meeting point and go at the ball itself. The pickup reach is only
+## ~8-13px (ball.tscn PlayerDetectionArea vs the body capsule), and PassTracer
+## showed "safe" passes (pred >= 0.9) failing ~10% of the time with the
+## receiver passing 11-17px from the ball — parked at a meeting point a
+## fraction off-line or late, or standing next to a stopped ball — until an
+## opponent collected it seconds later.
+const ATTACK_BALL_PX := 45.0
+## Lead on the ball's motion during the final approach (s, max).
+const ATTACK_BALL_LEAD_S := 0.25
+
+func _attack_ball() -> bool:
+	if not Tuning.b("attack_ball", true):
+		return false
+	var b := ctx.ball
+	if b.carrier != null or b.is_kick_cooldown(player) or b.restart_locked_for(player):
+		return false
+	var d := player.position.distance_to(b.position)
+	if d > ATTACK_BALL_PX:
+		return false
+	var sprint := _sprint_speed()
+	var lead := clampf(d / maxf(sprint, 1.0), 0.0, ATTACK_BALL_LEAD_S)
+	# The pickup circle sits 2px above the body capsule's centre line.
+	var aim := b.position + b.velocity * lead + Vector2(0.0, -2.0)
+	# Match the ball's motion and close the gap at a speed we can still stop
+	# from — sprinting straight at it overran it by a stride.
+	var v := b.velocity + player.position.direction_to(aim) * _arrival_cap(player.position.distance_to(aim))
+	player.velocity = v.limit_length(sprint)
+	return true
+
+## Receivers settle before the ball arrives instead of arriving at full tilt:
+## the RECEIVE meeting point is the earliest one reachable this many seconds
+## before the ball (BallPredictor.earliest_intercept slack). Knob `receive_slack`.
+const RECEIVE_SLACK_S := 0.5
+
+## Highest speed from which the player can still stop within [param dist] px
+## (v2 braking); unlimited for v1-style movement.
+func _arrival_cap(dist: float) -> float:
+	if player.max_accel <= 0.0 or not Tuning.b("arrival_braking", true):
+		return INF
+	return sqrt(2.0 * player.max_accel * Player.BRAKE_FACTOR * 0.8 * maxf(dist, 0.0)) + 20.0
 
 func _sprint_speed() -> float:
 	return player.speed * Locomotion.SPRINT_MULTIPLIER * player.get_stamina_factor()

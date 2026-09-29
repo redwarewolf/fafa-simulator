@@ -107,12 +107,17 @@ static func for_ball(ball: Ball, max_time: float = 3.0) -> BallPath:
 ## Earliest sample time at which [param player] could be at the ball
 ## (PitchControl.time_to_reach ≤ ball time), or INF if they never can within
 ## the path. Once the ball has stopped, arriving any time later still counts.
-static func earliest_intercept(path: BallPath, player: Player) -> float:
+## [param slack]: arrive at least this many seconds before the ball (a
+## receiver that gets there early can settle; one arriving at the last instant
+## at full speed misses by a stride). Falls back to no slack if impossible.
+static func earliest_intercept(path: BallPath, player: Player, slack: float = 0.0) -> float:
 	for i in path.size():
 		if path.heights[i] > Player.MAX_COLLECT_HEIGHT:
 			continue  # flying overhead — nobody can take it there
-		if PitchControl.time_to_reach(path.positions[i], player) <= path.times[i]:
+		if PitchControl.time_to_reach(path.positions[i], player) + slack <= path.times[i]:
 			return path.times[i]
+	if slack > 0.0:
+		return earliest_intercept(path, player, 0.0)
 	if path.stop_time != INF:
 		return maxf(path.stop_time, PitchControl.time_to_reach(path.end_position(), player))
 	return INF
