@@ -199,6 +199,9 @@ func _on_pass_attempted(passer: Player, receiver: Player, destination: Vector2) 
 		if not _acq.is_empty() and _acq["player"] == passer and passer.role != Positions.Role.GK:
 			_pressure_tel(side, "rel", passer)
 			_tel(side, "rel_hold_s", MatchClock.now() - _acq["t"])
+			var band := OnBallEvaluator.pressure_band(passer)
+			_tel(side, "rel_n_" + band)
+			_tel(side, "rel_hold_s_" + band, MatchClock.now() - _acq["t"])
 		st["pass_length_m_sum"] += PitchSpace.distance_m(passer.position, destination)
 		var goal := passer.target_goal.get_center_target_position()
 		var d0 := PitchSpace.distance_m(passer.position, goal)
@@ -598,6 +601,9 @@ const POOLED_RATES := {
 	"rel_near_m": ["tel_rel_near_m", "tel_rel_n"],
 	"rel_pressured_share": ["tel_rel_pressured", "tel_rel_n"],
 	"rel_hold_s": ["tel_rel_hold_s", "tel_rel_n"],
+	"rel_hold_s_pressured": ["tel_rel_hold_s_p", "tel_rel_n_p"],
+	"rel_hold_s_near": ["tel_rel_hold_s_n", "tel_rel_n_n"],
+	"rel_hold_s_free": ["tel_rel_hold_s_f", "tel_rel_n_f"],
 	"out_share_pass": ["tel_out_by_pass", "tel_out_total"],
 	"out_share_carry": ["tel_out_by_carry", "tel_out_total"],
 	"out_share_shot": ["tel_out_by_shot", "tel_out_total"],

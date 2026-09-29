@@ -89,6 +89,7 @@ static func _record(player: Player, options: Array, pick: Option) -> void:
 	var nx := PitchSpace.normalised(player.position, player.is_left_team).x
 	var third := "def" if nx < 1.0 / 3.0 else ("mid" if nx < 2.0 / 3.0 else "att")
 	AIProfile.count("choice_%s_%s" % [third, KIND_NAMES[pick.kind]], pick.value)
+	_record_pressure(player, options, pick, nx)
 	if pick.kind == Kind.SHOOT:
 		var best := {Kind.PASS: null, Kind.CARRY: null}
 		for o in options:
@@ -123,6 +124,38 @@ static func _record(player: Player, options: Array, pick: Option) -> void:
 		AIProfile.count("through_available_vs_chosen_%s" % third, pick.value)
 		if pick.kind == Kind.PASS and not pick.to_feet:
 			AIProfile.count("through_chosen_%s" % third, pick.p_success)
+
+## Pressure band of [param player]: "p" = an opponent within 3m, "n" = 3-6m,
+## "f" = free. Shared by the decision and pass telemetry.
+static func pressure_band(player: Player) -> String:
+	var near := INF
+	for o: Player in player.get_opponents():
+		if o.role != Positions.Role.GK:
+			near = minf(near, PitchSpace.distance_m(o.position, player.position))
+	return "p" if near < 3.0 else ("n" if near < 6.0 else "f")
+
+## Decision telemetry split by pressure (dec_<band>_...): what was chosen and
+## its predicted success, pass direction/length, the best pass on offer, and
+## how soon the nearest opponent could reach the carrier.
+static func _record_pressure(player: Player, options: Array, pick: Option, nx: float) -> void:
+	var band := pressure_band(player)
+	AIProfile.count("dec_%s_%s" % [band, KIND_NAMES[pick.kind]], pick.p_success)
+	AIProfile.count("dec_%s_all" % band, pick.p_success)
+	var t_press := INF
+	for o: Player in player.get_opponents():
+		if o.role != Positions.Role.GK:
+			t_press = minf(t_press, PitchControl.time_to_reach(player.position, o))
+	AIProfile.count("dec_%s_t_presser" % band, minf(t_press, 5.0))
+	var best_p := 0.0
+	for o in options:
+		if o.kind == Kind.PASS:
+			best_p = maxf(best_p, o.p_success)
+	AIProfile.count("dec_%s_best_pass_p" % band, best_p)
+	if pick.kind == Kind.PASS:
+		var dx := (PitchSpace.normalised(pick.destination, player.is_left_team).x - nx) * 105.0
+		AIProfile.count("dec_%s_pass_fwd_m" % band, dx)
+		AIProfile.count("dec_%s_pass_backward" % band, 1.0 if dx < -2.0 else 0.0)
+		AIProfile.count("dec_%s_pass_len_m" % band, PitchSpace.distance_m(player.position, pick.destination))
 
 static func enumerate(player: Player, ctx: MatchContext, team: TeamBrain, restart: bool) -> Array:
 	var left := player.is_left_team

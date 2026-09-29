@@ -136,7 +136,10 @@ func _run() -> void:
 " + PassTracer.summarize(_traced_passes))
 		print(PassTracer.summarize_safe_failures(_traced_passes, 0.9))
 		print(PassTracer.summarize_safe_failures(_traced_passes, 0.97))
-		print(PassTracer.list_safe_failures(_traced_passes, 0.9))
+		print(PassTracer.summarize_by_pressure(_traced_passes))
+		print(PassTracer.summarize_by_kind(_traced_passes))
+		if OS.get_environment("BATCH_PASSTRACE") == "3":
+			print(PassTracer.list_safe_failures(_traced_passes, 0.9))
 	_write_json({"args": _args, "summary": summary, "matches": results})
 	get_tree().quit(0)
 

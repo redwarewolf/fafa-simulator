@@ -39,8 +39,15 @@ func _on_pass(passer: Player, receiver: Player, dest: Vector2) -> void:
 	if receiver == null:
 		return
 	var predicted := -1.0
+	var windup := -1.0
+	var decided_band := ""
+	var kind := ""
 	if passer.brain != null:
 		predicted = passer.brain.last_pass_p
+		windup = MatchClock.now() - passer.brain.last_pass_decided_t if passer.brain.last_pass_decided_t >= 0.0 else -1.0
+		decided_band = passer.brain.last_pass_band
+		kind = passer.brain.last_pass_kind
+		passer.brain.last_pass_decided_t = -1.0
 		passer.brain.last_pass_p = -1.0
 	_cur = {
 		"predicted": predicted,
@@ -48,6 +55,8 @@ func _on_pass(passer: Player, receiver: Player, dest: Vector2) -> void:
 		"dist": passer.position.distance_to(dest), "t0": MatchClock.now(),
 		"max_h": 0.0, "landed": false, "was_air": false,
 		"opp_near_dest_m": _nearest_opp_m(passer, dest),
+		"band": OnBallEvaluator.pressure_band(passer), "decided_band": decided_band, "windup": windup, "kind": kind,
+		"fwd_m": (PitchSpace.normalised(dest, passer.is_left_team).x - PitchSpace.normalised(passer.position, passer.is_left_team).x) * 105.0,
 		"to_feet": receiver.position.distance_to(dest) < 40.0,
 	}
 
@@ -102,6 +111,7 @@ func _close(outcome: String, collector: Player) -> void:
 		"rcv_min_px": _cur.get("rcv_min_px", -1.0), "rcv_min_t": _cur.get("rcv_min_t", -1.0), "rcv_min_state": _cur.get("rcv_min_state", "?"),
 		"rcv_min_job": _cur.get("rcv_min_job", "?"), "rcv_min_ball_h": _cur.get("rcv_min_ball_h", 0.0), "rcv_min_ball_v": _cur.get("rcv_min_ball_v", 0.0),
 		"to_feet": _cur["to_feet"], "rcv_state_end": Player.State.keys()[_cur["receiver"]._current_state_type],
+		"band": _cur["band"], "decided_band": _cur["decided_band"], "windup": _cur["windup"], "fwd_m": _cur["fwd_m"], "pkind": _cur["kind"],
 		"collector_to_path_px": _dist_to_segment(collector.position, origin, dest) if collector != null else -1.0,
 		"collector_dist_to_dest": collector.position.distance_to(dest) if collector != null else -1.0,
 	})
@@ -220,4 +230,105 @@ static func list_safe_failures(all: Array, p_min: float = 0.9) -> String:
 			r["outcome"], r["dist"], r["reach"], str(r.get("to_feet", "?")), r["time"], r.get("rcv_min_px", -1.0),
 			r.get("rcv_min_t", -1.0), r.get("rcv_min_state", "?"), r.get("rcv_min_job", "?"),
 			r.get("rcv_min_ball_h", 0.0), r.get("rcv_min_ball_v", 0.0), r.get("rcv_state_end", "?")])
+	return "\n".join(lines)
+
+## v2 passes split by the passer's pressure band AT THE KICK ("p" <3m,
+## "n" 3-6m, "f" free): predicted vs actual success, how they failed, wind-up
+## (decision → kick), pressure that arrived during the wind-up, direction.
+static func summarize_by_pressure(all: Array) -> String:
+	var lines := []
+	for band in ["p", "n", "f"]:
+		var sub := all.filter(func(r): return r.get("band", "") == band and r.get("predicted", -1.0) >= 0.0 and r["outcome"] != "superseded")
+		if sub.is_empty():
+			continue
+		var kept := 0
+		var pred := 0.0
+		var wind := 0.0
+		var nw := 0
+		var closed := 0
+		var fwd := 0.0
+		var back := 0
+		var fumb := 0
+		var by := {}
+		for r in sub:
+			pred += r["predicted"]
+			if r["outcome"] in ["receiver", "teammate"]:
+				kept += 1
+			else:
+				by[r["outcome"]] = by.get(r["outcome"], 0) + 1
+			if r.get("windup", -1.0) >= 0.0:
+				wind += r["windup"]
+				nw += 1
+			if r.get("decided_band", "") != band and r.get("decided_band", "") != "":
+				closed += 1
+			fwd += r.get("fwd_m", 0.0)
+			if r.get("fwd_m", 0.0) < -2.0:
+				back += 1
+			if r.get("fumbled", false):
+				fumb += 1
+		var outs := []
+		for k in by:
+			outs.append("%s %d%%" % [k, roundi(100.0 * by[k] / sub.size())])
+		lines.append("PRESSURE %s: n=%d pred %.2f → actual %.2f | lost: %s | fumbled %d%% | windup %.2fs, band changed during windup %d%% | fwd %.1fm, backward %d%%" % [
+			band, sub.size(), pred / sub.size(), float(kept) / sub.size(), ", ".join(outs),
+			roundi(100.0 * fumb / sub.size()), wind / maxi(nw, 1), roundi(100.0 * closed / sub.size()),
+			fwd / sub.size(), roundi(100.0 * back / sub.size())])
+		# Calibration within the band.
+		var cal := []
+		for bk in [[0.0, 0.7], [0.7, 0.85], [0.85, 0.95], [0.95, 1.01]]:
+			var n := 0
+			var k := 0
+			var ps := 0.0
+			for r in sub:
+				if r["predicted"] >= bk[0] and r["predicted"] < bk[1]:
+					n += 1
+					ps += r["predicted"]
+					if r["outcome"] in ["receiver", "teammate"]:
+						k += 1
+			if n > 0:
+				cal.append("%.2f→%.2f (n=%d)" % [ps / n, float(k) / n, n])
+		lines.append("    calibration: " + "  ".join(cal))
+	return "\n".join(lines)
+
+## v2 pass calibration by the decision's pass type (feet / space = through
+## ball / cross) and by length — which passes does the model overrate?
+static func summarize_by_kind(all: Array) -> String:
+	var lines := []
+	var groups := {}
+	for r in all:
+		if r.get("predicted", -1.0) < 0.0 or r["outcome"] == "superseded" or r.get("pkind", "") == "":
+			continue
+		var m : float = r["dist"] * PitchSpace.metres_per_px().x
+		var len_key := "short<15m" if m < 15.0 else ("mid15-30m" if m < 30.0 else "long>30m")
+		for key in [r["pkind"], r["pkind"] + "/" + len_key]:
+			if not groups.has(key):
+				groups[key] = []
+			groups[key].append(r)
+	var keys := groups.keys()
+	keys.sort()
+	for key in keys:
+		var sub : Array = groups[key]
+		var cal := []
+		var kept := 0
+		var ps := 0.0
+		var out := 0
+		for r in sub:
+			ps += r["predicted"]
+			if r["outcome"] in ["receiver", "teammate"]:
+				kept += 1
+			elif r["outcome"] == "out_or_stoppage":
+				out += 1
+		for bk in [[0.0, 0.7], [0.7, 0.85], [0.85, 0.95], [0.95, 1.01]]:
+			var n := 0
+			var k := 0
+			var p := 0.0
+			for r in sub:
+				if r["predicted"] >= bk[0] and r["predicted"] < bk[1]:
+					n += 1
+					p += r["predicted"]
+					if r["outcome"] in ["receiver", "teammate"]:
+						k += 1
+			if n > 0:
+				cal.append("%.2f→%.2f(%d)" % [p / n, float(k) / n, n])
+		lines.append("KIND %-18s n=%4d pred %.2f → actual %.2f  out %d%% | %s" % [key, sub.size(), ps / sub.size(), float(kept) / sub.size(), roundi(100.0 * out / sub.size()), "  ".join(cal)])
 	return "\n".join(lines)

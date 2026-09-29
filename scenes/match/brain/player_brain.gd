@@ -32,6 +32,11 @@ var opponent_area : Area2D = null
 ## The success probability PassModel predicted for this player's latest pass
 ## (telemetry: PassTracer checks predictions against outcomes).
 var last_pass_p := -1.0
+## When this player decided on that pass and the pressure band then
+## (telemetry: wind-up time, pressure closing in before the kick).
+var last_pass_decided_t := -1.0
+var last_pass_band := ""
+var last_pass_kind := ""
 
 var _target := Vector2.ZERO
 var _next_think := 0.0
@@ -119,6 +124,9 @@ func _act_on_ball() -> bool:
 			return true
 		OnBallEvaluator.Kind.PASS:
 			last_pass_p = o.p_success
+			last_pass_decided_t = MatchClock.now()
+			last_pass_band = OnBallEvaluator.pressure_band(player)
+			last_pass_kind = "cross" if o.lofted else ("feet" if o.to_feet else "space")
 			player.switch_state(Player.State.PASSING,
 				PlayerStateData.build().set_pass_target(o.receiver, o.destination, o.to_feet, o.lofted))
 			return true
