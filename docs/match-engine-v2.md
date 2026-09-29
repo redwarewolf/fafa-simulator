@@ -386,6 +386,37 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
   - Long balls into space succeed half as often as `PassModel` thinks, and over a quarter of them run out of play. The model has no notion of the ball running out past the receiver.
 - **Shots per possession stay at 0.29–0.30** (target ≤0.22). This is the other way possessions end too early.
 
+**Step 1: rolling reception race in `PassModel`** (knob `pass_rolling_race`, default on).
+- **Receiver:** meets the ball at the earliest point of its *real* path they can reach (`BallPredictor.earliest_intercept`). The old model treated the ball as waiting at the target.
+- **Opponent:** races to that spot, no earlier than the ball itself gets there.
+- **Out of play:** the receiver must also beat the ball crossing OutOfPlay's line.
+- Unit test: a ball that rolls out before the runner rates far lower, while a pass to feet stays >0.9.
+- **Traced (24 matches, same seed):**
+
+  | | before | after |
+  |---|---|---|
+  | long passes into space played | 109 | 44 |
+  | long passes into space, predicted → actual | 0.65 → 0.32 | 0.58 → 0.50 |
+  | long passes into space going out | 27% | 7% |
+  | overall calibration at 0.78 predicted | 0.62 actual | 0.78 actual |
+  | overall calibration at 0.99 predicted | 0.96 actual | 0.96 actual |
+
+- **64 × 180s vs the receiving-fix baseline (same seeds):**
+
+  | | before | after |
+  |---|---|---|
+  | completion | 80% | **82.5%** |
+  | passes per possession | 2.43 | **2.57** (now in band) |
+  | turnovers | 10.3 | 9.5 |
+  | forward share | 0.53–0.56 | unchanged |
+  | goals/xG | ≈1 | 0.77–0.94 |
+  | xG per side | 0.48–0.57 | 0.44–0.52 |
+
+- **Still open:**
+  - Short passes into space are overrated: 0.98 predicted → 0.78 actual (n=46).
+  - Shots per possession 0.26–0.30.
+  - PPDA ~3.3.
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);

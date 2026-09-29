@@ -130,6 +130,24 @@ func test_through_ball_into_space_needs_the_runner_to_win_the_race() -> void:
 	assert_true(good.p_success > bad.p_success + 0.3, "space pass: runner ahead (%.2f) vs defender already there (%.2f)" % [good.p_success, bad.p_success])
 	_free_players()
 
+## A pass arrives with pace and rolls on: a runner who only gets there late
+## meets it further on, and a ball played toward a line can run out first.
+func test_pass_that_runs_out_before_the_runner_rates_low() -> void:
+	var passer := _player(Vector2(1000, 700))
+	var runner := _player(Vector2(1200, 820), 60.0)
+	var target := Vector2(1200, 1015)  # ~20px inside the bottom detection line
+	Tuning.set_from_string("pass_rolling_race=0")
+	var old := PassModel.evaluate(passer.position, target, passer, runner, [passer, runner], [])
+	Tuning.set_from_string("")
+	var rolling := PassModel.evaluate(passer.position, target, passer, runner, [passer, runner], [])
+	assert_true(rolling.p_success < old.p_success - 0.2,
+		"ball runs out before the runner (rolling %.2f vs waiting-ball %.2f)" % [rolling.p_success, old.p_success])
+	# To feet, unchallenged: unchanged.
+	var mate := _player(Vector2(1200, 700))
+	var feet := PassModel.evaluate(passer.position, mate.position, passer, mate, [passer, mate], [])
+	assert_true(feet.p_success > 0.9, "simple pass to feet still safe (got %.2f)" % feet.p_success)
+	_free_players()
+
 # ─── PitchControlGrid ───────────────────────────────────────────────────────
 
 func test_pitch_control_follows_the_players() -> void:

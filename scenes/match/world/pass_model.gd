@@ -76,18 +76,21 @@ static func evaluate(from: Vector2, to: Vector2, passer: Player, receiver: Playe
 		worst = maxf(worst, p_first(t_def, t))
 	e.p_intercept = worst
 
-	var t_att := INF
-	if receiver != null:
-		t_att = PitchControl.time_to_reach(to, receiver)
+	if receiver != null and Tuning.b("pass_rolling_race", true):
+		_rolling_reception(e, path, arrive_i, receiver, opponents)
 	else:
-		for tm in teammates:
-			if tm != passer:
-				t_att = minf(t_att, PitchControl.time_to_reach(to, tm))
-	var t_opp := INF
-	for o in opponents:
-		t_opp = minf(t_opp, PitchControl.time_to_reach(to, o))
-	# Nobody can collect it before the ball gets there anyway.
-	e.p_reception = p_first(maxf(t_att, e.flight_time), maxf(t_opp, e.flight_time))
+		var t_att := INF
+		if receiver != null:
+			t_att = PitchControl.time_to_reach(to, receiver)
+		else:
+			for tm in teammates:
+				if tm != passer:
+					t_att = minf(t_att, PitchControl.time_to_reach(to, tm))
+		var t_opp := INF
+		for o in opponents:
+			t_opp = minf(t_opp, PitchControl.time_to_reach(to, o))
+		# Nobody can collect it before the ball gets there anyway.
+		e.p_reception = p_first(maxf(t_att, e.flight_time), maxf(t_opp, e.flight_time))
 	# First touch (Player.control_chance): how hard the ball is to control at
 	# arrival. A fumble isn't always lost — FUMBLE_RECOVERY of them are still
 	# won back by the receiving side.
@@ -103,6 +106,45 @@ static func evaluate(from: Vector2, to: Vector2, passer: Player, receiver: Playe
 	return e
 
 const FUMBLE_RECOVERY := 0.4
+
+## Reception race along the ball's real path (knob `pass_rolling_race`).
+## The old race treated the ball as waiting at the target: p_first(max(t_att,
+## flight), max(t_opp, flight)). A pass arrives with pace and rolls on, so a
+## receiver who gets there late meets it further on — or never, if it crosses
+## a line first. Step 0 diagnostics: through balls > 30m predicted 0.65,
+## actual 0.32, with 27% going out of play.
+##
+## Receiver: the earliest path sample they can reach (BallPredictor
+## earliest_intercept) — that's where and when they'd take it. Opponent: the
+## fastest to that same spot, but no earlier than the ball gets there (en-route
+## interceptions are p_intercept's job). Out of play: the first sample past
+## OutOfPlay's detection line; the receiver has to beat it too.
+static func _rolling_reception(e: PassEval, path: BallPredictor.BallPath, arrive_i: int,
+		receiver: Player, opponents: Array) -> void:
+	var t_rcv := BallPredictor.earliest_intercept(path, receiver)
+	if t_rcv == INF:
+		e.p_reception = 0.0
+		return
+	# earliest_intercept returns the sample time the ball is at that spot, or
+	# (ball already stopped) the receiver's arrival after stop_time.
+	var pos := path.position_at(t_rcv)
+	var t_ball_there := minf(t_rcv, path.stop_time)
+	var t_opp := INF
+	for o in opponents:
+		t_opp = minf(t_opp, PitchControl.time_to_reach(pos, o))
+	e.p_reception = p_first(t_rcv, maxf(t_opp, t_ball_there))
+	var t_out := _out_time(path, arrive_i)
+	if t_out != INF:
+		e.p_reception *= p_first(t_rcv, t_out)
+
+## First sample time (at or after the target) where the ball has crossed a
+## line — goal mouths treated as closed; a pass into the net isn't a pass.
+static func _out_time(path: BallPredictor.BallPath, from_i: int) -> float:
+	var closed := Vector2(INF, -INF)
+	for i in range(from_i, path.size()):
+		if OutOfPlay.crossed(path.positions[i], closed, closed) != OutOfPlay.Line.NONE:
+			return path.times[i]
+	return INF
 
 ## Platt calibration of the physical model's raw probability:
 ##     p' = logistic(A · logit(p) + B)
