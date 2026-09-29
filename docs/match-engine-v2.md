@@ -417,6 +417,33 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
   - Shots per possession 0.26–0.30.
   - PPDA ~3.3.
 
+**Step 2: the "too many shots" were a keeper bug (Finding #11).**
+- **Shots were well placed but too good.** Average distance 16m, but 0.18 xG per shot. 45% came straight after winning the ball in the attacking third, 0.57s after the win.
+- **Half of all own-third turnovers were the goalkeeper's** (198 of 398).
+- **PassTracer on keeper passes:** short passes to feet rated 0.98 completed **41%**.
+  - The failures weren't interceptions. The ball stopped within 0.3s at the keeper's feet (reach ≈ 0) and he re-collected it, or a nearby opponent did.
+  - Cause: the keeper's always-on hands collider stopped his own kick, and `on_ball_contact` treated it as a parry.
+- **Fix:** `BallState.move_and_bounce` lets a v2 keeper's own kick pass through his body/hands during the kick cooldown. v1 is unaffected: its traced passes never end back with the passer.
+- Keeper passes completed 41% → 89% (3 traced matches).
+- **64 × 180s, same seeds:**
+
+  | | before | after |
+  |---|---|---|
+  | completion | 82.5% | **85.5%** |
+  | passes per possession | 2.57 | **3.20** |
+  | turnovers per side | 9.5 | **7.9** |
+  | shots per side | 2.7 | **1.9** |
+  | xG per shot | 0.18 | **0.13** (in band) |
+  | shots right after a win | 45% | **22%** |
+  | own-third turnover share | 0.31–0.34 | **0.25–0.29** (in band) |
+  | metrics in band | 30/43 | **32/43** |
+
+- **Now open:**
+  - Scoring is low: ~0.25 xG and goals per side per 180s, 40/64 draws.
+  - Shots per possession 0.24 (target ≤0.22).
+  - PPDA ~3.9.
+  - Short passes into space are still overrated.
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);

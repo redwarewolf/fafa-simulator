@@ -61,6 +61,9 @@ const HOLD_DELAY_MIN := 0.6
 const HOLD_DELAY_MAX := 1.6
 
 var player : Player = null
+## Telemetry (PassTracer): the latest distribution's predicted success and type.
+var last_pass_p := -1.0
+var last_pass_kind := ""
 var team : TeamBrain = null
 var ctx : MatchContext = null
 var ball : Ball = null
@@ -305,5 +308,7 @@ func _process_holding() -> void:
 		if o.value > best.value:
 			best = o
 	_hold_since = -1.0
+	last_pass_p = best.p_success
+	last_pass_kind = "cross" if best.lofted else ("feet" if best.to_feet else "space")
 	player.switch_state(Player.State.PASSING,
 		PlayerStateData.build().set_pass_target(best.receiver, best.destination, best.to_feet, best.lofted))

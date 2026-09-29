@@ -147,6 +147,9 @@ func _on_possession_gained(p: Player) -> void:
 		elif _intercepted_pass:
 			cause = "pass_intercepted"
 		_tel(_side(_last_possessor), "turnover_by_" + cause)
+		if PitchSpace.normalised(p.position, _last_possessor.is_left_team).x < 1.0 / 3.0:
+			_tel(_side(_last_possessor), "def_turnover_by_" + cause)
+			_tel(_side(_last_possessor), "def_turnover_role_" + String(Positions.Group.keys()[Positions.group(_last_possessor.role)]).to_lower() if _last_possessor.role != Positions.Role.GK else "def_turnover_role_gk")
 		# Who lost it, by formation group — diagnoses e.g. keeper distribution.
 		var group_name : String = "gk" if _last_possessor.role == Positions.Role.GK \
 			else String(Positions.Group.keys()[Positions.group(_last_possessor.role)]).to_lower()
@@ -232,6 +235,9 @@ func _on_shot_taken(shooter: Player, origin: Vector2) -> void:
 	if not _acq.is_empty() and _acq["player"] == shooter:
 		var how : String = _acq["how"]
 		_tel(_side(shooter), "shots_after_" + how)
+		var won_third := _third(PitchSpace.normalised(_acq["pos"], shooter.is_left_team).x)
+		_tel(_side(shooter), "shots_after_%s_%s" % [how, won_third])
+		_tel(_side(shooter), "shot_delay_after_" + how, MatchClock.now() - _acq.get("t", MatchClock.now()))
 		_tel(_side(shooter), "xg_after_" + how, shot_xg)
 		_tel(_side(shooter), "shot_carry_m", PitchSpace.distance_m(_acq["pos"], origin))
 		_tel(_side(shooter), "shots_with_acq")

@@ -49,6 +49,10 @@ func _on_pass(passer: Player, receiver: Player, dest: Vector2) -> void:
 		kind = passer.brain.last_pass_kind
 		passer.brain.last_pass_decided_t = -1.0
 		passer.brain.last_pass_p = -1.0
+	elif passer.keeper_brain != null:
+		predicted = passer.keeper_brain.last_pass_p
+		kind = "gk_" + passer.keeper_brain.last_pass_kind
+		passer.keeper_brain.last_pass_p = -1.0
 	_cur = {
 		"predicted": predicted,
 		"passer": passer, "receiver": receiver, "origin": passer.position, "dest": dest,
@@ -226,10 +230,10 @@ static func list_safe_failures(all: Array, p_min: float = 0.9) -> String:
 	for r in all:
 		if r.get("predicted", -1.0) < p_min or r["outcome"] in ["receiver", "teammate", "superseded"]:
 			continue
-		lines.append("  fail %-16s dist %4.0fpx reach %.2f feet=%s t=%.2fs | rcv closest %.0fpx at %.2fs state %s job %s ball h %.1f v %.0f | end state %s" % [
+		lines.append("  fail %-8s %-16s dist %4.0fpx reach %.2f feet=%s t=%.2fs | rcv closest %.0fpx at %.2fs state %s job %s ball h %.1f v %.0f | end state %s max_h %.1f" % [r.get("pkind", "?"),
 			r["outcome"], r["dist"], r["reach"], str(r.get("to_feet", "?")), r["time"], r.get("rcv_min_px", -1.0),
 			r.get("rcv_min_t", -1.0), r.get("rcv_min_state", "?"), r.get("rcv_min_job", "?"),
-			r.get("rcv_min_ball_h", 0.0), r.get("rcv_min_ball_v", 0.0), r.get("rcv_state_end", "?")])
+			r.get("rcv_min_ball_h", 0.0), r.get("rcv_min_ball_v", 0.0), r.get("rcv_state_end", "?"), r.get("max_h", 0.0)])
 	return "\n".join(lines)
 
 ## v2 passes split by the passer's pressure band AT THE KICK ("p" <3m,

@@ -48,6 +48,14 @@ func can_air_interact() -> bool:
 func move_and_bounce(delta: float) -> void:
 	var collision := ball.move_and_collide(ball.velocity * delta)
 	if collision != null:
+		# A keeper's own kick leaving his (always-on) hands collider: pass
+		# through instead of "parrying" it dead at his feet. PassTracer found
+		# engine-v2 keeper passes rated 0.98 completing 41% — the ball stopped
+		# 0.3s after release and the keeper re-collected it, or an opponent did.
+		var own := _player_owning(collision.get_collider())
+		if own != null and own.keeper_brain != null and ball.is_kick_cooldown(own):
+			ball.position += collision.get_remainder()
+			return
 		ball.velocity = ball.velocity.bounce(collision.get_normal()) * ball.BOUNCINESS
 		ball.switch_state(Ball.State.FREEFORM)
 		var toucher := _player_owning(collision.get_collider())
