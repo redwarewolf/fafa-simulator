@@ -30,6 +30,7 @@ var _world: MatchWorld
 var _actors_container: ActorsContainer
 var _camera: Camera
 var _last_ball_carrier := ""
+var _goal_banner_shown := false
 
 func _ready() -> void:
 	# MatchHUD is a child of HUD (CanvasLayer) which is a child of the World node.
@@ -99,6 +100,7 @@ func _on_score_changed() -> void:
 	else:
 		score_info_label.text = tr("%s GANA  %d - %d") % [_actors_container.team_right, sr, sl]
 	animation_player.play("goal_appear")
+	_goal_banner_shown = true
 
 ## Every stoppage (foul, offside, throw-in, corner, goal kick) reuses the
 ## foul toast, just with the restart's own label.
@@ -106,8 +108,11 @@ func _on_restart_awarded(kind: int, _team: String, _spot: Vector2) -> void:
 	foul_label.text = tr(Restart.LABELS.get(kind, "¡FALTA!"))
 	animation_player.play("foul_flash")
 
+## Only after a goal: the half-time reset used to replay goal_hide whenever
+## the score wasn't 0-0, flashing the last "GOAL!" banner at 45'.
 func _on_team_reset() -> void:
-	if _world.score_left > 0 or _world.score_right > 0:
+	if _goal_banner_shown:
+		_goal_banner_shown = false
 		animation_player.play("goal_hide")
 
 ## The match clock: real seconds scaled to 0'-90' (MatchWorld.game_minute).
