@@ -444,6 +444,22 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
   - PPDA ~3.9.
   - Short passes into space are still overrated.
 
+**Attack funnel** (MatchStats `funnel_*`: per possession, how far it got; 64 × 180s):
+
+| per possession | v2 | real football (approx.) |
+|---|---|---|
+| reaches middle third | 67–71% | — |
+| reaches final third | 40–41% | ~40–50% |
+| reaches the box | 14–16% | ~15–20% |
+| ends in a shot | 21–22% | ~10–12% |
+| box possessions ending in a shot | 78–85% | lower |
+
+- **Chance creation per possession is realistic, even generous.** xG per possession is ~0.03 vs real ~0.013, and about half of shots come from outside the box (average 19–20m).
+- **Low scoring (~0.25 goals per side per 180s) is time compression, not poor attacking.**
+  - A 180s half fits ~8 possessions per side against a real half's ~50: the clock is compressed ~15× while players move at realistic speed.
+  - At realistic per-possession rates that gives ~1 goal per 360s match.
+  - More goals needs either longer matches or a deliberate step away from per-possession realism. That is a design decision.
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);

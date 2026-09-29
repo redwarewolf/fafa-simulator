@@ -227,6 +227,8 @@ func _on_shot_taken(shooter: Player, origin: Vector2) -> void:
 		return
 	var st : Dictionary = _s[_side(shooter)]
 	st["shots"] += 1
+	if _fun_side == _side(shooter) and not _fun.is_empty():
+		_fun["shot"] = true
 	var shot_xg := ShotModel.xg_for_goal(origin, shooter.target_goal)
 	st["xg"] += shot_xg
 	if _sp_live(_side(shooter)):
@@ -381,10 +383,51 @@ func _sp_live(side: String) -> bool:
 
 # ─── Sampling ───────────────────────────────────────────────────────────────
 
+## Attack funnel: per possession (a run of carriers from one side), where it
+## started and how far it got — middle third, final third, box — and whether
+## it ended in a shot (fun_* telemetry, pooled as funnel_* rates).
+var _fun_side := ""
+var _fun := {}
+
+func _track_funnel() -> void:
+	var c := _ball.carrier
+	if c == null:
+		return
+	var side := _side(c)
+	var n := PitchSpace.normalised(_ball.position, side == "L")
+	if side != _fun_side:
+		_flush_funnel()
+		_fun_side = side
+		_fun = {"start_x": n.x, "max_x": n.x, "box": false, "shot": false}
+		_tel(side, "fun_n")
+		_tel(side, "fun_start_" + _third(n.x))
+	_fun["max_x"] = maxf(_fun["max_x"], n.x)
+	if n.x > BOX_DEPTH and absf(n.y - 0.5) < BOX_HALF_WIDTH:
+		_fun["box"] = true
+
+func _flush_funnel() -> void:
+	if _fun.is_empty():
+		return
+	var s := _fun_side
+	if _fun["max_x"] >= 1.0 / 3.0:
+		_tel(s, "fun_mid")
+	if _fun["max_x"] >= 2.0 / 3.0:
+		_tel(s, "fun_att")
+		if _fun["start_x"] < 2.0 / 3.0:
+			_tel(s, "fun_progressed_to_att")
+	if _fun["box"]:
+		_tel(s, "fun_box")
+	if _fun["shot"]:
+		_tel(s, "fun_shot")
+		if _fun["box"]:
+			_tel(s, "fun_box_shot")
+	_fun = {}
+
 func _process(delta: float) -> void:
 	if not _in_play():
 		return
 	_track_shot()
+	_track_funnel()
 	if _last_possessor != null:
 		_s[_side(_last_possessor)]["possession_s"] += delta
 	var ctx := _world.actors_container.match_context
@@ -602,6 +645,14 @@ const POOLED_RATES := {
 	"to_share_restart": ["tel_turnover_by_restart", "turnovers"],
 	"to_share_loose": ["tel_turnover_by_loose", "turnovers"],
 	"to_share_poked": ["tel_turnover_by_poked", "turnovers"],
+	"funnel_reach_mid": ["tel_fun_mid", "tel_fun_n"],
+	"funnel_reach_att": ["tel_fun_att", "tel_fun_n"],
+	"funnel_reach_box": ["tel_fun_box", "tel_fun_n"],
+	"funnel_shot": ["tel_fun_shot", "tel_fun_n"],
+	"funnel_box_to_shot": ["tel_fun_box_shot", "tel_fun_box"],
+	"funnel_start_def": ["tel_fun_start_def", "tel_fun_n"],
+	"funnel_start_att": ["tel_fun_start_att", "tel_fun_n"],
+	"funnel_def_mid_to_att": ["tel_fun_progressed_to_att", "tel_fun_n"],
 	"recv_near_m": ["tel_recv_near_m", "tel_recv_n"],
 	"recv_pressured_share": ["tel_recv_pressured", "tel_recv_n"],
 	"rel_near_m": ["tel_rel_near_m", "tel_rel_n"],
