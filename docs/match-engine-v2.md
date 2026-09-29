@@ -492,7 +492,37 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
   - xG diff **+0.86 ± 0.10**, goal diff +0.73 ± 0.15.
   - `GameState.match_ai_version` defaults to "v2". Settings saved before `ai_default_rev` 2 are migrated once, since they only stored "v1" because any settings change wrote the old default.
   - The pause-menu toggle still switches back to v1.
-- **Harness note:** `run_parallel.sh ... 180` now plays 180s matches *with* a half-time at 90s. Use duration 480 for full matches; earlier 180s numbers are comparable as rates, not totals.
+- **Harness note:** `run_parallel.sh ... 180` now plays 180s matches *with* a half-time at 90s.
+
+**Phase 7 part 5: movement feel** (user: turning felt slippery and top speed too high). 64 full 480s matches per row. Running load is measured by MatchStats `run_*`, sampled at 2 Hz in true m/s.
+
+| | avg speed | >5.5 m/s | >7 m/s | >10 m/s | completion | PPDA | pressured at release | goals/match |
+|---|---|---|---|---|---|---|---|---|
+| start | 4.8 | 41% | 25% | 4.4% | 88% | 5 | — | 1.72 |
+| 1. true distance | 3.8 | 30% | 9% | 0% | 92% | 9 | 13% | 1.28 |
+| 2. gaits (first cut) | 2.5 | 7% | 1.5% | 0% | 97% | 20+ | 8% | 0.3–0.6 |
+| 2. gaits + wider marking | 3.0 | 14% | 3% | 0% | 91% | 4.6 | 30% | 2.05 |
+| **3. turning model** | **3.3** | **18%** | **5%** | **0%** | **92%** | **4.3** | **32%** | **2.49** |
+| real football | ~2 | ~5–10% | ~1–3% | 0 | ~80–85% | 5–18 | ~20–30% | ~2.7 |
+
+1. **True distance.** The pitch is drawn squashed vertically (0.048 m/px along, 0.079 m/px across), but movement ran in raw pixels, so moving up or down the screen was 1.62× too fast (a pace-100 player reached ~15 m/s).
+   - `PitchSpace.ISO_Y` / `iso()` / `from_iso()` / `iso_len()` define an isotropic space.
+   - `Player.steer_velocity`, `PitchControl.time_to_reach`, `PitchControlGrid`, arrival braking, carries and the tackle lunge all work in it.
+   - Unit test: 20m across takes as long as 20m along. The ball still moves in raw pixels (not yet corrected).
+2. **Gaits** (`PlayerBrain._gait_speed`, knob `gaits`):
+   - Shape jobs walk under 4m off position, jog, run beyond 8m, and sprint beyond 20m in a transition.
+   - Defensive jobs sprint to close gaps over 3m; markers keep pace with their runner.
+   - Anyone within 20m of the ball works at full intensity. Press, chase, intercept and receive always sprint.
+   - The first cut (gaits alone) showed the zonal block leaving receivers ~14m free. `press_on_pass` is now on, and marking extends to `MAX_MARKS` 6 / `MARK_DANGER_MIN` 0.003.
+3. **Turning** (`Player._turn_and_run`, knob `turn_model`) replaces the linear velocity blend, which skidded sideways and backwards.
+   - Direction rotates at `TURN_GRIP` × accel ÷ speed.
+   - Turns over 75° brake to pivot speed first; below 30% of top speed a player turns on the spot.
+   - Unit test: a full-speed reversal overruns under 6m.
+4. **Animation** (`PlayerStateMoving`): idle/walk/run from real m/s (walk from 0.3, run from 2.2), with the cycle playback scaled to ground speed (walk 1.4 m/s = 1×, run 4.5 m/s = 1×, clamped 0.6–1.9×). Before, a fixed 0.6s run cycle at sprint speed looked like skating.
+
+- **Still open:**
+  - Completion (~92%) is a bit high and PPDA (~4.3) a bit low.
+  - The ball's own physics still uses raw pixels, so passes across the pitch travel 1.62× faster in real terms. Use duration 480 for full matches; earlier 180s numbers are comparable as rates, not totals.
 
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:

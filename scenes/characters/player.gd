@@ -52,7 +52,6 @@ const DODGE_HOP_HEIGHT := 1.0
 ## (HURT + a free kick) rather than a clean strip (DISPOSSESSED). See
 ## on_tackle_player().
 const FOUL_CHANCE_ON_TACKLE_WIN := 0.20
-const WALK_ANIM_THRESHOLD := 0.6
 ## Physics layer 5 ("Obstacle" in project.godot) — opted into by body types the
 ## ball should physically bounce off (see SpecialPlayerTypes.bounces_ball()).
 const OBSTACLE_COLLISION_BIT := 1 << 4
@@ -352,7 +351,10 @@ func apply_body_type() -> void:
 ## it declares one and has that animation, otherwise falls back to the shared
 ## default library — lets a body type with a divergent frame layout (e.g. the
 ## cone's narrower grid) override only the animations it actually needs.
-func play_anim(name: String) -> void:
+## [param playback_speed]: 1.0 for everything except walk/run cycles, which
+## PlayerStateMoving scales to the player's real ground speed.
+func play_anim(name: String, playback_speed: float = 1.0) -> void:
+	animation_player.speed_scale = playback_speed
 	var body_def : Dictionary = BodyTypes.DATA.get(body_type, {})
 	var lib : String = body_def.get("animation_library", "")
 	var qualified := "%s/%s" % [lib, name]
