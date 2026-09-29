@@ -66,5 +66,13 @@ signal keeper_decision(keeper: Player, p_save: float, save: bool)
 ## [param player] failed to control an arriving ball (first touch).
 signal heavy_touch(player: Player)
 
+## Touch dribbling (engine v2, BallStateCarried): [param defender] poked the
+## ball away from [param carrier] while it was out of the carrier's reach.
+signal dribble_poked(defender: Player, carrier: Player)
+
+## Touch dribbling: [param carrier] knocked the ball too far ahead and lost
+## control of it (it's now a loose ball).
+signal dribble_loose_touch(carrier: Player)
+
 ## The assistant flagged [param offender] offside (OffsideJudge).
 signal offside_called(offender: Player)

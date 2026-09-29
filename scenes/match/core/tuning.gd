@@ -22,4 +22,5 @@ static func set_from_string(spec: String) -> void:
 	for pair in spec.split(",", false):
 		var kv := pair.split("=")
 		if kv.size() == 2:
-			overrides[kv[0].strip_edges()] = float(kv[1])
+			var v := kv[1].strip_edges().to_lower()
+			overrides[kv[0].strip_edges()] = 1.0 if v == "true" else (0.0 if v == "false" else float(v))

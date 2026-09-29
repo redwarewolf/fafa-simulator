@@ -34,6 +34,7 @@ var _pending_pass: Dictionary = {}  # side, origin, destination, receiver, in_pp
 var _acq: Dictionary = {}  # how the current carrier got the ball: player, how (pass/won/loose), pos
 var _intercepted_pass := false
 var _last_tackle_win_t := -100.0
+var _last_poke_t := -100.0
 var _passes_in_possession := 0
 var _possession_lengths: Array[int] = []  # completed passes per possession, both sides pooled
 
@@ -74,6 +75,8 @@ func setup(world: MatchWorld) -> void:
 	GameEvents.foul_called.connect(_on_foul_called)
 	GameEvents.restart_awarded.connect(_on_restart_awarded)
 	GameEvents.team_scored.connect(_on_team_scored_for_shots)
+	GameEvents.dribble_poked.connect(_on_dribble_poked)
+	GameEvents.dribble_loose_touch.connect(_on_dribble_loose_touch)
 
 func _exit_tree() -> void:
 	# GameEvents is a long-lived autoload; a batch run instantiates many
@@ -87,6 +90,8 @@ func _exit_tree() -> void:
 		[GameEvents.foul_called, _on_foul_called],
 		[GameEvents.restart_awarded, _on_restart_awarded],
 		[GameEvents.team_scored, _on_team_scored_for_shots],
+		[GameEvents.dribble_poked, _on_dribble_poked],
+		[GameEvents.dribble_loose_touch, _on_dribble_loose_touch],
 	]:
 		if sig_and_cb[0].is_connected(sig_and_cb[1]):
 			sig_and_cb[0].disconnect(sig_and_cb[1])
@@ -133,6 +138,8 @@ func _on_possession_gained(p: Player) -> void:
 			cause = "restart"
 		elif p.role == Positions.Role.GK:
 			cause = "keeper"
+		elif how == "won" and MatchClock.now() - _last_poke_t < 1.5:
+			cause = "poked"
 		elif how == "won" and MatchClock.now() - _last_tackle_win_t < 1.0:
 			cause = "tackled"
 		elif _intercepted_pass:
@@ -279,6 +286,19 @@ func _close_shot(outcome: String) -> void:
 		elif _shot["keeper_touch"]:
 			_tel(side, "shots_saved")
 	_shot = {}
+
+## Touch dribbling (BallStateCarried): counted for the side that lost it.
+func _on_dribble_poked(defender: Player, carrier: Player) -> void:
+	if not _in_play():
+		return
+	_last_poke_t = MatchClock.now()
+	_tel(_side(carrier), "dribble_poked")
+	if PitchSpace.normalised(carrier.position, carrier.is_left_team).x < PPDA_ZONE:
+		_s[_side(defender)]["high_def_actions"] += 1
+
+func _on_dribble_loose_touch(carrier: Player) -> void:
+	if _in_play():
+		_tel(_side(carrier), "dribble_loose_touch")
 
 func _on_tackle_resolved(tackler: Player, carrier: Player, won: bool, foul: bool) -> void:
 	var side := _side(tackler)
@@ -550,6 +570,7 @@ const POOLED_RATES := {
 	"to_share_keeper": ["tel_turnover_by_keeper", "turnovers"],
 	"to_share_restart": ["tel_turnover_by_restart", "turnovers"],
 	"to_share_loose": ["tel_turnover_by_loose", "turnovers"],
+	"to_share_poked": ["tel_turnover_by_poked", "turnovers"],
 	"out_share_pass": ["tel_out_by_pass", "tel_out_total"],
 	"out_share_carry": ["tel_out_by_carry", "tel_out_total"],
 	"out_share_shot": ["tel_out_by_shot", "tel_out_total"],

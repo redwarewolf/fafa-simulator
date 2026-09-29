@@ -321,6 +321,18 @@ Keeper saves (72–74%) and goals/xG stayed calibrated.
   - Throw-ins fell from 2.2 to 1.6 per side and the carries-out share from 0.38 to 0.33. Completion rose to 76%.
 - **In context:** since 180s ≈ a half, real football has *more* restarts than we do (≈10 throw-ins per side per half). Restarts are therefore not what makes possessions short. What remains is passes intercepted and the tempo of realistic movement. Ball-glued dribbling means a carrier can only lose the ball to a tackle (1%). Touch dribbling (next) will change that.
 
+**Part 3: touch dribbling** (`BallStateCarried`, v2 carriers, knob `touch_dribble`, default on):
+- **Touches:** above 25% of sprint speed the ball runs ahead of the carrier and comes back once per touch (0.65s). The distance ahead is speed × 0.32s (0 DRI) down to speed × 0.14s (100 DRI).
+- **Pokes:** while the ball is more than 14px (about 0.7m) beyond the carrier's reach, any opponent within 16px gets one poke per touch. The poke uses the tackle duel odds (DEF vs DRI). It knocks the ball loose without a tackle, and the carrier can't re-collect it for 300ms.
+- **Loose touches:** on each touch there's a chance the ball runs away and becomes a loose ball. The chance is 3% × speed fraction × (1.2 − DRI), and ×2.5 with a defender within 60px.
+- **Shielding:** at low speed the ball sits on the far side from the nearest opponent (within 60px).
+- **Lines:** a carrier near a line takes a shorter touch. The ball is pulled back until it's inside `OutOfPlay`'s detection line.
+  - The first cut used a normalised margin smaller than OutOfPlay's 11px, and carries out of play went from 187 to 876 per 64 matches.
+- **Telemetry:** `tel_dribble_poked`, `tel_dribble_loose_touch`, turnover cause `poked`, and the `td_touch` counter (distance to the nearest opponent at each touch).
+- **A/B (64 × 180s):** neutral on every metric (turnovers 12.3–12.6 vs 12.5, completion 75–76%, goals/xG ≈ 1). Carries out of play fell 187 → 162.
+  - Pokes (2) and runaway touches (5) are very rare. The nearest opponent is 6–8m away at a typical touch: carriers get the ball, hold briefly and pass, and when they run it's into space.
+  - The mechanic works, but **defenders rarely get to a carrier at all** (tackles are ~1% of turnovers too). PPDA ~3 and short possessions come from passes being intercepted, not from duels. Pressing that actually closes a carrier down is the next lever.
+
 ## Findings log
 9. **Players move at ~40% of real speed: 🔶 OPEN (for Phase 7).** `Player.speed` is the raw PAC stat used directly as px/s (50–80), ×1.25 when sprinting. At ~21 px/m along the pitch that's ~2.4–4.8 m/s, while real sprints are 7–9 m/s. Ball speeds are realistic (passes, and shots since Finding #8). Consequences:
    - a match fits far fewer possessions than real football (an earlier note in this doc blamed time compression alone, which was wrong);
