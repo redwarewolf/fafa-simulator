@@ -309,8 +309,8 @@ func _gui_input(event: InputEvent) -> void:
 			var idx := _slot_at(event.position, field)
 			if idx >= 0:
 				# The keeper can be selected and can have a player dropped on them,
-				# but the slot never moves: GoalieAI reads its goal line off
-				# the spawn point, so dragging it forward strands the keeper.
+				# but the slot never moves: the keeper kicks off from it, so
+				# dragging it forward strands the keeper.
 				if idx != Formations.GOALKEEPER_SLOT:
 					_drag_index = idx
 				_selected_slot = idx

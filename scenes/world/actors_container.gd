@@ -1,7 +1,6 @@
 class_name ActorsContainer
 extends Node2D
 
-const DURATION_TACTICAL_REFRESH := 200 # ms between pressing/marking recomputes; increase if performance suffers
 const PLAYER_PREFAB := preload("res://scenes/characters/player.tscn")
 
 # World-space bounds of the playable field area (from wall geometry in world.tscn)
@@ -27,16 +26,6 @@ const KICKOFF_COMPRESSION := 0.5
 var left_team : Array[Player] = []
 var right_team : Array[Player] = []
 
-## Set in _ready(), NOT as an initializer: initializers run when the scene is
-## instantiated, which is before MatchWorld._enter_tree() resets MatchClock to
-## 0 — after a previous match that captured a huge timestamp, so the
-## "refresh every DURATION_TACTICAL_REFRESH" check stayed false for as long as
-## the previous match had lasted and neither team's tactics ever updated.
-## See docs/match-engine-v2.md Findings #4.
-var time_since_last_tactical_refresh := 0
-var _field_zones : FieldZones = null
-var _team_tactical_left := TeamTacticalState.new()
-var _team_tactical_right := TeamTacticalState.new()
 ## This scene's own parent is always the match root — see MatchHUD's
 ## identical get_parent() lookup for score/time. Used to feed live
 ## scoreline/time-remaining into TacticPreset.update() every tick.
@@ -51,14 +40,13 @@ var is_player_team_left : bool = true
 ## the opponent (AI-controlled, on either side) always stays AUTO. See
 ## docs/ai-overhaul.md Phase 8.
 var player_manual_mentality_mode : int = TacticPreset.ManualMode.AUTO
-## Engine-v2 shared world model (pitch control, xT, pass/shot models) — null
-## in a v1-only match with no analytics overlay on. See MatchContext.
+## Engine-v2 shared world model (pitch control, xT, pass/shot models) every
+## brain reads. See MatchContext.
 var match_context : MatchContext = null
 var team_brain_left : TeamBrain = null
 var team_brain_right : TeamBrain = null
 
 func _ready() -> void:
-	time_since_last_tactical_refresh = MatchClock.now_ms()
 	_apply_pending_fixture_teams()
 	_match_world = get_parent() as MatchWorld
 
@@ -80,46 +68,33 @@ func _ready() -> void:
 
 	GameEvents.team_scored.connect(_on_team_scored)
 	GameEvents.team_reset.connect(_on_team_reset)
-	# FieldZones registers into its group on _enter_tree (before any _ready in
-	# the scene) specifically so this lookup can't lose the race — see the
-	# comment on FieldZones._enter_tree.
-	_field_zones = get_tree().get_first_node_in_group("field_zones") as FieldZones
 
-	# Engine-v2 world model — only paid for when something reads it.
-	if MatchConfig.ai_version_left == "v2" or MatchConfig.ai_version_right == "v2" or DebugDraw.ANY_ANALYTICS:
-		match_context = MatchContext.new()
-		match_context.name = "MatchContext"
-		match_context.setup(self)
-		add_child(match_context)
-	if MatchConfig.ai_version_left == "v2":
-		team_brain_left = _make_team_brain(true, left_team)
-	if MatchConfig.ai_version_right == "v2":
-		team_brain_right = _make_team_brain(false, right_team)
+	match_context = MatchContext.new()
+	match_context.name = "MatchContext"
+	match_context.setup(self)
+	add_child(match_context)
+	team_brain_left = _make_team_brain(true, left_team)
+	team_brain_right = _make_team_brain(false, right_team)
 
-## True when every v2 side has its set-piece posts manned (see
-## TeamBrain.set_piece_ready); v1 sides are frozen and always "ready".
+## True when both sides have their set-piece posts manned (see
+## TeamBrain.set_piece_ready).
 func set_piece_ready() -> bool:
-	for tb in [team_brain_left, team_brain_right]:
-		if tb != null and not tb.set_piece_ready():
-			return false
-	return true
+	return team_brain_left.set_piece_ready() and team_brain_right.set_piece_ready()
 
-## Engine v2: a TeamBrain for the side, and a PlayerBrain for each of its
-## outfield players (keepers stay on v1's GoalieAI until Phase 8).
+## A TeamBrain for the side, a PlayerBrain for each outfield player and a
+## GoalkeeperBrain for the keeper.
 func _make_team_brain(is_left: bool, team: Array[Player]) -> TeamBrain:
-	# Realistic speed/acceleration for every v2 player (Phase 7) — set before
-	# the brains are built, since they read player.speed.
-	if Tuning.b("realistic_movement", true):
-		for p in team:
-			if SpecialPlayerTypes.movable(p.special_type):
-				p.apply_realistic_movement()
+	# Realistic speed/acceleration (Phase 7) — set before the brains are
+	# built, since they read player.speed.
+	for p in team:
+		if SpecialPlayerTypes.movable(p.special_type):
+			p.apply_realistic_movement()
 	var tb := TeamBrain.new(is_left, team, match_context)
 	for p in tb.players:
 		p.brain = PlayerBrain.new(p, tb, match_context, p.opponent_detection_area)
-	if Tuning.b("gk_v2", true):
-		for p in team:
-			if p.role == Positions.Role.GK and SpecialPlayerTypes.movable(p.special_type):
-				p.keeper_brain = GoalkeeperBrain.new(p, tb, match_context, p.opponent_detection_area)
+	for p in team:
+		if p.role == Positions.Role.GK and SpecialPlayerTypes.movable(p.special_type):
+			p.keeper_brain = GoalkeeperBrain.new(p, tb, match_context, p.opponent_detection_area)
 	return tb
 
 ## When a season fixture is pending, override the scene's default teams
@@ -192,8 +167,8 @@ func _spawn_from_tactic(tactic, team: String, own_goal: Goal, mirror: bool) -> A
 		if not slot.is_assigned():
 			continue
 		var anchor  := _tactic_to_world(slot.position, mirror)
-		# The keeper is exempt: their anchor IS their line, and GoalieAI reads
-		# the goal line off the spawn point. Compressing it would drop them behind it.
+		# The keeper is exempt: their anchor IS their line; compressing it
+		# would drop them behind it.
 		var compression : float = 1.0 if i == Formations.GOALKEEPER_SLOT else KICKOFF_COMPRESSION
 		var kickoff := _tactic_to_world(Vector2(slot.position.x * compression, slot.position.y), mirror)
 		var player := spawn_player(kickoff, own_goal, target_goal, slot.player, team, slot.role)
@@ -223,29 +198,20 @@ func spawn_players(team : String, own_goal : Goal, spawns) -> Array[Player]:
 		add_child(player)
 	return player_nodes
 
+## Team brains think at their own TeamBrain.TICK_S; this feeds them the
+## live scoreline, time remaining and the human side's mentality button.
 func _process(_delta: float) -> void:
-	if MatchClock.now_ms() - time_since_last_tactical_refresh > DURATION_TACTICAL_REFRESH:
-		time_since_last_tactical_refresh = MatchClock.now_ms()
-		var time_fraction_remaining := 1.0
-		var score_left := 0
-		var score_right := 0
-		if _match_world != null:
-			time_fraction_remaining = clampf(1.0 - _match_world.match_time / _match_world.match_duration(), 0.0, 1.0)
-			score_left = _match_world.score_left
-			score_right = _match_world.score_right
-		var left_mode := player_manual_mentality_mode if is_player_team_left else TacticPreset.ManualMode.AUTO
-		var right_mode := player_manual_mentality_mode if not is_player_team_left else TacticPreset.ManualMode.AUTO
-		# A v2 side is run by its TeamBrain (below) instead of v1's tactical state.
-		if team_brain_left == null:
-			_team_tactical_left.recompute(left_team, right_team, ball, _field_zones, true,
-				left_mode, score_left - score_right, time_fraction_remaining)
-		else:
-			team_brain_left.maybe_update(left_mode, score_left - score_right, time_fraction_remaining)
-		if team_brain_right == null:
-			_team_tactical_right.recompute(right_team, left_team, ball, _field_zones, false,
-				right_mode, score_right - score_left, time_fraction_remaining)
-		else:
-			team_brain_right.maybe_update(right_mode, score_right - score_left, time_fraction_remaining)
+	var time_fraction_remaining := 1.0
+	var score_left := 0
+	var score_right := 0
+	if _match_world != null:
+		time_fraction_remaining = clampf(1.0 - _match_world.match_time / _match_world.match_duration(), 0.0, 1.0)
+		score_left = _match_world.score_left
+		score_right = _match_world.score_right
+	var left_mode := player_manual_mentality_mode if is_player_team_left else TacticPreset.ManualMode.AUTO
+	var right_mode := player_manual_mentality_mode if not is_player_team_left else TacticPreset.ManualMode.AUTO
+	team_brain_left.maybe_update(left_mode, score_left - score_right, time_fraction_remaining)
+	team_brain_right.maybe_update(right_mode, score_right - score_left, time_fraction_remaining)
 
 ## [param slot_role]: the position this player is actually being fielded in —
 ## a tactic slot's role, or just the player's own role for the legacy

@@ -15,8 +15,8 @@ class_name Formations
 ## from ALL + ROLES, and field_overlay.gd renders/drags those slots.
 
 ## Every template lists the goalkeeper first. The tactics board pins that slot
-## and GoalieAI positions itself off its spawn point, so the keeper must
-## stay where the preset put it — on the goal line.
+## and the keeper kicks off from it, so the keeper must stay where the preset
+## put it — on the goal line.
 const GOALKEEPER_SLOT := 0
 
 const ALL : Dictionary = {

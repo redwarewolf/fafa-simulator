@@ -10,24 +10,7 @@ extends Node2D
 ## Master kill switch — false disables everything with zero overhead.
 const ENABLED := false
 
-## ── Per-category toggles ──────────────────────────────────────────────────────
-## Shot / tackle range circles drawn per role each frame.
-const SHOW_ROLE_RANGES := false
-## Bicircular force radius circles (inner/outer) drawn per player each frame.
-const SHOW_FORCE_RADII := false
-## Pressing assignment lines (red primary, orange secondary defender).
-const SHOW_PRESSING_LINES := false
-## Marking assignment lines (yellow, defender → marked opponent).
-const SHOW_MARKING_LINES := false
-## Pass target lines and crosses drawn when a pass is played.
-const SHOW_PASS_LINES := false
-## Goalkeeper distribution lines (long kick / short pass targets).
-const SHOW_GK_DISTRIBUTION := false
-## Per-player movement intent: a line from every player to whatever point
-## their AI is currently steering toward (press/mark/role target), color-coded
-## by which of those it is. Diagnoses "why is this player going THERE"
-## independent of what Locomotion's steering blend actually does with it.
-const SHOW_INTENT_LINES := false
+## ── Per-category toggles (engine-v2 analytics, drawn by MatchContext) ─────────
 ## Pitch-control heatmap: one filled cell per MatchContext grid cell, blue =
 ## left team controls it, red = right team (docs/match-engine-v2.md Phase 3).
 const SHOW_PITCH_CONTROL := false
@@ -38,10 +21,6 @@ const SHOW_XT := false
 const SHOW_BALL_PREDICTION := false
 ## Carrier → every teammate, coloured green→red by PassModel success probability.
 const SHOW_PASS_FAN := false
-
-## Any of the engine-v2 analytics overlays — these need a MatchContext even
-## in a v1-only match.
-const ANY_ANALYTICS := ENABLED and (SHOW_PITCH_CONTROL or SHOW_XT or SHOW_BALL_PREDICTION or SHOW_PASS_FAN)
 
 ## Line width in pixels (screen space).
 const LINE_WIDTH := 1.0

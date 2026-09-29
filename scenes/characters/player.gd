@@ -2,6 +2,11 @@ class_name Player
 extends CharacterBody2D
 
 const DURATION_TACKLE := 200
+## A defender within this distance of the ball can commit to a tackle. It has
+## to cover the tackler's own lunge plus normal steering imprecision — at 20 a
+## presser that looked "right there" kept running alongside without ever
+## committing.
+const TACKLE_DISTANCE := 32.0
 const GRAVITY := 8.0
 const BALL_CONTROL_HEIGHT_MAX := 10.0
 ## Highest ball (height px) a standing outfield player can collect — about
@@ -57,9 +62,9 @@ const OBSTACLE_COLLISION_BIT := 1 << 4
 ## keeps the ball at their feet and a 100-rated one is close to a flat sprint.
 ## Always strictly below 1.0: a defender running at full `speed` must be able
 ## to run down any dribbler in a straight foot race, or a pure chase (the
-## presser/marker leading the carrier by its current velocity — see
-## AIBehavior._press_target and RoleAI._marking_target_position) never
-## converges and the defender just trails at a fixed distance forever.
+## presser leading the carrier by its current velocity — see PlayerBrain's
+## PRESS job) never converges and the defender just trails at a fixed
+## distance forever.
 const DRIBBLE_SPEED_MIN_FRACTION := 0.55
 const DRIBBLE_SPEED_MAX_FRACTION := 0.92
 
@@ -78,12 +83,10 @@ enum HairColor { BLONDE, LIGHT_RED, GREEN, PURPLE, LIGHT_BROWN, DARK_BROWN, GRAY
 const TEAMS := [ "DEFAULT", "SACA CHISPAS", "LOS FULBOS FC", "CLUB ATLETICO PIÑATA", "DEPORTIVO LADRILLO", "UNION PATADURAS", "ATLÉTICO GAMBETA", "SAN LORENZO DE NADA", "RACING DE LA ESQUINA" ]
 
 var ai_behavior : AIBehavior = AIBehavior.new()
-## Engine-v2 brain (docs/match-engine-v2.md) — set by ActorsContainer for
-## outfield players on a side running the v2 AI; null means the v1 RoleAI
-## path in AIBehavior drives this player.
+## The player's match AI (docs/match-engine-v2.md), set by ActorsContainer:
+## a PlayerBrain for movable outfield players, a GoalkeeperBrain for a
+## movable keeper. AIBehavior hands each frame to whichever is set.
 var brain : PlayerBrain = null
-## Engine-v2 goalkeeper brain (Phase 8) — set for the keeper of a v2 side
-## instead of GoalieAI; see scenes/match/brain/goalkeeper_brain.gd.
 var keeper_brain : GoalkeeperBrain = null
 
 @export var own_goal : Goal
@@ -93,10 +96,9 @@ var keeper_brain : GoalkeeperBrain = null
 var full_name : String = ""
 var role : Positions.Role
 ## True when this player defends the LEFT goal. Comes from the goals they were
-## handed, never from where they happen to stand: RoleAI used to infer it
-## from the zone containing spawn_position, so a forward anchored in the
-## opponent half read as playing for the other team and had its whole depth
-## logic mirrored.
+## handed, never from where they happen to stand: inferring it from the zone
+## containing spawn_position made a forward anchored in the opponent half
+## read as playing for the other team.
 var is_left_team : bool = true
 ## Where the tactic wants this player once the shape is settled, in world space.
 ## Distinct from spawn_position, which is the compressed kickoff spot: an anchor
@@ -201,45 +203,16 @@ var state_factory := PlayerStateFactory.new()
 var _current_state_type : State = State.MOVING  # Tracked for debug label
 
 var spawn_position := Vector2.ZERO
-## Opponent this player is currently shadowing goal-side, or null for pure
-## ball-depth positioning. Written once per team tick by TeamTacticalState —
-## see scenes/characters/ai/team_tactical_state.gd.
+## Opponent this player is marking (PlayerBrain, from a TeamBrain MARK job),
+## or null. Locomotion's avoidance ignores them so the marker can stay tight.
 var mark_target: Player = null
-## 0 = tight man-marking, 1 = fully loose (danger-based falloff from own goal).
-var mark_tightness: float = 0.0
-## Reverse lookup: who is marking ME. Read by off-ball attacking logic to
-## decide whether making a run to lose a marker is worthwhile.
-var marked_by: Player = null
-## 0 = primary presser (closest to the ball/carrier), -1 = not pressing.
-## Written once per team tick by TeamTacticalState.
-var pressing_rank: int = -1
-## True for the single next-closest teammate to a pressed opponent carrier —
-## interposes between the carrier and the opponents' most dangerous other
-## option (cover_shadow_point) instead of also converging on the ball like
-## pressing_rank==0 does. Written once per team tick by TeamTacticalState.
-var is_cover_presser: bool = false
-var cover_shadow_point: Vector2 = Vector2.ZERO
-## Shared per-team adjustment every player's ball-depth positioning is
-## nudged by — the piece of team shape that isn't already implied by same-
-## role players independently computing the same depth formula off the same
-## ball position. Written once per team tick by TeamTacticalState.
-var team_line_bias: float = 0.0
-## MatchClock.now_ms() this player's give-and-go run window expires — set
-## by RoleAI._decide_on_ball() the instant they pass, read by
-## RoleAI._off_ball_base_position() to bias their off-ball target forward
-## for a brief window afterward (the classic 1-2). 0 (the default) is
-## always in the past, so a player who's never passed simply never
-## triggers it. See docs/ai-overhaul.md Phase 9.
-var give_and_go_until_ms: int = 0
-## True only for the single player MatchWorld leaves unfrozen during a FOUL
-## or KICKOFF restart (see MatchWorld._restart_taker/_kickoff_taker). Makes
-## AIBehavior steer straight at the ball regardless of pressing_rank/marking,
-## since those are computed team-wide and can hand "go get it" duty to a
-## frozen teammate who has no way to act on it — see AIBehavior.perform_ai_movement().
+## True for the player MatchWorld designates to take a kickoff or set piece
+## (MatchWorld._restart_taker/_kickoff_taker): PlayerBrain holds them behind
+## the ball until the restart is ready, then sends them onto it.
 var is_restart_taker: bool = false
 ## Set by MatchWorld when play resumes from a set piece this player took:
 ## their next on-ball decision is a pass (a throw-in/corner/free kick is
-## played, not dribbled off with). Consumed by RoleAI._decide_on_ball().
+## played, not dribbled off with). Consumed by PlayerBrain._act_on_ball().
 var restart_pass_pending: bool = false
 var heading := Vector2.RIGHT
 var height := 0.0

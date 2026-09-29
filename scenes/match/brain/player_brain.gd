@@ -12,8 +12,7 @@ extends RefCounted
 ## phase from MatchRng), the video's CPU-budgeting trick — 20 brains don't all
 ## think on the same frame.
 ##
-## The goalkeeper stays on v1's GoalieAI until Phase 8, so keepers never get a
-## PlayerBrain.
+## Keepers get a GoalkeeperBrain instead, never a PlayerBrain.
 
 const THINK_OFF_BALL_S := 0.2
 const THINK_ON_BALL_S := 0.12
@@ -245,7 +244,7 @@ func _move_off_ball() -> void:
 		Job.Kind.PRESS:
 			if carrier != null and carrier.is_left_team != player.is_left_team:
 				if job.engage:
-					var close := player.position.distance_to(carrier.position) < RoleAI.TACKLE_DISTANCE * 2.0
+					var close := player.position.distance_to(carrier.position) < Player.TACKLE_DISTANCE * 2.0
 					if close and not _should_commit_tackle(carrier):
 						# Jockey: goal-side, matching the carrier's run, waiting
 						# for better odds instead of diving in.
@@ -376,7 +375,7 @@ func _maybe_tackle() -> void:
 	if carrier.current_state != null and carrier.current_state.is_holding_ball():
 		return
 	var d := player.position.distance_to(ctx.ball.position)
-	if d >= RoleAI.TACKLE_DISTANCE:
+	if d >= Player.TACKLE_DISTANCE:
 		return
 	var committed := job != null and (
 		(job.kind == Job.Kind.PRESS and job.engage) or job.kind == Job.Kind.COVER

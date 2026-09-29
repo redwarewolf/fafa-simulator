@@ -10,27 +10,9 @@ extends CanvasLayer
 ## reopening this over a screen that already has its own exit button.
 var enabled := true
 
-var _ai_button : Button = null
-
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
-	# Dev toggle between the original match AI and the engine-v2 rebuild
-	# (docs/match-engine-v2.md) — added from code, just above "Volver".
-	_ai_button = Button.new()
-	_ai_button.custom_minimum_size = Vector2(0, 36)
-	_ai_button.pressed.connect(_on_ai_version_pressed)
-	var back := %DebugPanel.get_node("BackButton")
-	%DebugPanel.add_child(_ai_button)
-	%DebugPanel.move_child(_ai_button, back.get_index())
-	_update_ai_button()
-
-func _on_ai_version_pressed() -> void:
-	GameState.set_match_ai_version("v1" if GameState.match_ai_version == "v2" else "v2")
-	_update_ai_button()
-
-func _update_ai_button() -> void:
-	_ai_button.text = tr("IA de partido: %s (próximo partido)") % GameState.match_ai_version.to_upper()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):

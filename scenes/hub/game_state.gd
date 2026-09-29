@@ -35,23 +35,6 @@ var locale : String = DEFAULT_LOCALE
 ## see settings_screen.gd's "Desactivar Tutorial" checkbox.
 var tutorials_disabled : bool = false
 
-## Dev setting — which match AI both sides use in watched matches: "v1" (the
-## original RoleAI system) or "v2" (the engine-v2 rebuild, docs/match-engine-v2.md).
-## App-wide like tutorials_disabled; toggled from the pause menu's debug tools
-## and applied at the next kickoff (MatchWorld._enter_tree). Default v2 since
-## it beat v1 33-24-7 over 64 full matches (xG diff +0.86 ± 0.10 per match).
-var match_ai_version : String = "v2"
-## Bumped when the default AI changes: settings saved under an older default
-## are moved to the new one once (they stored "v1" merely because any setting
-## change wrote the then-default value).
-const AI_DEFAULT_REV := 2
-
-func set_match_ai_version(version: String) -> void:
-	if version == match_ai_version:
-		return
-	match_ai_version = version
-	_save_settings()
-
 func _ready() -> void:
 	TranslationServer.add_translation(LocaleENClass.build())
 	_load_settings()
@@ -88,19 +71,13 @@ func _load_settings() -> void:
 	var data : Dictionary = json.data
 	locale = data.get("locale", DEFAULT_LOCALE)
 	tutorials_disabled = data.get("tutorials_disabled", false)
-	if int(data.get("ai_default_rev", 1)) >= AI_DEFAULT_REV:
-		match_ai_version = data.get("match_ai_version", "v2")
-	else:
-		match_ai_version = "v2"
-		_save_settings()
 
 func _save_settings() -> void:
 	var file := FileAccess.open(SETTINGS_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		printerr("GameState: could not open %s for writing" % SETTINGS_SAVE_PATH)
 		return
-	file.store_string(JSON.stringify({"locale": locale, "tutorials_disabled": tutorials_disabled,
-		"match_ai_version": match_ai_version, "ai_default_rev": AI_DEFAULT_REV}, "\t"))
+	file.store_string(JSON.stringify({"locale": locale, "tutorials_disabled": tutorials_disabled}, "\t"))
 	file.close()
 
 # Club

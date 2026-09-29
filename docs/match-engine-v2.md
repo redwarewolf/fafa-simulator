@@ -42,17 +42,19 @@ Full plan: see the phase list below. The code lives in `scenes/match/`. The old 
 | 1 | Deterministic clock, seeded RNG, stats, headless batch harness | ✅ done (`babab77`); pre-rules v1 baseline running |
 | 2 | Rules: offside, throw-ins, corners, goal kicks | ✅ done: unit tests + 7/7 live rules probe |
 | 3 | World model: ball predictor, pitch-control grid, xT, pass/shot models, MatchContext | ✅ done (`b479e90`), incl. lofted-pass physics fix |
-| 4 | Tactical Brain: phase classification + hysteresis, live team shape, instructions | 🟡 first cut working (`c3510bd`), tuning |
-| 5 | Coordinators: defensive / attacking / set-piece role assignment (Hungarian) | 🟡 open-play coordinators done; set-piece coordinator pending |
-| 6 | Player Brain: mental attributes, grid off-ball positioning, EPV on-ball decisions, receiving | 🟡 first cut working, tuning |
-| 7 | Execution: accel/turn-limited locomotion, tackle model, touch dribbling | pending |
+| 4 | Tactical Brain: phase classification + hysteresis, live team shape, instructions | ✅ working; pressing still weak (PPDA ~3–4) |
+| 5 | Coordinators: defensive / attacking / set-piece role assignment (Hungarian) | ✅ done, incl. set-piece coordinator |
+| 6 | Player Brain: mental attributes, grid off-ball positioning, EPV on-ball decisions, receiving | ✅ working; receiving fix (Finding #10) |
+| 7 | Execution: accel/turn-limited locomotion, tackle model, touch dribbling | ✅ done (parts 1–4) |
 | 8 | Analytic goalkeeper | ✅ core done: positioning, sweeping, calibrated shot-stopping, catch/parry, distribution |
-| 9 | Performance budget / scheduler | pending |
-| 10 | Calibration, A/B vs v1, delete v1 | pending |
+| 9 | Performance budget / scheduler | 🟡 ~1.5 ms/frame for all AI; no scheduler needed yet |
+| 10 | Calibration, A/B vs v1, delete v1 | 🟡 v2 beat v1 33-24-7; **v1 deleted (2026-09-29)**; xT re-fit pending |
+
+**v1 is gone.** The original AI has been deleted: RoleAI and its four subclasses, GoalieAI, CandidatePointScorer, OnBallUtility, TeamTacticalState, AIBehaviorFactory, PlayerTraits and GeometryUtils. So have the AI-version toggle (pause menu, `GameState`, `MatchConfig`) and the harness `--a/--b` version flags. Every match now runs engine v2. `AIBehavior` is a thin dispatcher to `PlayerBrain`/`GoalkeeperBrain`. The inert `FieldAreas` zone node in `world.tscn` (FieldZones) is left for a later scene cleanup.
 
 ## Verification (every phase)
-1. `godot --headless --script res://tests/run_tests.gd` runs the maths unit tests.
-2. `godot --headless --script res://tools/batch_match.gd -- --matches 50 --seed 1 ...` checks determinism, then metrics against `tools/targets.json` and the v1 baseline.
+1. `<godot_console> --path . --headless res://tests/run_tests.tscn` runs the maths unit tests.
+2. `tools/run_parallel.sh <label> <shards> <per_shard> <duration> [seed]` (with `PARAMS="knob=v,..."` for variants) checks metrics against `tools/targets.json`. For a single process: `batch_match.tscn -- --matches N --seed S --duration 480`. Probes: `rules_probe.tscn`, `setpiece_probe.tscn`, `ball_probe.tscn`, always with `--fixed-fps 60`.
 3. A headless rescan for script errors.
 4. A visual check through the `run-fafa-simulator` skill with the debug overlays.
 5. Record the results here and commit per phase.

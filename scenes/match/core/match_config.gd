@@ -11,11 +11,6 @@ extends RefCounted
 static var headless := false
 ## Seed for MatchRng at match start; < 0 means random (normal play).
 static var match_seed := -1
-## Which AI drives each side — "v1" (scenes/characters/ai, the Round 1-2
-## system) or "v2" (scenes/match, the engine-v2 rebuild). Lets the harness
-## A/B the two against each other until v2 replaces v1 outright.
-static var ai_version_left := "v1"
-static var ai_version_right := "v1"
 ## Harness-only: skip RandomEvents' mid-match narrated interruptions.
 static var disable_random_events := false
 ## Harness-only: match length override in simulation seconds; <= 0 uses
@@ -25,7 +20,5 @@ static var match_duration_override := -1.0
 static func reset_to_defaults() -> void:
 	headless = false
 	match_seed = -1
-	ai_version_left = "v1"
-	ai_version_right = "v1"
 	disable_random_events = false
 	match_duration_override = -1.0

@@ -11,7 +11,7 @@ extends RefCounted
 ## have from where they'd win it, and P from the physical models: PassModel's
 ## interception/reception race for passes (to feet AND into space), a
 ## time-to-reach race for carries, ShotModel.xg for shots. One scale for
-## every action — no per-action hand-tuned pixel sums (v1's OnBallUtility).
+## every action — no per-action hand-tuned pixel sums (the retired v1 AI).
 ##
 ## The choice is a softmax over the values with a temperature from the
 ## player's `decisions` attribute (MentalAttributes) and MatchRng, so good

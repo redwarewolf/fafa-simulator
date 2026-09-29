@@ -236,7 +236,6 @@ const MESSAGES := {
 	"¡FALTA!": "FOUL!",
 	"¡FUERA DE JUEGO!": "OFFSIDE!",
 	"ENTRETIEMPO": "HALF TIME",
-	"IA de partido: %s (próximo partido)": "Match AI: %s (next match)",
 	"SAQUE DE BANDA": "THROW-IN",
 	"¡CÓRNER!": "CORNER!",
 	"SAQUE DE META": "GOAL KICK",

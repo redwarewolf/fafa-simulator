@@ -1,8 +1,7 @@
 class_name GoalkeeperBrain
 extends RefCounted
 
-## Engine-v2 analytic goalkeeper (docs/match-engine-v2.md Phase 8), replacing
-## GoalieAI for v2 sides. Four jobs:
+## Engine-v2 analytic goalkeeper (docs/match-engine-v2.md Phase 8). Four jobs:
 ##
 ##  1. POSITIONING — stand on the line from goal centre to the ball, further
 ##     off the line the further away the ball is (a sweeper-keeper position when

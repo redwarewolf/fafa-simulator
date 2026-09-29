@@ -9,7 +9,7 @@ extends RefCounted
 ##
 ## The seek-to-target is now the dominant term rather than one-among-equals
 ## in an unweighted sum, since the target itself already encodes tactical
-## intent (marking point, candidate-scored space, carrier pull — see RoleAI)
+## intent (the brain's job target: marking point, chosen space, carry)
 ## instead of being just one more vote alongside repulsion/avoidance.
 
 const TEAMMATE_REPULSION_RADIUS_LOOSE := 45.0
@@ -70,8 +70,8 @@ static func _teammate_repulsion(player: Player, ball: Ball) -> Vector2:
 ## into an opponent standing in the way.
 ##
 ## Excludes player.mark_target: a marker's target position is already the
-## goal-side shadow point right next to that same opponent (see
-## RoleAI._marking_target_position), so without this exclusion the marker
+## goal-side shadow point right next to that same opponent (PlayerBrain's
+## MARK job), so without this exclusion the marker
 ## gets steered away from the one player they're trying to close down the
 ## moment they get close enough to matter — reading as ducking the attacker
 ## instead of tracking them.

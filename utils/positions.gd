@@ -12,9 +12,9 @@ class_name Positions
 ## sorting a roster by role already groups it the way the pitch reads.
 enum Role { GK, LB, CB, RB, CDM, LM, CM, RM, CAM, LW, ST, RW }
 
-## Which RoleAI subclass drives a position. The AI implements four
-## behaviours; the ten positions map onto them and differ by anchor, roam and
-## stat weighting — not by class.
+## The formation group of a position (goalkeeper, defence, midfield, offence)
+## — the ten positions map onto four groups and differ by anchor, roam and
+## stat weighting within them.
 enum Group { GOALIE, DEFENSE, MIDFIELD, OFFENSE }
 
 ## How well a player fits the slot they were dropped into.
@@ -133,7 +133,7 @@ static func weights(role: Role) -> Array:
 	return DATA[role]["weights"]
 
 ## x = depth bands the player drops behind their anchor, y = bands they push
-## ahead of it. Consumed by RoleAI once anchors replace spawn positions.
+## ahead of it. (Read by the retired v1 AI; kept as position data.)
 static func roam(role: Role) -> Vector2i:
 	return DATA[role]["roam"]
 

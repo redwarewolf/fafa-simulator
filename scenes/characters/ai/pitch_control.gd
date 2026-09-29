@@ -83,9 +83,8 @@ static func control(point: Vector2, team_a: Array[Player], team_b: Array[Player]
 	return clampf(diff / 1.5, -1.0, 1.0)
 
 ## Capped at SPACE_SATURATION_TIME so one player stranded far away can't
-## make a point read as infinitely safe — mirrors why
-## CandidatePointScorer.SPACE_SATURATION_RADIUS caps the old flat-distance
-## version, for the same reason (space swamping every other scoring term).
+## make a point read as infinitely safe (space swamping every other scoring
+## term).
 const SPACE_SATURATION_TIME := 1.2
 static func opponent_reach_time(point: Vector2, opponents: Array[Player]) -> float:
 	return minf(_best_time(point, opponents), SPACE_SATURATION_TIME)

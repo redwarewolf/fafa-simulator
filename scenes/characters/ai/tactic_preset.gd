@@ -31,8 +31,8 @@ const MANUAL_PRESS_INTENSITY := {
 ## baseline update() adjusts from.
 var base_mentality: float = 0.0
 
-## Effective values every consumer (TeamTacticalState's line bias/press
-## margin, eventually OnBallUtility's risk balance) actually reads —
+## Effective values every consumer (TeamBrain's shape, press and risk)
+## actually reads —
 ## recomputed every tick by update(), either pinned to a manual mode or
 ## the base adjusted for game state.
 var mentality: float = 0.0

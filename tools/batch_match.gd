@@ -5,22 +5,22 @@ extends Node
 ##
 ## Run (from the repo root):
 ##   <godot_console.exe> --path . --headless --fixed-fps 60 res://tools/batch_match.tscn -- \
-##       --matches 20 --seed 1 --a v1 --b v1 --duration 360 --out user://batch.json
+##       --matches 20 --seed 1 --duration 480 --out user://batch.json
 ##
 ## --fixed-fps 60 makes every frame advance exactly 1/60s of simulation time
 ## as fast as the CPU allows (no real-time sync), and is what makes a run
 ## with the same --seed reproducible.
 ##
 ## Two procedurally generated clubs (fixed by --clubs-seed) play every
-## match. Sides are balanced in blocks of four: AI version A alternates
+## match. Sides are balanced in blocks of four: side A alternates
 ## left/right every match and the club pairing flips every two, so neither
-## side of the pitch nor either club's roster biases an A-vs-B comparison.
+## side of the pitch nor either club's roster biases the A-vs-B numbers
+## (with identical AI on both sides, the A-B diffs measure pure noise).
 ##
 ## Args:
 ##   --matches N       number of matches (default 10)
 ##   --seed S          base match seed; match i uses S+i (default 1)
 ##   --clubs-seed C    seed for generating the two clubs (default 12345)
-##   --a / --b         AI versions compared, "v1" or "v2" (default v1/v1)
 ##   --duration SEC    match length in sim seconds (default MatchWorld.MATCH_DURATION)
 ##   --out PATH        JSON output (default user://batch_results.json)
 ##   --quiet           suppress per-match lines
@@ -32,7 +32,7 @@ const MAX_FRAMES_PER_MATCH_FACTOR := 3.0
 
 var _args := {
 	"matches": 10, "seed": 1, "clubs-seed": 12345,
-	"a": "v1", "b": "v1", "duration": -1.0,
+	"duration": -1.0,
 	"out": "user://batch_results.json", "quiet": false,
 }
 var _clubs : Array[ClubResource] = []
@@ -95,8 +95,6 @@ func _run() -> void:
 		var left_club := _clubs[0] if club0_left else _clubs[1]
 		var right_club := _clubs[1] if club0_left else _clubs[0]
 		MatchConfig.match_seed = int(_args["seed"]) + i
-		MatchConfig.ai_version_left = _args["a"] if a_left else _args["b"]
-		MatchConfig.ai_version_right = _args["b"] if a_left else _args["a"]
 		GameState.test_match_teams = [left_club.team_key, right_club.team_key]
 		var mt0 := Time.get_ticks_msec()
 		AIProfile.reset()
@@ -117,14 +115,12 @@ func _run() -> void:
 		r["a_side"] = "L" if a_left else "R"
 		r["left_club"] = left_club.display_name
 		r["right_club"] = right_club.display_name
-		r["version_left"] = MatchConfig.ai_version_left
-		r["version_right"] = MatchConfig.ai_version_right
 		r["wall_s"] = (Time.get_ticks_msec() - mt0) / 1000.0
 		results.append(r)
 		if not _args["quiet"]:
-			print("match %3d seed=%d  %s(%s) %d - %d %s(%s)  xG %.2f-%.2f  passes %d/%d  %.1fs wall%s" % [
-				i, r["seed"], left_club.display_name, r["version_left"], r["score_left"], r["score_right"],
-				right_club.display_name, r["version_right"], r["L"]["xg"], r["R"]["xg"],
+			print("match %3d seed=%d  %s%s %d - %d %s%s  xG %.2f-%.2f  passes %d/%d  %.1fs wall%s" % [
+				i, r["seed"], left_club.display_name, " (A)" if a_left else "", r["score_left"], r["score_right"],
+				right_club.display_name, "" if a_left else " (A)", r["L"]["xg"], r["R"]["xg"],
 				r["L"]["passes"], r["R"]["passes"], r["wall_s"], "  TIMEOUT" if r.get("timed_out", false) else ""
 			])
 	var summary := _aggregate(results)
@@ -156,8 +152,6 @@ func _merge(paths: PackedStringArray) -> void:
 		f.close()
 		if data is Dictionary:
 			results.append_array(data.get("matches", []))
-			_args["a"] = data["args"].get("a", _args["a"])
-			_args["b"] = data["args"].get("b", _args["b"])
 	var summary := _aggregate(results)
 	summary["wall_s_total"] = 0.0
 	_print_summary(summary)
@@ -228,7 +222,7 @@ func _play_one() -> Dictionary:
 
 # ─── Aggregation ────────────────────────────────────────────────────────────
 
-## Means of every numeric per-side metric, pooled per AI version label
+## Means of every numeric per-side metric, pooled per side label
 ## ("A"/"B"), plus A's W/D/L record and match-level metrics.
 func _aggregate(results: Array) -> Dictionary:
 	var sums := {"A": {}, "B": {}}
@@ -286,7 +280,6 @@ func _aggregate(results: Array) -> Dictionary:
 		"counters": counters,
 		"xg_diff": _mean_se(xg_diffs),
 		"goal_diff": _mean_se(goal_diffs),
-		"version_a": _args["a"], "version_b": _args["b"],
 		"record": record, "means": means, "match_level": match_level,
 		"timeouts": results.filter(func(r): return r.get("timed_out", false)).size(),
 	}
@@ -336,8 +329,8 @@ func _print_summary(s: Dictionary) -> void:
 	var match_bands : Dictionary = targets.get("match_level", {})
 	var in_band := 0
 	var banded := 0
-	print("\n══════ BATCH SUMMARY: %d matches, A=%s vs B=%s  (%.1fs wall) ══════" % [
-		s["matches"], s["version_a"], s["version_b"], s["wall_s_total"]])
+	print("\n══════ BATCH SUMMARY: %d matches, side A vs side B  (%.1fs wall) ══════" % [
+		s["matches"], s["wall_s_total"]])
 	print("record: A %d / D %d / B %d   timeouts: %d" % [
 		s["record"]["A_wins"], s["record"]["draws"], s["record"]["B_wins"], s["timeouts"]])
 	print("xG diff (A-B) per match: %+.3f ± %.3f SE    goal diff: %+.3f ± %.3f SE" % [

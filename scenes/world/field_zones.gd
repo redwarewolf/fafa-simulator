@@ -117,7 +117,8 @@ var _polygon_cache: Dictionary = {}
 # Cached zone centers — keyed by Zone
 var _center_cache: Dictionary = {}
 
-## Registered on ENTER, not on ready. Every RoleAI looks this node up by
+## (Only the retired v1 AI read these zones; the node is inert now.)
+## Registered on ENTER, not on ready. Every RoleAI looked this node up by
 ## group from its own _ready(), and _ready() runs bottom-up: because FieldZones
 ## sits after ActorsContainer in world.tscn, the group was still empty when the
 ## players asked for it, so every player ran the whole match with field_zones

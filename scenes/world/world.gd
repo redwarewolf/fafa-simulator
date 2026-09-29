@@ -95,16 +95,11 @@ var _kickoff_taker : Player = null
 
 ## Parent _enter_tree runs before any child's _enter_tree/_ready — the only
 ## hook early enough to reset the sim clock and seed MatchRng before
-## ActorsContainer spawns players (whose AIBehavior already draws from
-## MatchRng in its own _ready). See docs/match-engine-v2.md Phase 1.
+## ActorsContainer spawns players and builds their brains (which draw from
+## MatchRng). See docs/match-engine-v2.md Phase 1.
 func _enter_tree() -> void:
 	MatchClock.reset()
 	MatchRng.seed_match(MatchConfig.match_seed)
-	# Watched matches follow the pause menu's dev AI toggle; the batch harness
-	# sets MatchConfig itself.
-	if not MatchConfig.headless and GameState != null:
-		MatchConfig.ai_version_left = GameState.match_ai_version
-		MatchConfig.ai_version_right = GameState.match_ai_version
 
 func _ready() -> void:
 	GameEvents.team_scored.connect(_on_team_scored)
@@ -355,9 +350,8 @@ func award_restart(kind: int, team: String, spot: Vector2, taker: Player = null)
 	_restart_spot = spot
 	_restart_taker = taker
 	_restart_team_left = taker.is_left_team
-	# A v2 taker waits for the set-up window; a v1 taker (everyone else
-	# frozen) goes straight away, as before.
-	_restart_ready_at = MatchClock.now() + (Restart.setup_time(kind) if taker.brain != null else 0.0)
+	# The taker waits out the set-up window while both sides organise.
+	_restart_ready_at = MatchClock.now() + Restart.setup_time(kind)
 	GameEvents.restart_awarded.emit(kind, team, spot)
 	_transition(MatchState.RESTART)
 	referee.focus_on(spot)
@@ -394,8 +388,8 @@ func _setup_restart() -> void:
 	var spot := _restart_spot
 	if _restart_kind == Restart.Kind.GOAL_KICK:
 		# The keeper restarts from their hands: HOLDING_BALL gives them the
-		# ball (tackle-immune, pressers back off) and GoalieAI's existing
-		# distribution logic takes it from there.
+		# ball (tackle-immune, pressers back off) and GoalkeeperBrain's
+		# distribution takes it from there.
 		_clear_penalty_area(taker)
 		taker.position = spot
 		taker.velocity = Vector2.ZERO
@@ -481,7 +475,7 @@ func _transition(new_state: MatchState) -> void:
 			if _restart_taker != null:
 				_restart_taker.is_restart_taker = false
 				# The taker plays it straight away rather than dribbling off
-				# with it (the keeper's goal kick uses GoalieAI's own release).
+				# with it (the keeper's goal kick is GoalkeeperBrain's distribution).
 				if _restart_kind != Restart.Kind.GOAL_KICK:
 					_restart_taker.restart_pass_pending = true
 				if Restart.offside_exempt(_restart_kind):
@@ -495,13 +489,9 @@ func _transition(new_state: MatchState) -> void:
 		MatchState.KICKOFF:
 			_setup_kickoff()
 		MatchState.RESTART:
-			# v1 players freeze exactly where they are; engine-v2 players stay
-			# active and take up set-piece positions (TeamBrain's set-piece
-			# coordinator) while the taker waits out Restart.setup_time().
+			# Everyone stays active and takes up set-piece positions (TeamBrain's
+			# set-piece coordinator) while the taker waits out Restart.setup_time().
 			_restart_taker.is_restart_taker = true
-			for p in actors_container.left_team + actors_container.right_team:
-				if p != _restart_taker and p.brain == null and p.keeper_brain == null:
-					p.set_deferred("process_mode", Node.PROCESS_MODE_DISABLED)
 			call_deferred("_setup_restart")
 		MatchState.GAMEOVER:
 			actors_container.process_mode = Node.PROCESS_MODE_DISABLED

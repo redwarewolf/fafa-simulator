@@ -35,8 +35,8 @@ var stamina : float = 100.0
 var morale : float = 100.0
 ## Personality trait, not a scoutable stat: how willing this player is to pass
 ## to a better-placed teammate rather than shoot/dribble themselves. 1-100,
-## rolled once per instance so otherwise-identical players still vary — see
-## OnBallUtility.pass_score/decide, the only readers of this field.
+## rolled once per instance so otherwise-identical players still vary. Feeds
+## the match AI's derived work rate (MentalAttributes).
 var teamplay : int = randi_range(20, 80)
 
 ## Matches left before this player can be fielded again — set by random

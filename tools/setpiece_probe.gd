@@ -31,8 +31,6 @@ func _ready() -> void:
 	MatchConfig.headless = true
 	MatchConfig.disable_random_events = true
 	MatchConfig.match_duration_override = 100000.0
-	MatchConfig.ai_version_left = "v2"
-	MatchConfig.ai_version_right = "v2"
 	MatchConfig.match_seed = _seed
 	seed(12345)
 	var rng := RandomNumberGenerator.new()

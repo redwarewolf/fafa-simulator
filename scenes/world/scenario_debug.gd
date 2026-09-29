@@ -5,7 +5,7 @@ extends RefCounted
 ## isolation instead of only ever eyeballing a full 90-minute sim — Phase 0 of
 ## docs/ai-overhaul.md. Teleports a handful of already-spawned players (plus
 ## the ball) into a named layout and freezes everyone else out of the way, so
-## the normal AIBehavior/RoleAI/TeamTacticalState loop takes over from there
+## the normal match AI (TeamBrain/PlayerBrain) takes over from there
 ## unmodified — this only sets up the starting position, it isn't a separate
 ## simulation. Bound to number keys in MatchWorld._unhandled_input(), gated
 ## behind DebugDraw.ENABLED so it can never fire in a normal playthrough.
