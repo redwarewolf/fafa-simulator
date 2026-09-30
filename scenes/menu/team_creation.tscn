@@ -172,6 +172,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "EMPEZAR CARRERA"
+theme_type_variation = &"PrimaryButton"
 
 [node name="ButtonSound" type="AudioStreamPlayer" parent="."]
 volume_db = -10.0
