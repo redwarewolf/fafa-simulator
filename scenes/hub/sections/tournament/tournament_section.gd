@@ -10,6 +10,7 @@ extends Control
 
 const STANDINGS_COLUMNS := [
 	{"title": "#",    "expand": false, "min_width": 34, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "",     "expand": false, "min_width": 22},
 	{"title": "Club", "expand": true},
 	{"title": "PJ",   "expand": false, "min_width": 32, "align": HORIZONTAL_ALIGNMENT_CENTER},
 	{"title": "G",    "expand": false, "min_width": 32, "align": HORIZONTAL_ALIGNMENT_CENTER},
@@ -17,7 +18,17 @@ const STANDINGS_COLUMNS := [
 	{"title": "P",    "expand": false, "min_width": 32, "align": HORIZONTAL_ALIGNMENT_CENTER},
 	{"title": "DG",   "expand": false, "min_width": 40, "align": HORIZONTAL_ALIGNMENT_CENTER},
 	{"title": "Pts",  "expand": false, "min_width": 40, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "Forma", "expand": false, "min_width": 112},
 ]
+
+const COL_POS   := 0
+const COL_MOVE  := 1
+const COL_FORM  := 9
+
+## Only first place is promoted — its position cell is tinted like FM's
+## promotion band.
+const PROMOTION_BG := Color(0.3, 0.75, 0.35, 0.45)
+const FORM_COLORS := {"W": HubPalette.WIN, "D": HubPalette.DRAW, "L": HubPalette.LOSS}
 
 const TOP_PLAYER_COLUMNS := [
 	{"title": "Nombre", "expand": true},
@@ -64,31 +75,71 @@ func _populate() -> void:
 	var root := standings_tree.create_item()
 	var own_item : TreeItem = null
 
+	var previous := Standings.previous_positions(GameState.player_club.division)
 	for i in table.size():
 		var club : ClubResource = table[i]
 		var item := standings_tree.create_item(root)
-		item.set_text(0, str(i + 1))
-		item.set_text(1, club.display_name)
-		item.set_text(2, str(club.matches_played))
-		item.set_text(3, str(club.wins))
-		item.set_text(4, str(club.draws))
-		item.set_text(5, str(club.losses))
-		item.set_text(6, "%+d" % (club.goals_for - club.goals_against))
-		item.set_text(7, str(club.tournament_points))
+		item.set_text(COL_POS, str(i + 1))
+		item.set_text(2, club.display_name)
+		item.set_text(3, str(club.matches_played))
+		item.set_text(4, str(club.wins))
+		item.set_text(5, str(club.draws))
+		item.set_text(6, str(club.losses))
+		item.set_text(7, "%+d" % (club.goals_for - club.goals_against))
+		item.set_text(8, str(club.tournament_points))
 		item.set_metadata(0, club)
 		TreeStyle.align_row(item, STANDINGS_COLUMNS)
 		if club.id == player_id:
 			TreeStyle.tint_row(item, HubPalette.HIGHLIGHT)
 			own_item = item
+		if i == 0:
+			item.set_custom_bg_color(COL_POS, PROMOTION_BG)
+		# Places gained since the previous round (positive = climbed).
+		var moved : int = previous.get(club.id, i + 1) - (i + 1)
+		item.set_cell_mode(COL_MOVE, TreeItem.CELL_MODE_CUSTOM)
+		item.set_custom_draw_callback(COL_MOVE, _draw_movement.bind(moved))
+		item.set_cell_mode(COL_FORM, TreeItem.CELL_MODE_CUSTOM)
+		item.set_custom_draw_callback(COL_FORM, _draw_form.bind(Standings.form(club)))
 
 	_populate_top_players()
 
 	# Open on the player's own club instead of an empty panel.
 	if own_item != null:
-		standings_tree.set_selected(own_item, 1)
+		standings_tree.set_selected(own_item, 2)
 		_show_club_details(own_item.get_metadata(0))
 	elif root.get_child_count() > 0:
 		_show_club_details(root.get_first_child().get_metadata(0))
+
+## Green ▲ / red ▼ triangle (or a grey dash) for table movement — drawn,
+## since the pixel font has no arrow glyphs.
+func _draw_movement(_item: TreeItem, rect: Rect2, moved: int) -> void:
+	var c := rect.get_center()
+	var s := minf(rect.size.y * 0.22, 5.0)
+	if moved > 0:
+		standings_tree.draw_colored_polygon(PackedVector2Array([
+			c + Vector2(0, -s), c + Vector2(s, s), c + Vector2(-s, s)]), HubPalette.WIN)
+	elif moved < 0:
+		standings_tree.draw_colored_polygon(PackedVector2Array([
+			c + Vector2(-s, -s), c + Vector2(s, -s), c + Vector2(0, s)]), HubPalette.LOSS)
+	else:
+		standings_tree.draw_line(c - Vector2(s, 0), c + Vector2(s, 0), HubPalette.MUTED, 2.0)
+
+## Last-five chips (oldest → newest), coloured W/D/L like the Home screen.
+func _draw_form(_item: TreeItem, rect: Rect2, form: Array) -> void:
+	var chip_size := minf(rect.size.y - 8.0, 16.0)
+	var gap := 4.0
+	var x := rect.position.x + 4.0
+	var y := rect.position.y + (rect.size.y - chip_size) * 0.5
+	var font := standings_tree.get_theme_font("font")
+	var font_size := standings_tree.get_theme_font_size("font_size")
+	for r in form:
+		var chip := Rect2(x, y, chip_size, chip_size)
+		standings_tree.draw_rect(chip, FORM_COLORS[r])
+		var letter := tr({"W": "G", "D": "E", "L": "P"}[r])
+		var w := font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		standings_tree.draw_string(font, Vector2(x + (chip_size - w) * 0.5, y + chip_size * 0.78), letter,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.05, 0.12, 0.15))
+		x += chip_size + gap
 
 func _populate_top_players() -> void:
 	top_players_tree.clear()

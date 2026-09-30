@@ -351,6 +351,7 @@ const MESSAGES := {
 	"GOL — %s": "GOAL — %s",
 	"GOL": "GOAL",
 	"Entretiempo": "Half time",
+	"Forma": "Form",
 	# Staff cards / locked screens
 	"Ir a Club > Personal": "Go to Club > Staff",
 	"Desbloquea Entrenamiento: sesiones que suben un stat de un jugador +6% para siempre.": "Unlocks Training: sessions that raise one player stat +6% for good.",
