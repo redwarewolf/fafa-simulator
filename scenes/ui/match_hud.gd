@@ -79,7 +79,8 @@ func _ready() -> void:
 	GameEvents.half_time.connect(_on_half_time)
 	cam_mode_button.pressed.connect(_on_cam_mode_button_pressed)
 	mentality_button.pressed.connect(_on_mentality_button_pressed)
-	mentality_button.visible = false  # superseded by the shout row below
+	mentality_button.visible = false  # superseded by the shout dropdown
+	_build_side_menu()
 	_build_shouts()
 	_build_stats_panel()
 	_build_commentary()
@@ -114,25 +115,68 @@ func _load_logos() -> void:
 
 # ── shouts ────────────────────────────────────────────────────────────────────
 
+## The right-hand column: two dropdowns instead of a wall of buttons. The
+## current touchline instruction opens its four options; MENÚ opens the
+## camera, stats and substitutions. Only one is open at a time, and picking
+## an option closes it.
+const SIDE_WIDTH := 172.0
+var _shout_toggle : Button = null
+var _shout_list : VBoxContainer = null
+var _menu_toggle : Button = null
+var _menu_list : VBoxContainer = null
+
+func _build_side_menu() -> void:
+	var column := VBoxContainer.new()
+	column.anchor_left = 1.0
+	column.anchor_right = 1.0
+	column.offset_left = -SIDE_WIDTH - 8.0
+	column.offset_right = -8.0
+	column.offset_top = 36.0
+	column.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	column.add_theme_constant_override("separation", 3)
+	ui_container.add_child(column)
+
+	_shout_toggle = _dropdown_toggle(column)
+	_shout_list = _dropdown_list(column)
+	_shout_toggle.pressed.connect(_open_dropdown.bind(_shout_list))
+
+	var gap := Control.new()
+	gap.custom_minimum_size.y = 6
+	column.add_child(gap)
+
+	_menu_toggle = _dropdown_toggle(column)
+	_menu_toggle.text = tr("MENÚ  ▾")
+	_menu_list = _dropdown_list(column)
+	_menu_toggle.pressed.connect(_open_dropdown.bind(_menu_list))
+	# The scene's camera button moves in here.
+	cam_mode_button.reparent(_menu_list)
+	cam_mode_button.pressed.connect(_close_dropdowns)
+
+func _dropdown_toggle(parent: Control) -> Button:
+	var btn := Button.new()
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size.y = 26
+	parent.add_child(btn)
+	return btn
+
+func _dropdown_list(parent: Control) -> VBoxContainer:
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 2)
+	list.visible = false
+	parent.add_child(list)
+	return list
+
+## Opens [param list], closing the other; clicking its toggle again closes it.
+func _open_dropdown(list: VBoxContainer) -> void:
+	var open := not list.visible
+	_close_dropdowns()
+	list.visible = open
+
+func _close_dropdowns() -> void:
+	_shout_list.visible = false
+	_menu_list.visible = false
+
 func _build_shouts() -> void:
-	var box := VBoxContainer.new()
-	box.anchor_left = 1.0
-	box.anchor_right = 1.0
-	box.offset_left = -116.0
-	box.offset_right = -8.0
-	box.offset_top = 66.0
-	box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	box.add_theme_constant_override("separation", 3)
-	ui_container.add_child(box)
-
-	var title := Label.new()
-	title.text = tr("INDICACIONES")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# Sits straight on the grass — outlined so it reads on both stripe tones.
-	title.add_theme_color_override("font_outline_color", Color(0.02, 0.06, 0.08))
-	title.add_theme_constant_override("outline_size", 4)
-	box.add_child(title)
-
 	var group := ButtonGroup.new()
 	for i in SHOUT_LABELS.size():
 		var btn := Button.new()
@@ -143,12 +187,20 @@ func _build_shouts() -> void:
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.button_pressed = i == _actors_container.player_manual_mentality_mode
 		btn.pressed.connect(_on_shout_pressed.bind(i))
-		box.add_child(btn)
+		_shout_list.add_child(btn)
 		_shout_buttons.append(btn)
+	_update_shout_toggle()
 
 func _on_shout_pressed(mode: int) -> void:
 	_actors_container.player_manual_mentality_mode = mode
 	mentality_button.text = tr(MENTALITY_LABELS[mode])
+	_update_shout_toggle()
+	_close_dropdowns()
+
+func _update_shout_toggle() -> void:
+	var mode := _actors_container.player_manual_mentality_mode
+	_shout_toggle.text = tr("INDICACIÓN: %s  ▾") % tr(SHOUT_LABELS[mode])
+	_shout_toggle.tooltip_text = tr(SHOUT_TIPS[mode])
 
 # ── commentary strip ──────────────────────────────────────────────────────────
 
@@ -217,15 +269,9 @@ func _build_stats_panel() -> void:
 	toggle.text = tr("ESTADÍSTICAS")
 	toggle.tooltip_text = tr("Atajo: Tab")
 	toggle.focus_mode = Control.FOCUS_NONE
-	toggle.anchor_left = 1.0
-	toggle.anchor_right = 1.0
-	toggle.offset_left = -116.0
-	toggle.offset_right = -8.0
-	toggle.offset_top = 212.0
-	toggle.offset_bottom = 236.0
-	toggle.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	toggle.pressed.connect(_toggle_stats_panel)
-	ui_container.add_child(toggle)
+	toggle.pressed.connect(_close_dropdowns)
+	_menu_list.add_child(toggle)
 
 	_stats_panel = PanelContainer.new()
 	var style := StyleBoxFlat.new()
@@ -235,8 +281,8 @@ func _build_stats_panel() -> void:
 	_stats_panel.add_theme_stylebox_override("panel", style)
 	_stats_panel.anchor_left = 1.0
 	_stats_panel.anchor_right = 1.0
-	_stats_panel.offset_left = -400.0
-	_stats_panel.offset_right = -124.0
+	_stats_panel.offset_left = -SIDE_WIDTH - 292.0
+	_stats_panel.offset_right = -SIDE_WIDTH - 16.0  # left of the side column
 	_stats_panel.offset_top = 36.0
 	_stats_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_stats_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -408,7 +454,7 @@ var _subs_selected_out : Player = null
 ## True when opening the panel paused the match (so closing resumes it).
 var _subs_paused_match := false
 
-## CAMBIOS button under the shouts, and the panel it opens: the human side's
+## CAMBIOS entry in the side MENÚ, and the panel it opens: the human side's
 ## players on the pitch (stamina, morale) and its bench. Pick who comes off,
 ## then who comes on; the change waits for the next stoppage (Substitutions).
 ## Opening it pauses the match, like FM.
@@ -419,15 +465,9 @@ func _build_subs_panel() -> void:
 	_subs_button = Button.new()
 	_subs_button.tooltip_text = tr("Atajo: C")
 	_subs_button.focus_mode = Control.FOCUS_NONE
-	_subs_button.anchor_left = 1.0
-	_subs_button.anchor_right = 1.0
-	_subs_button.offset_left = -116.0
-	_subs_button.offset_right = -8.0
-	_subs_button.offset_top = 242.0
-	_subs_button.offset_bottom = 266.0
-	_subs_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_subs_button.pressed.connect(_toggle_subs_panel)
-	ui_container.add_child(_subs_button)
+	_subs_button.pressed.connect(_close_dropdowns)
+	_menu_list.add_child(_subs_button)
 
 	_subs_panel = PanelContainer.new()
 	var style := StyleBoxFlat.new()

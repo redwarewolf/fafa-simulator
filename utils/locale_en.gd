@@ -476,4 +476,7 @@ const MESSAGES := {
 	"Tirar la heladera. Todo o nada: a unos los prende fuego, a otros los hunde.": "Throw the teacups. All or nothing: it fires some up and sinks others.",
 	"HACER CAMBIOS": "MAKE SUBSTITUTIONS",
 	"Charla del entretiempo: %s": "Half-time talk: %s",
+	# Match HUD side column dropdowns
+	"INDICACIÓN: %s  ▾": "SHOUT: %s  ▾",
+	"MENÚ  ▾": "MENU  ▾",
 }
