@@ -163,9 +163,10 @@ layout_mode = 2
 text = "Táctica:"
 
 [node name="TacticsScrollContainer" type="ScrollContainer" parent="HBox/TacticsPanel/TacticsLayout/TacticsListColumn"]
+custom_minimum_size = Vector2(0, 124)
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
+size_flags_vertical = 0
 clip_contents = true
 scroll_horizontal_enabled = false
 scroll_vertical_enabled = true
@@ -175,6 +176,14 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 theme_override_constants/separation = 4
+
+[node name="LineupSeparator" type="HSeparator" parent="HBox/TacticsPanel/TacticsLayout/TacticsListColumn"]
+layout_mode = 2
+
+[node name="LineupSummary" type="VBoxContainer" parent="HBox/TacticsPanel/TacticsLayout/TacticsListColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
 
 [node name="ButtonsColumn" type="VBoxContainer" parent="HBox/TacticsPanel/TacticsLayout"]
 layout_mode = 2

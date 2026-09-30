@@ -67,6 +67,7 @@ var _trainer      : AnimatedSprite2D = null
 var _card_buttons : Dictionary = {}
 var _card_pips    : Dictionary = {}
 var _card_levels  : Dictionary = {}
+var _card_effects : Dictionary = {}
 
 
 func _ready() -> void:
@@ -148,6 +149,14 @@ func _build_cards() -> void:
 			pips.append(pip)
 		_card_pips[key] = pips
 
+		# What the next level actually does — the card used to show only a
+		# price, so buying anything was a guess.
+		var effect_label := Label.new()
+		effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		effect_label.custom_minimum_size = Vector2(0, 32)
+		card.add_child(effect_label)
+		_card_effects[key] = effect_label
+
 		var btn := Button.new()
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_buy_pressed.bind(key))
@@ -187,6 +196,7 @@ func refresh() -> void:
 		var btn       : Button     = _card_buttons[key]
 
 		lvl_label.text = tr("Nivel %d / %d") % [cur_lvl, max_lvl]
+		_card_effects[key].text = _effect_text(key, cur_lvl, max_lvl)
 
 		var pips : Array = _card_pips[key]
 		for i in pips.size():
@@ -220,6 +230,30 @@ func refresh() -> void:
 		else:
 			btn.text     = tr("→ Nvl %d  $%s") % [cur_lvl + 1, MoneyFormat.format(cost)]
 			btn.disabled = false
+
+
+## Current → next effect of an upgrade, in plain numbers.
+func _effect_text(key: String, cur_lvl: int, max_lvl: int) -> String:
+	var maxed := cur_lvl >= max_lvl
+	match key:
+		"tribune":
+			var per_level := ClubResource.TRIBUNE_CAPACITY_PER_LEVEL
+			if maxed:
+				return tr("Capacidad máxima: %d hinchas") % ((cur_lvl + 1) * per_level)
+			return tr("Capacidad: %d → %d hinchas") % [(cur_lvl + 1) * per_level, (cur_lvl + 2) * per_level]
+		"food_sales", "merchandise_sales":
+			var prices : Dictionary = FanEconomy.FOOD_PRICE_BY_LEVEL if key == "food_sales" \
+				else FanEconomy.MERCH_PRICE_BY_LEVEL
+			if maxed:
+				return tr("Precio por unidad: $%d (máximo)") % prices[cur_lvl]
+			if cur_lvl == 0:
+				return tr("Abre el puesto: $%d por unidad vendida, todos los días") % prices[1]
+			return tr("Precio por unidad: $%d → $%d") % [prices[cur_lvl], prices[cur_lvl + 1]]
+		"building":
+			if cur_lvl == 0:
+				return tr("Desbloquea los niveles altos de Comida, Merchandising y Tribuna")
+			return tr("Sede lista: todas las mejoras del estadio desbloqueadas")
+	return ""
 
 
 func _on_buy_pressed(key: String) -> void:

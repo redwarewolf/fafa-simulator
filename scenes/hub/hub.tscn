@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/match_preview_popup.tscn" id="7"]
 [ext_resource type="PackedScene" path="res://scenes/ui/match_summary_popup.tscn" id="8"]
 
+[sub_resource type="ButtonGroup" id="NavGroup"]
+
 [node name="Hub" type="Control" unique_id=1848374641]
 layout_mode = 3
 anchors_preset = 15
@@ -65,32 +67,60 @@ size_flags_stretch_ratio = 2.0
 theme_override_constants/separation = 4
 alignment = 1
 
+[node name="HomeButton" type="Button" parent="Header/HeaderLayout/NavSection"]
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("NavGroup")
+text = "Inicio"
+
 [node name="SquadButton" type="Button" parent="Header/HeaderLayout/NavSection" unique_id=1612907941]
 layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("NavGroup")
 text = "Plantel"
 
 [node name="MarketButton" type="Button" parent="Header/HeaderLayout/NavSection" unique_id=39174686]
 layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("NavGroup")
 text = "Mercado"
 
 [node name="ClubButton" type="Button" parent="Header/HeaderLayout/NavSection" unique_id=114863096]
 layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("NavGroup")
 text = "Club"
 
 [node name="CalendarButton" type="Button" parent="Header/HeaderLayout/NavSection" unique_id=1853560282]
 layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("NavGroup")
 text = "Calendario"
 
 [node name="TournamentButton" type="Button" parent="Header/HeaderLayout/NavSection" unique_id=322401237]
 layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("NavGroup")
 text = "Torneo"
 
 [node name="YouthButton" type="Button" parent="Header/HeaderLayout/NavSection" unique_id=322401238]
 layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("NavGroup")
 text = "Juveniles"
 
 [node name="LabButton" type="Button" parent="Header/HeaderLayout/NavSection" unique_id=322401239]
 layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("NavGroup")
 text = "Laboratorio"
 
 [node name="InfoSection" type="HBoxContainer" parent="Header/HeaderLayout" unique_id=1861009784]
@@ -131,11 +161,15 @@ text = "División E"
 
 [node name="NextDayButton" type="Button" parent="Header/HeaderLayout/InfoSection" unique_id=1986137295]
 layout_mode = 2
+focus_mode = 0
+theme_type_variation = &"PrimaryButton"
 size_flags_vertical = 4
 text = "Próxima Fecha"
 
 [node name="TestMatchButton" type="Button" parent="Header/HeaderLayout/InfoSection" unique_id=1456244816]
 layout_mode = 2
+focus_mode = 0
+theme_type_variation = &"GhostButton"
 size_flags_vertical = 4
 text = "Partido de Prueba"
 
@@ -148,6 +182,7 @@ offset_top = 72.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[connection signal="pressed" from="Header/HeaderLayout/NavSection/HomeButton" to="." method="_on_nav_pressed" binds= ["home"]]
 [connection signal="pressed" from="Header/HeaderLayout/NavSection/SquadButton" to="." method="_on_nav_pressed" binds= ["squad"]]
 [connection signal="pressed" from="Header/HeaderLayout/NavSection/MarketButton" to="." method="_on_nav_pressed" binds= ["market"]]
 [connection signal="pressed" from="Header/HeaderLayout/NavSection/ClubButton" to="." method="_on_nav_pressed" binds= ["club"]]

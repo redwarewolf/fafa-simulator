@@ -62,6 +62,11 @@ var _state_timer := 0.0
 var _last_ball_carrier := ""
 ## Per-goal scorer log, populated in _on_team_scored(): {player, team, time_str}.
 var _scorers : Array[Dictionary] = []
+
+const MatchStatsScript := preload("res://scenes/match/match_stats.gd")
+## Possession/shots/corners/... tracked off GameEvents — read by the HUD's
+## stats panel and the post-match summary.
+var match_stats : Node = null
 ## At most one random event per match — set the moment one fires.
 var _match_event_fired := false
 var _next_event_check := EVENT_CHECK_INTERVAL
@@ -111,6 +116,10 @@ func _ready() -> void:
 	_offside_judge.name = "OffsideJudge"
 	_offside_judge.setup(self)
 	add_child(_offside_judge)
+	match_stats = MatchStatsScript.new()
+	match_stats.name = "MatchStats"
+	add_child(match_stats)
+	match_stats.setup(self, actors_container.team_left, actors_container.team_right)
 	if not MatchConfig.headless:
 		_setup_stadium()
 	# Opening kickoff: a proper restart, same as after a goal, just with a
@@ -518,6 +527,7 @@ func _show_game_over(match_result: Dictionary) -> void:
 	var own_score := score_left if is_player_left else score_right
 	var opp_score := score_right if is_player_left else score_left
 	var data := MatchSummaryData.build(own_name, opp_name, own_score, opp_score, _scorers, false, match_result)
+	data["stats"] = match_stats.rows(own_name)
 	match_summary_popup.show_result(data)
 
 ## Persists each player's depleted in-match Player.stamina back onto their

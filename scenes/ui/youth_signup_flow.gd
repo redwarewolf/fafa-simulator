@@ -85,6 +85,10 @@ func _run_event(club: ClubResource, event: Dictionary) -> void:
 		club.budget -= fee
 		GameState.budget_changed.emit()
 	club.youth_unseen += 1
+	GameState.post_news("Nuevo juvenil: %s" % kid.full_name,
+		"%s (%s, %d años, %s) se sumó a la Academia Juvenil." % [
+			kid.full_name, Positions.label(kid.role), kid.age, QualityStyle.NAMES[kid.quality]],
+		"youth")
 	GameState.pool_badges_changed.emit()
 	GameState.save_staff()
 

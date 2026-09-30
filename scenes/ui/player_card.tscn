@@ -122,6 +122,11 @@ custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 text = "OVR  91"
 
+[node name="ValueWage" type="Label" parent="VBox/Header/HeaderInfo"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+text = "Valor $0  ·  Sueldo $0"
+
 [node name="Separator" type="HSeparator" parent="VBox"]
 layout_mode = 2
 

@@ -4,11 +4,30 @@ const MIN_SQUAD_SIZE := 6
 const SELL_MULTIPLIER := 0.4  ## selling nets 40% of market value
 
 const SELL_COL_NAME  := 0
-const SELL_COL_VALUE := 1
+const SELL_COL_POS   := 1
+const SELL_COL_OVR   := 2
+const SELL_COL_VALUE := 3
 
 const BUY_COL_NAME  := 0
-const BUY_COL_CLUB  := 1
-const BUY_COL_VALUE := 2
+const BUY_COL_POS   := 1
+const BUY_COL_OVR   := 2
+const BUY_COL_CLUB  := 3
+const BUY_COL_VALUE := 4
+
+const SELL_COLUMNS := [
+	{"title": "Nombre", "expand": true},
+	{"title": "Pos",   "expand": false, "min_width": 46, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "OVR",   "expand": false, "min_width": 44, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "Valor", "expand": false, "min_width": 84, "align": HORIZONTAL_ALIGNMENT_RIGHT},
+]
+
+const BUY_COLUMNS := [
+	{"title": "Nombre", "expand": true, "ratio": 1.2},
+	{"title": "Pos",   "expand": false, "min_width": 46, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "OVR",   "expand": false, "min_width": 44, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "Club",  "expand": true},
+	{"title": "Valor", "expand": false, "min_width": 84, "align": HORIZONTAL_ALIGNMENT_RIGHT},
+]
 
 @onready var sell_tree     : Tree   = $HBox/SellPanel/VBox/SellTree
 @onready var buy_tree      : Tree   = $HBox/RightPanel/VBox/BuyTree
@@ -20,21 +39,29 @@ var _selected_player : PlayerResource = null
 var _selected_mode   : String = ""  # "sell" or "buy"
 var _selected_source_club : ClubResource = null  # buy only — club to remove the player from
 
+@onready var filter_row : VBoxContainer = $HBox/RightPanel/VBox/FilterRow
+
+## FM-style search filters over the buy list (see _build_filters()).
+const GROUP_FILTERS := [
+	["Todas las posiciones", -1],
+	["Arqueros", Positions.Group.GOALIE],
+	["Defensores", Positions.Group.DEFENSE],
+	["Mediocampistas", Positions.Group.MIDFIELD],
+	["Delanteros", Positions.Group.OFFENSE],
+]
+var _filter_text := ""
+var _filter_group := -1
+var _filter_min_quality := 0
+var _filter_affordable := false
+var _buy_sort_col := BUY_COL_VALUE
+var _buy_sort_asc := false
+var _count_label : Label = null
+
 
 func _ready() -> void:
-	sell_tree.set_column_title(SELL_COL_NAME,  tr("Nombre"))
-	sell_tree.set_column_title(SELL_COL_VALUE, tr("Valor"))
-	sell_tree.set_column_expand(SELL_COL_NAME, true)
-	sell_tree.set_column_expand(SELL_COL_VALUE, false)
-	sell_tree.set_column_custom_minimum_width(SELL_COL_VALUE, 90)
-
-	buy_tree.set_column_title(BUY_COL_NAME,  tr("Nombre"))
-	buy_tree.set_column_title(BUY_COL_CLUB,  tr("Club"))
-	buy_tree.set_column_title(BUY_COL_VALUE, tr("Valor"))
-	buy_tree.set_column_expand(BUY_COL_NAME, true)
-	buy_tree.set_column_expand(BUY_COL_CLUB, true)
-	buy_tree.set_column_expand(BUY_COL_VALUE, false)
-	buy_tree.set_column_custom_minimum_width(BUY_COL_VALUE, 80)
+	TreeStyle.setup_columns(sell_tree, SELL_COLUMNS)
+	TreeStyle.setup_columns(buy_tree, BUY_COLUMNS)
+	_build_filters()
 
 	_populate()
 
@@ -46,6 +73,9 @@ func refresh() -> void:
 func _populate() -> void:
 	_clear_selection()
 	budget_label.text = tr("Presupuesto: $%s") % MoneyFormat.format(GameState.player_club.budget)
+	# Say up front whether the window is open, not only once a row is clicked.
+	budget_label.text += "   ·   " + (tr("MERCADO ABIERTO") if _window_open() else tr("MERCADO CERRADO"))
+	budget_label.add_theme_color_override("font_color", Color.WHITE if _window_open() else HubPalette.LOSS)
 	_populate_sell_tree()
 	_populate_buy_tree()
 
@@ -65,11 +95,13 @@ func _populate_sell_tree() -> void:
 	for p : PlayerResource in squad:
 		var item := sell_tree.create_item(root)
 		var qcolor : Color = QualityStyle.COLORS[p.quality]
-		item.set_text(SELL_COL_NAME,  "%s  (%s)" % [p.full_name, Positions.label(p.role)])
+		item.set_text(SELL_COL_NAME,  p.full_name)
+		item.set_text(SELL_COL_OVR,   str(p.overall()))
 		item.set_text(SELL_COL_VALUE, "$%s" % MoneyFormat.format(_sell_price(p)))
-		item.set_text_alignment(SELL_COL_VALUE, HORIZONTAL_ALIGNMENT_RIGHT)
-		for col in [SELL_COL_NAME, SELL_COL_VALUE]:
+		for col in [SELL_COL_NAME, SELL_COL_OVR, SELL_COL_VALUE]:
 			item.set_custom_color(col, qcolor)
+		_set_pos_badge(item, SELL_COL_POS, p)
+		TreeStyle.align_row(item, SELL_COLUMNS)
 		item.set_metadata(0, p)
 
 
@@ -84,8 +116,21 @@ func _populate_buy_tree() -> void:
 		for p in club.players:
 			listings.append({"player": p, "club": club})
 
-	listings.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return PlayerValue.estimate(a["player"]) > PlayerValue.estimate(b["player"]))
+	var budget : int = GameState.player_club.budget
+	listings = listings.filter(func(e: Dictionary) -> bool:
+		var p : PlayerResource = e["player"]
+		if _filter_text != "" and not p.full_name.to_lower().contains(_filter_text):
+			return false
+		if _filter_group >= 0 and Positions.group(p.role) != _filter_group:
+			return false
+		if p.quality < _filter_min_quality:
+			return false
+		if _filter_affordable and PlayerValue.estimate(p) > budget:
+			return false
+		return true)
+	listings.sort_custom(_compare_listings)
+	if _count_label != null:
+		_count_label.text = tr("%d jugadores") % listings.size()
 
 	for entry in listings:
 		var p : PlayerResource = entry["player"]
@@ -93,13 +138,110 @@ func _populate_buy_tree() -> void:
 		var item := buy_tree.create_item(root)
 		var qcolor : Color = QualityStyle.COLORS[p.quality]
 		item.set_text(BUY_COL_NAME,  p.full_name)
+		item.set_text(BUY_COL_OVR,   str(p.overall()))
 		item.set_text(BUY_COL_CLUB,  club.display_name)
 		item.set_text(BUY_COL_VALUE, "$%s" % MoneyFormat.format(PlayerValue.estimate(p)))
-		item.set_text_alignment(BUY_COL_VALUE, HORIZONTAL_ALIGNMENT_RIGHT)
-		for col in [BUY_COL_NAME, BUY_COL_CLUB, BUY_COL_VALUE]:
+		for col in [BUY_COL_NAME, BUY_COL_OVR, BUY_COL_CLUB, BUY_COL_VALUE]:
 			item.set_custom_color(col, qcolor)
+		_set_pos_badge(item, BUY_COL_POS, p)
+		TreeStyle.align_row(item, BUY_COLUMNS)
 		item.set_metadata(0, p)
 		item.set_metadata(1, club)
+
+
+func _compare_listings(a: Dictionary, b: Dictionary) -> bool:
+	var pa : PlayerResource = a["player"]
+	var pb : PlayerResource = b["player"]
+	var ka : Variant
+	var kb : Variant
+	match _buy_sort_col:
+		BUY_COL_NAME:
+			ka = pa.full_name
+			kb = pb.full_name
+		BUY_COL_POS:
+			ka = pa.role
+			kb = pb.role
+		BUY_COL_OVR:
+			ka = pa.overall()
+			kb = pb.overall()
+		BUY_COL_CLUB:
+			ka = a["club"].display_name
+			kb = b["club"].display_name
+		_:
+			ka = PlayerValue.estimate(pa)
+			kb = PlayerValue.estimate(pb)
+	if ka == kb:
+		return PlayerValue.estimate(pa) > PlayerValue.estimate(pb)
+	return ka < kb if _buy_sort_asc else ka > kb
+
+func _on_buy_tree_column_title_clicked(column: int, _mouse_button_index: int) -> void:
+	if _buy_sort_col == column:
+		_buy_sort_asc = not _buy_sort_asc
+	else:
+		_buy_sort_col = column
+		# Text reads best A→Z; numbers best high → low.
+		_buy_sort_asc = column in [BUY_COL_NAME, BUY_COL_POS, BUY_COL_CLUB]
+	_populate_buy_tree()
+
+## Two rows (search + count, then dropdowns + checkbox) so the filters never
+## widen the buy panel past its share of the screen.
+func _build_filters() -> void:
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 6)
+	filter_row.add_child(top)
+	var bottom := HBoxContainer.new()
+	bottom.add_theme_constant_override("separation", 6)
+	filter_row.add_child(bottom)
+
+	var search := LineEdit.new()
+	search.placeholder_text = tr("Buscar nombre...")
+	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	search.clear_button_enabled = true
+	search.text_changed.connect(func(t: String) -> void:
+		_filter_text = t.strip_edges().to_lower()
+		_populate_buy_tree())
+	top.add_child(search)
+
+	_count_label = Label.new()
+	_count_label.add_theme_color_override("font_color", HubPalette.MUTED)
+	top.add_child(_count_label)
+
+	var group := _filter_dropdown(bottom)
+	for entry in GROUP_FILTERS:
+		group.add_item(tr(entry[0]))
+	group.item_selected.connect(func(i: int) -> void:
+		_filter_group = GROUP_FILTERS[i][1]
+		_populate_buy_tree())
+
+	var quality := _filter_dropdown(bottom)
+	for i in QualityStyle.NAMES.size():
+		quality.add_item(tr("%s o mejor") % tr(QualityStyle.NAMES[i]) if i > 0 else tr("Toda calidad"))
+	quality.item_selected.connect(func(i: int) -> void:
+		_filter_min_quality = i
+		_populate_buy_tree())
+
+	var affordable := CheckBox.new()
+	affordable.text = tr("Solo alcanzables")
+	affordable.tooltip_text = tr("Ocultar jugadores que valen más que tu presupuesto")
+	affordable.toggled.connect(func(on: bool) -> void:
+		_filter_affordable = on
+		_populate_buy_tree())
+	bottom.add_child(affordable)
+
+func _filter_dropdown(parent: Control) -> OptionButton:
+	var option := OptionButton.new()
+	option.fit_to_longest_item = false
+	option.clip_text = true
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	option.custom_minimum_size.x = 60
+	parent.add_child(option)
+	return option
+
+## Position badge in the same line colours as the Squad roster and pitch.
+func _set_pos_badge(item: TreeItem, col: int, p: PlayerResource) -> void:
+	item.set_text(col, Positions.label(p.role))
+	item.set_custom_bg_color(col, Positions.color(p.role))
+	item.set_custom_color(col, Positions.ink_on(p.role))
 
 
 func _on_sell_tree_item_selected() -> void:

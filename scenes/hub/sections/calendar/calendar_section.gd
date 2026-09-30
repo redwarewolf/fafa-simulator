@@ -31,6 +31,8 @@ const COMPARE_ROWS := [
 const KEY_PLAYER_COUNT := 11
 
 @onready var fixtures_tree : Tree          = $HBox/FixturesPanel/VBox/FixturesTree
+@onready var phase_grid    : GridContainer = $HBox/FixturesPanel/VBox/PhaseGrid
+@onready var phase_note    : Label         = $HBox/FixturesPanel/VBox/TitleRow/PhaseNote
 @onready var detail_title  : Label         = $HBox/DetailPanel/VBox/Title
 @onready var home_logo     : TextureRect   = $HBox/DetailPanel/VBox/CrestRow/HomeSide/Logo
 @onready var home_name     : Label         = $HBox/DetailPanel/VBox/CrestRow/HomeSide/Name
@@ -53,6 +55,7 @@ func refresh() -> void:
 # ── fixture list ──────────────────────────────────────────────────────────────
 
 func _populate() -> void:
+	_populate_phase_grid()
 	fixtures_tree.clear()
 	var root := fixtures_tree.create_item()
 
@@ -74,8 +77,14 @@ func _populate() -> void:
 	for matchday in matchdays:
 		var fixtures : Array = by_matchday[matchday]
 		var header := fixtures_tree.create_item(root)
-		header.set_text(COL_DATE, _date_string(fixtures[0]))
-		header.set_text(COL_HOME, "Amistosos de Pretemporada" if matchday == -1 else "Fecha %d" % (matchday + 1))
+		# The date column is too narrow for "Día N de M · <phase>" (it used
+		# to truncate to "DIA 3 DE 7 · PR..."), so the day counter stays there
+		# and the phase moves into the wide Local column next to the label.
+		var first : Dictionary = fixtures[0]
+		header.set_text(COL_DATE, tr("Día %d de %d") % [first.get("phase_day", 1), first.get("phase_length", 1)])
+		var phase_name := tr(SeasonManager.phase_label_key(SeasonManager.phase_for_fixture(first)))
+		header.set_text(COL_HOME, tr("Amistosos de Pretemporada") if matchday == -1 \
+			else "%s  ·  %s" % [tr("Fecha %d") % (matchday + 1), phase_name])
 		for col in COLUMNS.size():
 			header.set_selectable(col, false)
 		TreeStyle.tint_row(header, HubPalette.MUTED)
@@ -85,7 +94,9 @@ func _populate() -> void:
 			if f["home_id"] != player_id and f["away_id"] != player_id:
 				continue
 			fallback = item
-			if not f["played"] and focus == null:
+			# Skip a fixture whose day passed unplayed — it can never be played.
+			if not f["played"] and focus == null \
+					and GameState.days_until(f["day"], f["month"], f["year"]) >= 0:
 				focus = item
 
 	var selected := focus if focus != null else fallback
@@ -113,6 +124,113 @@ func _add_fixture_row(parent: TreeItem, f: Dictionary) -> TreeItem:
 	elif not f["played"]:
 		item.set_custom_color(COL_SCORE, HubPalette.MUTED)
 	return item
+
+# ── phase grid ────────────────────────────────────────────────────────────────
+
+const CELL_BG        := Color(0.05, 0.13, 0.17, 0.9)
+const CELL_BG_PAST   := Color(0.05, 0.13, 0.17, 0.45)
+const CELL_BG_MATCH  := Color(0.1, 0.24, 0.3, 1.0)
+
+## FM-style calendar grid for the phase in progress: one cell per "Día", seven
+## to a row, the player's own fixtures marked with the opponent's crest, venue
+## and (once played) the result. The game deliberately has no real dates, so
+## this follows the phase counter rather than a month.
+func _populate_phase_grid() -> void:
+	_clear(phase_grid)
+	var phase := SeasonManager.phase
+	var length := SeasonManager.phase_length
+	var today := SeasonManager.phase_day
+	var window_open := phase == SeasonManager.Phase.PRE_SEASON or phase == SeasonManager.Phase.MID_SEASON_BREAK
+	phase_note.text = "%s  ·  %s" % [tr(SeasonManager.phase_label_key(phase)),
+		tr("Mercado abierto") if window_open else tr("Mercado cerrado")]
+	phase_note.add_theme_color_override("font_color", HubPalette.WIN if window_open else HubPalette.MUTED)
+
+	var player_id := GameState.player_club.id
+	var by_day : Dictionary = {}
+	for f in SeasonManager.fixtures:
+		if not f.has("phase_day") or SeasonManager.phase_for_fixture(f) != phase:
+			continue
+		if f["home_id"] == player_id or f["away_id"] == player_id:
+			by_day[int(f["phase_day"])] = f
+
+	for day in range(1, length + 1):
+		phase_grid.add_child(_day_cell(day, today, by_day.get(day, {})))
+
+func _day_cell(day: int, today: int, f: Dictionary) -> Control:
+	var style := StyleBoxFlat.new()
+	style.bg_color = CELL_BG_MATCH if not f.is_empty() else (CELL_BG_PAST if day < today else CELL_BG)
+	style.set_content_margin_all(4)
+	style.set_corner_radius_all(2)
+	if day == today:
+		style.set_border_width_all(2)
+		style.border_color = HubPalette.HIGHLIGHT
+
+	var cell := PanelContainer.new()
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.custom_minimum_size = Vector2(0, 40)
+	cell.add_theme_stylebox_override("panel", style)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(row)
+
+	var day_label := Label.new()
+	day_label.text = str(day)
+	day_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	day_label.size_flags_vertical = Control.SIZE_FILL
+	day_label.add_theme_color_override("font_color",
+		HubPalette.HIGHLIGHT if day == today else (HubPalette.MUTED if day < today else Color.WHITE))
+	row.add_child(day_label)
+
+	if f.is_empty():
+		return cell
+
+	var player_id := GameState.player_club.id
+	var is_home : bool = f["home_id"] == player_id
+	var opponent := DataLoader.get_club(f["away_id"] if is_home else f["home_id"])
+	var crest := TextureRect.new()
+	crest.custom_minimum_size = Vector2(24, 24)
+	crest.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	crest.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	crest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	crest.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if opponent != null:
+		ClubLogo.apply(crest, opponent)
+	row.add_child(crest)
+
+	var info := Label.new()
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if f["played"]:
+		var own : int = f["home_score"] if is_home else f["away_score"]
+		var opp : int = f["away_score"] if is_home else f["home_score"]
+		info.text = "%d-%d" % [own, opp]
+		info.add_theme_color_override("font_color", HubPalette.result_color(own, opp))
+	else:
+		info.text = tr("L") if is_home else tr("V")
+		info.add_theme_color_override("font_color", HubPalette.HIGHLIGHT)
+	row.add_child(info)
+
+	var competition := tr("Amistoso") if f["type"] == "friendly" else tr("Fecha %d") % (int(f["matchday"]) + 1)
+	cell.tooltip_text = "%s  ·  %s %s" % [competition, tr("vs"),
+		opponent.display_name if opponent != null else "?"]
+	cell.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	cell.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_select_fixture(f))
+	return cell
+
+## Selects [param f]'s row in the fixture list (scrolling to it) and shows it.
+func _select_fixture(f: Dictionary) -> void:
+	var root := fixtures_tree.get_root()
+	if root != null:
+		for header in root.get_children():
+			for item in header.get_children():
+				if item.get_metadata(0) == f:
+					fixtures_tree.set_selected(item, COL_HOME)
+					fixtures_tree.scroll_to_item(item, true)
+	_show_fixture(f)
 
 func _on_fixture_selected() -> void:
 	var item := fixtures_tree.get_selected()

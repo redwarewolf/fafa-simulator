@@ -16,6 +16,18 @@ extends Control
 @onready var youth_nav_button : Button = $Header/HeaderLayout/NavSection/YouthButton
 @onready var match_preview_popup : MatchPreviewPopup = $MatchPreviewPopup
 @onready var match_summary_popup : MatchSummaryPopup = $MatchSummaryPopup
+@onready var next_day_button : Button = $Header/HeaderLayout/InfoSection/NextDayButton
+@onready var home_nav_button : Button = $Header/HeaderLayout/NavSection/HomeButton
+@onready var nav_buttons : Dictionary = {
+	"home": home_nav_button,
+	"squad": $Header/HeaderLayout/NavSection/SquadButton,
+	"market": $Header/HeaderLayout/NavSection/MarketButton,
+	"club": club_nav_button,
+	"calendar": $Header/HeaderLayout/NavSection/CalendarButton,
+	"tournament": $Header/HeaderLayout/NavSection/TournamentButton,
+	"youth": youth_nav_button,
+	"lab": $Header/HeaderLayout/NavSection/LabButton,
+}
 
 ## Musica de fondo del Hub. Apagada mientras trabajamos en la UI.
 @export var music_enabled : bool = false
@@ -26,10 +38,12 @@ const BUTTON_SOUND_TRACK := "res://assets/music/ui-button-sound.mp3"
 const LANDLORD_TOP := preload("res://assets/art/characters/tapir-top.png")
 const LANDLORD_BOTTOM := preload("res://assets/art/characters/tapir-bottom.png")
 
+const HOME_NAV_LABEL := "Inicio"
 const CLUB_NAV_LABEL := "Club"
 const YOUTH_NAV_LABEL := "Juveniles"
 
 const SECTIONS := {
+	"home": preload("res://scenes/hub/sections/home/home_section.tscn"),
 	"squad": preload("res://scenes/hub/sections/squad/squad_section.tscn"),
 	"market": preload("res://scenes/hub/sections/market/market_section.tscn"),
 	"club": preload("res://scenes/hub/sections/club/club_section.tscn"),
@@ -45,6 +59,10 @@ const SECTIONS := {
 ## "squad" plays right after the first-boot debt speech since squad is the
 ## Hub's default tab; the rest play the first time their nav button is clicked.
 const TAB_TUTORIALS := {
+	"home": [
+		"Esta es la pantalla de Inicio. En el Buzón te llegan los resultados, las novedades del plantel y los avisos del torneo — nada se pierde.",
+		"A la derecha tenés el próximo partido, cómo vas en la tabla, la plata y una lista de pendientes. Tocá cualquier pendiente y te llevo directo a donde hay que resolverlo.",
+	],
 	"squad": [
 		"Mirá, esta es la pantalla del Plantel. Acá armás tu equipo: arrastrá jugadores a la cancha para ubicarlos en cada posición de la formación.",
 		"Si querés probar otro esquema, tocá 'Tácticas' y armate una formación nueva. Andá probando, que esto se aprende jugando.",
@@ -75,6 +93,10 @@ const TAB_TUTORIALS := {
 
 var _section_instances : Dictionary = {}
 var _active_section : String = ""
+## True while a Próxima Fecha press is still resolving (day advance, narrated
+## events, youth sign-ups) — keeps the Space shortcut from stacking a second
+## advance on top of the first.
+var _advancing := false
 
 func _ready() -> void:
 	# Hub is normally only ever reached via Main Menu -> Team Creation/Load
@@ -93,9 +115,13 @@ func _ready() -> void:
 		GameState.ensure_default_tactics()
 	_preload_sections()
 	_update_header()
-	_show_section("squad")
+	# First boot opens on the Squad tab — the intro's squad walkthrough talks
+	# about the screen behind it. From then on the Hub opens on Home, like FM.
+	_show_section("home" if GameState.has_seen_tutorial("squad") else "squad")
+	_section_instances["home"].navigate.connect(_on_home_navigate)
 	GameState.budget_changed.connect(_update_header)
 	GameState.pool_badges_changed.connect(_update_nav_badges)
+	GameState.inbox_changed.connect(_update_nav_badges)
 	SeasonManager.season_ended.connect(_on_season_ended)
 	match_preview_popup.play_pressed.connect(_on_match_preview_play)
 	match_preview_popup.simulate_pressed.connect(_on_match_preview_simulate)
@@ -196,6 +222,15 @@ func _update_header() -> void:
 	capacity_label.text = tr("Capacidad: %s") % MoneyFormat.format(GameState.player_club.get_stadium_capacity())
 	date_label.text = SeasonManager.current_phase_date_string()
 	_apply_club_logo(club_portrait, GameState.player_club)
+	_update_next_day_button()
+
+## The one primary action on the Hub (FM's "Continue"): labelled for what it
+## will actually do next — open today's match, or advance to the next day.
+func _update_next_day_button() -> void:
+	var match_today := not SeasonManager.pending_player_fixture.is_empty()
+	next_day_button.text = tr("Jugar Partido") if match_today else tr("Próxima Fecha")
+	next_day_button.text += "  >"
+	next_day_button.tooltip_text = tr("Atajo: Espacio")
 
 func _apply_club_logo(target: TextureRect, club: ClubResource) -> void:
 	ClubLogo.apply(target, club)
@@ -205,6 +240,7 @@ func _apply_club_logo(target: TextureRect, club: ClubResource) -> void:
 ## refreshes and clear the moment the player opens the panel that owns it.
 func _update_nav_badges() -> void:
 	var club := GameState.player_club
+	home_nav_button.text = _nav_label(HOME_NAV_LABEL, GameState.unread_news_count())
 	club_nav_button.text = _nav_label(CLUB_NAV_LABEL, club.scout_unseen)
 	youth_nav_button.text = _nav_label(YOUTH_NAV_LABEL, club.youth_unseen)
 
@@ -221,6 +257,7 @@ func _show_section(key: String) -> void:
 	_active_section = key
 	_section_instances[key].process_mode = Node.PROCESS_MODE_INHERIT
 	_section_instances[key].visible = true
+	nav_buttons[key].set_pressed_no_signal(true)
 	if _section_instances[key].has_method("refresh"):
 		_section_instances[key].refresh()
 
@@ -236,7 +273,41 @@ func _on_nav_pressed(section: String) -> void:
 		if club_section.has_method("maybe_play_default_sub_tutorial"):
 			club_section.maybe_play_default_sub_tutorial()
 
+## A Home to-do row was clicked: "play" runs the Próxima Fecha flow (opens
+## today's match preview); anything else is a section key to switch to.
+func _on_home_navigate(target: String) -> void:
+	if target == "play":
+		_on_next_day_pressed()
+	else:
+		_on_nav_pressed(target)
+
 func _on_next_day_pressed() -> void:
+	if _advancing:
+		return
+	_advancing = true
+	await _advance_day()
+	_advancing = false
+
+## Space = Próxima Fecha, like FM's Continue. Handled in _input (before GUI
+## focus) so a previously clicked button — e.g. Comprar in the Market — can't
+## swallow it and fire again. Stands down whenever anything else owns the
+## screen: a narrated dialogue, a popup, the pause menu, or a text field.
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE):
+		return
+	if _advancing or get_tree().paused or next_day_button.disabled:
+		return
+	if dialogue_box.visible or ClubTrainer.get_node("DialogueBox").visible:
+		return
+	if match_preview_popup.visible or match_summary_popup.visible:
+		return
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused is LineEdit or focused is TextEdit:
+		return
+	get_viewport().set_input_as_handled()
+	_on_next_day_pressed()
+
+func _advance_day() -> void:
 	if not SeasonManager.pending_player_fixture.is_empty():
 		_show_match_preview()
 		return
@@ -245,6 +316,10 @@ func _on_next_day_pressed() -> void:
 	_update_header()
 	GameState.save_career()
 	if not SeasonManager.pending_player_fixture.is_empty():
+		# Refresh first so the screen behind the popup (e.g. Home's next-match
+		# card and to-do list) already reflects match day.
+		if _active_section != "" and _section_instances[_active_section].has_method("refresh"):
+			_section_instances[_active_section].refresh()
 		_show_match_preview()
 		return
 	# Sequenced, not parallel — both flows narrate through the same shared
@@ -319,6 +394,7 @@ func _maybe_narrate_hub_event() -> void:
 	var line := RandomEvents.maybe_trigger_hub_event(GameState.player_club)
 	if line.is_empty():
 		return
+	GameState.post_news("Novedad del plantel", line, "event")
 	ClubTrainer.say(line)
 	await ClubTrainer.finished
 

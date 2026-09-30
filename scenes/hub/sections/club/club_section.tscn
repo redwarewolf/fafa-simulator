@@ -71,19 +71,12 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_1")
 text = "Entrenamiento"
 
-[node name="CostsButton" type="Button" parent="HBox/Sidebar/SidebarLayout"]
+[node name="FinancesButton" type="Button" parent="HBox/Sidebar/SidebarLayout"]
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 button_group = SubResource("ButtonGroup_1")
-text = "Gastos"
-
-[node name="EarningsButton" type="Button" parent="HBox/Sidebar/SidebarLayout"]
-layout_mode = 2
-size_flags_horizontal = 3
-toggle_mode = true
-button_group = SubResource("ButtonGroup_1")
-text = "Ingresos"
+text = "Finanzas"
 
 [node name="HiringButton" type="Button" parent="HBox/Sidebar/SidebarLayout"]
 layout_mode = 2
@@ -104,6 +97,5 @@ size_flags_vertical = 3
 [connection signal="pressed" from="HBox/Sidebar/SidebarLayout/StadiumButton" to="." method="_on_sub_nav_pressed" binds= ["stadium"]]
 [connection signal="pressed" from="HBox/Sidebar/SidebarLayout/StaffButton" to="." method="_on_sub_nav_pressed" binds= ["staff"]]
 [connection signal="pressed" from="HBox/Sidebar/SidebarLayout/TrainingButton" to="." method="_on_sub_nav_pressed" binds= ["training"]]
-[connection signal="pressed" from="HBox/Sidebar/SidebarLayout/CostsButton" to="." method="_on_sub_nav_pressed" binds= ["costs"]]
-[connection signal="pressed" from="HBox/Sidebar/SidebarLayout/EarningsButton" to="." method="_on_sub_nav_pressed" binds= ["earnings"]]
+[connection signal="pressed" from="HBox/Sidebar/SidebarLayout/FinancesButton" to="." method="_on_sub_nav_pressed" binds= ["finances"]]
 [connection signal="pressed" from="HBox/Sidebar/SidebarLayout/HiringButton" to="." method="_on_sub_nav_pressed" binds= ["hiring"]]

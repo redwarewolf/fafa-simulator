@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/match_preview_popup.gd" id="1"]
 [ext_resource type="Theme" uid="uid://dkgm8jrw0kbl8" path="res://assets/themes/main_theme.tres" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="3"]
+[ext_resource type="Script" path="res://scenes/ui/odds_bar.gd" id="4"]
 
 [node name="MatchPreviewPopup" type="CanvasLayer"]
 layer = 20
@@ -130,11 +131,21 @@ horizontal_alignment = 1
 autowrap_mode = 3
 text = "Tus probabilidades"
 
+[node name="OddsBar" type="Control" parent="PanelRoot/Margin/Main"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+script = ExtResource("4")
+
 [node name="SimulateOddsLabel" type="Label" parent="PanelRoot/Margin/Main"]
 layout_mode = 2
 horizontal_alignment = 1
 autowrap_mode = 3
 text = "Si simulás"
+
+[node name="SimulateOddsBar" type="Control" parent="PanelRoot/Margin/Main"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+script = ExtResource("4")
 
 [node name="ButtonRow" type="HBoxContainer" parent="PanelRoot/Margin/Main"]
 layout_mode = 2
@@ -145,6 +156,7 @@ alignment = 1
 custom_minimum_size = Vector2(150, 40)
 layout_mode = 2
 text = "Jugar"
+theme_type_variation = &"PrimaryButton"
 
 [node name="SimulateButton" type="Button" parent="PanelRoot/Margin/Main/ButtonRow"]
 custom_minimum_size = Vector2(150, 40)

@@ -49,6 +49,13 @@ func show_result(data: Dictionary) -> void:
 			_add_row("%s   %s (%s)" % [s["time_str"], s["player"], s["team"]], "")
 		_add_separator()
 
+	var stats : Array = data.get("stats", [])
+	if not stats.is_empty():
+		_add_header(tr("ESTADÍSTICAS"))
+		for row in stats:
+			_add_stat_row(tr(row[0]), row[1], row[2])
+		_add_separator()
+
 	if data.get("show_finance", false):
 		_build_finance_rows(data)
 
@@ -104,6 +111,20 @@ func _add_row(left: String, right: String) -> void:
 		var right_label := Label.new()
 		right_label.text = right
 		row.add_child(right_label)
+	rows.add_child(row)
+
+## Own value | stat name | opponent value, like a TV stats graphic.
+func _add_stat_row(label: String, own: String, opp: String) -> void:
+	var row := HBoxContainer.new()
+	for spec in [[own, HORIZONTAL_ALIGNMENT_LEFT, Color.WHITE],
+			[label, HORIZONTAL_ALIGNMENT_CENTER, HubPalette.MUTED],
+			[opp, HORIZONTAL_ALIGNMENT_RIGHT, Color.WHITE]]:
+		var l := Label.new()
+		l.text = spec[0]
+		l.horizontal_alignment = spec[1]
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.add_theme_color_override("font_color", spec[2])
+		row.add_child(l)
 	rows.add_child(row)
 
 func _add_separator() -> void:

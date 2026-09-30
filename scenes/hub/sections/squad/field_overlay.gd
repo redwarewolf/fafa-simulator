@@ -38,6 +38,17 @@ const LOCK_COLOR    := Color(0.6, 0.6, 0.6, 0.70)
 const PINNED_COLOR  := Color(0.95, 0.79, 0.20, 0.95)  ## keeper — selectable, not movable
 const SELECT_COLOR  := Color(0.3, 0.8, 1.0, 1.0)
 const DROP_COLOR    := Color(0.2, 1.0, 0.4, 1.0)
+## Ring colour per Positions.Aptitude — matches squad_section's XI summary.
+const FIT_COLORS := {
+	Positions.Aptitude.NATURAL:         Color(0.4, 0.9, 0.4, 1.0),
+	Positions.Aptitude.SECONDARY:       Color(1.0, 0.75, 0.25, 1.0),
+	Positions.Aptitude.OUT_OF_POSITION: Color(1.0, 0.3, 0.3, 1.0),
+}
+const FIT_NAMES := {
+	Positions.Aptitude.NATURAL:         "En su puesto",
+	Positions.Aptitude.SECONDARY:       "Adaptado",
+	Positions.Aptitude.OUT_OF_POSITION: "Fuera de posición",
+}
 
 
 # ── state ─────────────────────────────────────────────────────────────────────
@@ -74,7 +85,9 @@ func _on_hover_timer_timeout() -> void:
 	var slot = _tactic.slots[_tooltip_slot]
 	if not slot.is_assigned():
 		return
-	_tooltip_label.text = slot.player.full_name
+	var fit : Positions.Aptitude = Positions.aptitude(slot.player.role, slot.role)
+	_tooltip_label.text = "%s\n%s  ·  %s" % [slot.player.full_name,
+		Positions.label(slot.role), tr(FIT_NAMES[fit])]
 	# Position tooltip near the slot centre, offset so it doesn't overlap
 	var field  := _field_rect()
 	var centre := _norm_to_px(slot.position, field)
@@ -219,9 +232,14 @@ func _draw_slot(i: int, slot, centre: Vector2, r: float) -> void:
 		ring_col = LOCK_COLOR
 	elif i == _drag_index:
 		ring_col = DRAG_COLOR
+	elif slot.is_assigned():
+		# FM-style fit ring: green in his position, amber covering, red out.
+		ring_col = FIT_COLORS[Positions.aptitude(slot.player.role, slot.role)]
 	else:
 		ring_col = OUTLINE_COLOR
 	draw_circle(centre, r * (1.0 + OUTLINE_RATIO), ring_col)
+	# Thin dark seam between ring and disc keeps both colours legible.
+	draw_circle(centre, r * 1.06, OUTLINE_COLOR)
 
 	# The disc is coloured by the SLOT's position, so the formation reads as
 	# lines at a glance. Every slot used to draw the same default portrait, which

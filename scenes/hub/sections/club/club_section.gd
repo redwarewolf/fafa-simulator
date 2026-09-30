@@ -8,8 +8,8 @@ const SUB_SECTIONS := {
 	"stadium": preload("res://scenes/hub/sections/club/stadium_panel.tscn"),
 	"staff": preload("res://scenes/hub/sections/club/staff_panel.tscn"),
 	"training": preload("res://scenes/hub/sections/club/training_panel.tscn"),
-	"costs": preload("res://scenes/hub/sections/club/costs_panel.tscn"),
-	"earnings": preload("res://scenes/hub/sections/club/earnings_panel.tscn"),
+	# Gastos + Ingresos used to be two sub-tabs; finances_panel embeds both.
+	"finances": preload("res://scenes/hub/sections/club/finances_panel.tscn"),
 	"hiring": preload("res://scenes/hub/sections/club/hiring_panel.tscn"),
 }
 
@@ -30,11 +30,9 @@ const SUB_TUTORIALS := {
 	"training": [
 		"Esta es la pestaña de Entrenamiento. Con un entrenador contratado, le podés dar sesiones a un jugador para subirle stats de forma permanente.",
 	],
-	"costs": [
-		"Acá ves los Gastos: sueldos del plantel y mantenimiento del personal contratado, se descuentan solos cada vez que avanzás el día.",
-	],
-	"earnings": [
-		"Acá ves los Ingresos: lo que entra por entradas, merchandising y comida en cada partido.",
+	"finances": [
+		"Estas son las Finanzas. Arriba tenés la plata, cómo se movió desde ayer y la evolución día a día.",
+		"Abajo, lo que entra — entradas, merchandising y comida — y lo que sale: sueldos del plantel y personal contratado, que se descuentan solos cada vez que avanzás el día.",
 	],
 	"hiring": [
 		"Esta es la pestaña de Contrataciones. Acá aparecen los candidatos que te trae el ojeador — fichalos antes de que se enfríen.",

@@ -13,6 +13,28 @@ extends CanvasLayer
 @onready var speed_label         := %SpeedLabel as Label
 @onready var cam_mode_button     := %CamModeButton as Button
 @onready var mentality_button    := %MentalityButton as Button
+@onready var home_name_label     := %HomeNameLabel as Label
+@onready var away_name_label     := %AwayNameLabel as Label
+@onready var ui_container        := $UIContainer as Control
+
+## FM-style touchline shouts: one button per TacticPreset.ManualMode, index-
+## matched, replacing the old single button that cycled through all four.
+const SHOUT_LABELS := ["AUTO", "DEFENDER", "EQUILIBRAR", "ATACAR"]
+const SHOUT_TIPS := [
+	"El equipo decide solo según el marcador y el reloj",
+	"Replegarse y cuidar el resultado",
+	"Ni arriesgar ni encerrarse",
+	"Adelantar líneas y buscar el gol",
+]
+const PANEL_BG := Color(0.04, 0.09, 0.11, 0.9)
+const STATS_REFRESH_S := 0.5
+const EVENT_ROWS := 8
+
+var _shout_buttons : Array[Button] = []
+var _stats_panel : PanelContainer = null
+var _stats_grid : GridContainer = null
+var _events_list : VBoxContainer = null
+var _stats_refresh_left := 0.0
 
 const SPEED_STEPS := [1.0, 2.0, 4.0, 8.0]
 const SPEED_ICONS := [">", ">>", ">>>", ">>>>"
@@ -57,6 +79,9 @@ func _ready() -> void:
 	GameEvents.half_time.connect(_on_half_time)
 	cam_mode_button.pressed.connect(_on_cam_mode_button_pressed)
 	mentality_button.pressed.connect(_on_mentality_button_pressed)
+	mentality_button.visible = false  # superseded by the shout row below
+	_build_shouts()
+	_build_stats_panel()
 
 func _on_cam_mode_button_pressed() -> void:
 	_camera.toggle_mode()
@@ -73,10 +98,164 @@ func _on_mentality_button_pressed() -> void:
 	_actors_container.player_manual_mentality_mode = next_mode
 	mentality_button.text = tr(MENTALITY_LABELS[next_mode])
 
-## Load club crest textures for both teams.
+## Load club crest textures (and names, for the scoreboard) for both teams.
 func _load_logos() -> void:
-	ClubLogo.apply(home_logo_texture, DataLoader.get_club_by_team_key(_actors_container.team_left))
-	ClubLogo.apply(away_logo_texture, DataLoader.get_club_by_team_key(_actors_container.team_right))
+	var left := DataLoader.get_club_by_team_key(_actors_container.team_left)
+	var right := DataLoader.get_club_by_team_key(_actors_container.team_right)
+	ClubLogo.apply(home_logo_texture, left)
+	ClubLogo.apply(away_logo_texture, right)
+	for label in [home_name_label, away_name_label]:
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	home_name_label.text = left.display_name if left != null else _actors_container.team_left
+	away_name_label.text = right.display_name if right != null else _actors_container.team_right
+
+# ── shouts ────────────────────────────────────────────────────────────────────
+
+func _build_shouts() -> void:
+	var box := VBoxContainer.new()
+	box.anchor_left = 1.0
+	box.anchor_right = 1.0
+	box.offset_left = -116.0
+	box.offset_right = -8.0
+	box.offset_top = 66.0
+	box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	box.add_theme_constant_override("separation", 3)
+	ui_container.add_child(box)
+
+	var title := Label.new()
+	title.text = tr("INDICACIONES")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Sits straight on the grass — outlined so it reads on both stripe tones.
+	title.add_theme_color_override("font_outline_color", Color(0.02, 0.06, 0.08))
+	title.add_theme_constant_override("outline_size", 4)
+	box.add_child(title)
+
+	var group := ButtonGroup.new()
+	for i in SHOUT_LABELS.size():
+		var btn := Button.new()
+		btn.text = tr(SHOUT_LABELS[i])
+		btn.tooltip_text = tr(SHOUT_TIPS[i])
+		btn.toggle_mode = true
+		btn.button_group = group
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.button_pressed = i == _actors_container.player_manual_mentality_mode
+		btn.pressed.connect(_on_shout_pressed.bind(i))
+		box.add_child(btn)
+		_shout_buttons.append(btn)
+
+func _on_shout_pressed(mode: int) -> void:
+	_actors_container.player_manual_mentality_mode = mode
+	mentality_button.text = tr(MENTALITY_LABELS[mode])
+
+# ── stats panel ───────────────────────────────────────────────────────────────
+
+## Toggled with the ESTADÍSTICAS button or Tab. Reads world.match_stats
+## (see scenes/match/match_stats.gd); left column = left team, like the
+## scoreboard.
+func _build_stats_panel() -> void:
+	var toggle := Button.new()
+	toggle.text = tr("ESTADÍSTICAS")
+	toggle.tooltip_text = tr("Atajo: Tab")
+	toggle.focus_mode = Control.FOCUS_NONE
+	toggle.anchor_left = 1.0
+	toggle.anchor_right = 1.0
+	toggle.offset_left = -116.0
+	toggle.offset_right = -8.0
+	toggle.offset_top = 212.0
+	toggle.offset_bottom = 236.0
+	toggle.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	toggle.pressed.connect(_toggle_stats_panel)
+	ui_container.add_child(toggle)
+
+	_stats_panel = PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = PANEL_BG
+	style.set_content_margin_all(10)
+	style.set_corner_radius_all(3)
+	_stats_panel.add_theme_stylebox_override("panel", style)
+	_stats_panel.anchor_left = 1.0
+	_stats_panel.anchor_right = 1.0
+	_stats_panel.offset_left = -400.0
+	_stats_panel.offset_right = -124.0
+	_stats_panel.offset_top = 36.0
+	_stats_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_stats_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stats_panel.visible = false
+	ui_container.add_child(_stats_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	_stats_panel.add_child(vbox)
+	_stats_grid = GridContainer.new()
+	_stats_grid.columns = 3
+	_stats_grid.add_theme_constant_override("h_separation", 12)
+	vbox.add_child(_stats_grid)
+	vbox.add_child(HSeparator.new())
+	var events_title := Label.new()
+	events_title.text = tr("EVENTOS")
+	events_title.add_theme_color_override("font_color", HubPalette.MUTED)
+	vbox.add_child(events_title)
+	_events_list = VBoxContainer.new()
+	vbox.add_child(_events_list)
+
+func _toggle_stats_panel() -> void:
+	_stats_panel.visible = not _stats_panel.visible
+	if _stats_panel.visible:
+		_refresh_stats_panel()
+
+func _process(delta: float) -> void:
+	if _stats_panel == null or not _stats_panel.visible:
+		return
+	_stats_refresh_left -= delta
+	if _stats_refresh_left <= 0.0:
+		_stats_refresh_left = STATS_REFRESH_S
+		_refresh_stats_panel()
+
+func _refresh_stats_panel() -> void:
+	var stats = _world.match_stats
+	if stats == null:
+		return
+	for child in _stats_grid.get_children():
+		_stats_grid.remove_child(child)
+		child.queue_free()
+	_stat_cell(home_name_label.text, HORIZONTAL_ALIGNMENT_LEFT, HubPalette.HIGHLIGHT)
+	_stat_cell("", HORIZONTAL_ALIGNMENT_CENTER, HubPalette.MUTED)
+	_stat_cell(away_name_label.text, HORIZONTAL_ALIGNMENT_RIGHT, HubPalette.HIGHLIGHT)
+	for row in stats.rows(_actors_container.team_left):
+		_stat_cell(row[1], HORIZONTAL_ALIGNMENT_LEFT, Color.WHITE)
+		_stat_cell(tr(row[0]), HORIZONTAL_ALIGNMENT_CENTER, HubPalette.MUTED)
+		_stat_cell(row[2], HORIZONTAL_ALIGNMENT_RIGHT, Color.WHITE)
+
+	for child in _events_list.get_children():
+		_events_list.remove_child(child)
+		child.queue_free()
+	var events : Array = stats.events
+	if events.is_empty():
+		_event_line(tr("Sin eventos todavía"), HubPalette.MUTED)
+	for i in range(events.size() - 1, maxi(-1, events.size() - 1 - EVENT_ROWS), -1):
+		var e : Dictionary = events[i]
+		var color := HubPalette.HIGHLIGHT if e["kind"] == "goal" else Color.WHITE
+		var side := ""
+		if e["team"] != "":
+			side = "  (%s)" % (home_name_label.text if e["team"] == _actors_container.team_left else away_name_label.text)
+		_event_line("%d'  %s%s" % [e["minute"], e["text"], side], color)
+
+func _stat_cell(text: String, align: int, color: Color) -> void:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = align
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	l.custom_minimum_size.x = 70
+	l.add_theme_color_override("font_color", color)
+	_stats_grid.add_child(l)
+
+func _event_line(text: String, color: Color) -> void:
+	var l := Label.new()
+	l.text = text
+	l.clip_text = true
+	l.add_theme_color_override("font_color", color)
+	_events_list.add_child(l)
 
 func _update_score() -> void:
 	score_label.text = "%d - %d" % [_world.score_left, _world.score_right]
@@ -128,6 +307,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
+			KEY_TAB: _toggle_stats_panel()
 			KEY_0: _toggle_pause()
 			KEY_1: _set_speed(0)
 			KEY_2: _set_speed(1)
@@ -160,6 +340,8 @@ func _set_speed(index: int) -> void:
 	speed_label.text = SPEED_ICONS[index]
 
 func _on_game_over() -> void:
+	if _stats_panel != null:
+		_stats_panel.visible = false  # the summary popup shows the same numbers
 	Engine.time_scale = 1.0
 	_speed_index = 0
 	_paused = false

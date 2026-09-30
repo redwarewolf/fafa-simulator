@@ -120,6 +120,48 @@ func mark_tutorial_seen(key: String) -> void:
 	tutorials_seen[key] = true
 	save_career()
 
+# ── Inbox (Buzón) ─────────────────────────────────────────────────────────────
+
+## Emitted whenever a message is posted or read — the Home screen and the
+## "Inicio" nav badge listen to this.
+signal inbox_changed
+
+const INBOX_MAX := 80
+const BUDGET_HISTORY_MAX := 60
+
+## FM-style news feed: everything that happened to the club, newest first.
+## Each entry is {date, title, body, kind, read}; kind is one of
+## "result", "event", "youth", "season", "info" (drives the Home screen's
+## colour tag). Persisted in career.json; before this existed, narrated
+## events vanished the moment their dialogue box closed.
+var inbox : Array = []
+
+## Closing budget of each past day, oldest first — the Home screen's finance
+## chart. Appended at the start of advance_day(), so it already includes that
+## day's match revenue; the live budget is drawn as the final point.
+var budget_history : Array = []
+
+func post_news(title: String, body: String, kind: String = "info") -> void:
+	inbox.push_front({
+		"date": SeasonManager.current_phase_date_string(),
+		"title": title,
+		"body": body,
+		"kind": kind,
+		"read": false,
+	})
+	if inbox.size() > INBOX_MAX:
+		inbox.resize(INBOX_MAX)
+	inbox_changed.emit()
+
+func mark_news_read(index: int) -> void:
+	if index < 0 or index >= inbox.size() or inbox[index].get("read", false):
+		return
+	inbox[index]["read"] = true
+	inbox_changed.emit()
+
+func unread_news_count() -> int:
+	return inbox.filter(func(m: Dictionary) -> bool: return not m.get("read", false)).size()
+
 ## player_club stays null until Main Menu -> Team Creation (start_new_career)
 ## or Load Game (load_career) sets it — Hub is never the first scene anymore,
 ## so there's nothing to load at autoload-init time.
@@ -167,6 +209,10 @@ func remove_tactic(index: int) -> void:
 	save_tactics()
 
 func advance_day() -> void:
+	if player_club != null:
+		budget_history.append(player_club.budget)
+		if budget_history.size() > BUDGET_HISTORY_MAX:
+			budget_history.pop_front()
 	day += 1
 	var days_in_month := _days_in_month(month, year)
 	if day > days_in_month:
@@ -191,6 +237,18 @@ func advance_date(d: int, m: int, y: int, days: int) -> Array:
 				m = 1
 				y += 1
 	return [d, m, y]
+
+## Calendar days from today until the given date (0 = today, -1 = already
+## past). Capped at a year — only ever used for "in N days" labels.
+func days_until(d: int, m: int, y: int) -> int:
+	if [y, m, d] < [year, month, day]:
+		return -1
+	var cur := [day, month, year]
+	for i in 366:
+		if cur[0] == d and cur[1] == m and cur[2] == y:
+			return i
+		cur = advance_date(cur[0], cur[1], cur[2], 1)
+	return 366
 
 func _days_in_month(m: int, y: int) -> int:
 	match m:
@@ -217,8 +275,13 @@ func start_new_career(club: ClubResource, ai_clubs: Array[ClubResource]) -> void
 	month = 3
 	year = 2026
 	tutorials_seen.clear()
+	inbox.clear()
+	budget_history.clear()
 	_init_default_tactics()
 	SeasonManager.start_pre_season()
+	post_news("Bienvenido a %s" % club.display_name,
+		"La comisión directiva te dio las llaves del club. Arrancamos en la División %s con una deuda con Grandi Tapir y un plantel que hay que poner a punto.\n\nAcá en el Buzón te van a llegar los resultados, las novedades del plantel y los avisos del torneo." % club.division,
+		"info")
 
 	if not DEBUG_DISABLE_PERSISTENCE:
 		save_tactics()
@@ -283,6 +346,12 @@ func load_career() -> bool:
 				SeasonManager.phase_day = SeasonManager.MID_SEASON_BREAK_LENGTH - legacy_remaining + 1
 
 	tutorials_seen = data.get("tutorials_seen", {})
+	inbox = data.get("inbox", [])
+	budget_history = data.get("budget_history", [])
+	# JSON hands numbers back as floats; the ledger's readers expect ints.
+	var saved_ledger : Dictionary = data.get("last_day_ledger", {})
+	for k in last_day_ledger:
+		last_day_ledger[k] = int(saved_ledger.get(k, 0))
 
 	var fixtures_data : Array[Dictionary] = []
 	for f : Dictionary in data.get("fixtures", []):
@@ -319,6 +388,9 @@ func save_career() -> void:
 		"phase_day": SeasonManager.phase_day,
 		"phase_length": SeasonManager.phase_length,
 		"tutorials_seen": tutorials_seen,
+		"inbox": inbox,
+		"budget_history": budget_history,
+		"last_day_ledger": last_day_ledger,
 	}
 	var file := FileAccess.open(CAREER_SAVE_PATH, FileAccess.WRITE)
 	if file == null:

@@ -24,6 +24,7 @@ const STAT_KEYS := {
 @onready var role_age      : Label          = $VBox/Header/HeaderInfo/RoleAge
 @onready var quality_label : Label          = $VBox/Header/HeaderInfo/Quality
 @onready var overall_label : Label          = $VBox/Header/HeaderInfo/Overall
+@onready var value_wage_label : Label       = $VBox/Header/HeaderInfo/ValueWage
 @onready var stats         : VBoxContainer = $VBox/Stats
 @onready var header        : HBoxContainer = $VBox/Header
 @onready var radar_row     : HBoxContainer = $VBox/Header/Radar
@@ -65,6 +66,10 @@ func setup(p: PlayerResource, team_key: String = "") -> void:
 	quality_label.add_theme_color_override("font_color", qcolor)
 
 	overall_label.text = "OVR  %d" % p.overall()
+
+	value_wage_label.text = tr("Valor $%s  ·  Sueldo $%s") % [
+		MoneyFormat.format(PlayerValue.estimate(p)), MoneyFormat.format(PlayerWage.estimate(p))]
+	value_wage_label.add_theme_color_override("font_color", HubPalette.MUTED)
 
 	if layout == Layout.RADAR:
 		var bases := [p.pac, p.sho, p.pas, p.dri, p.def, p.phy]
@@ -125,6 +130,7 @@ func clear() -> void:
 	quality_label.remove_theme_color_override("font_color")
 
 	overall_label.text = "OVR  --"
+	value_wage_label.text = ""
 
 	_clear_modifier_badges()
 

@@ -72,10 +72,21 @@ func start_pre_season() -> void:
 
 
 ## Restores a previously-generated schedule from a save file, instead of
-## rebuilding one. Clears any stale pending match.
+## rebuilding one. pending_player_fixture isn't saved, so it's re-derived: a
+## save written on a match day (the Hub saves right after resolve_day() sets
+## it) still owes that match. Clearing it instead used to lose the match for
+## good — resolve_day() only ever picks up fixtures dated on the new day.
+## Needs GameState's calendar and player_club already loaded.
 func load_fixtures(data: Array[Dictionary]) -> void:
 	fixtures = data
 	pending_player_fixture = {}
+	var player_id := GameState.player_club.id if GameState.player_club != null else ""
+	for f in fixtures:
+		if f["played"] or (f["home_id"] != player_id and f["away_id"] != player_id):
+			continue
+		if f["day"] == GameState.day and f["month"] == GameState.month and f["year"] == GameState.year:
+			pending_player_fixture = f
+			break
 
 
 static func phase_name(p: int) -> String:
@@ -333,12 +344,19 @@ func _start_first_half() -> void:
 	var rounds := _current_division_rounds()
 	phase_length = _leg_length_days(rounds) + 1
 	_generate_first_half_fixtures(rounds)
+	GameState.post_news("Arranca el torneo",
+		"Terminó la pretemporada y empieza la 1ª mitad del torneo. El mercado de pases queda cerrado hasta el receso: jugá con lo que tenés.",
+		"season")
 
 
 func _start_mid_season_break() -> void:
 	phase = Phase.MID_SEASON_BREAK
 	phase_day = 1
 	phase_length = MID_SEASON_BREAK_LENGTH + 1
+	GameState.post_news("Receso de temporada",
+		"Se terminó la 1ª mitad: vas #%d en la tabla. El mercado de pases abre durante %d días — es el momento de reforzar el plantel." % [
+			Standings.position_of(GameState.player_club), MID_SEASON_BREAK_LENGTH],
+		"season")
 
 
 func _start_second_half() -> void:
@@ -347,6 +365,9 @@ func _start_second_half() -> void:
 	var rounds := _current_division_rounds()
 	phase_length = _leg_length_days(rounds) + 1
 	_generate_second_half_fixtures(rounds)
+	GameState.post_news("Empieza la 2ª mitad",
+		"Se cerró el mercado de pases y arranca la vuelta del torneo. Solo el 1° de la tabla asciende.",
+		"season")
 
 
 ## Checks the player's final standing, promotes their club a division if they
@@ -392,6 +413,11 @@ func _end_season() -> void:
 
 	season_ended.emit(promoted, new_division, position)
 	start_pre_season()
+	var summary := "Terminaste #%d en la División %s." % [position, old_division]
+	if promoted:
+		summary += " ¡Ascenso a la División %s!" % new_division
+	summary += "\n\nArranca la pretemporada: el mercado de pases está abierto y hay amistosos para probar el equipo."
+	GameState.post_news("Fin de temporada", summary, "season")
 
 
 ## Ages every player a year and rolls retirement. The player's own retirees
@@ -530,10 +556,58 @@ func report_player_match_result(home_score: int, away_score: int) -> Dictionary:
 			result["attendance"] = attendance
 
 		GameState.budget_changed.emit()
+		_post_result_news(f, home, away, own_score, opp_score, result)
 
 	pending_player_fixture = {}
 	_check_phase_transition()
 	return result
+
+
+func _post_result_news(f: Dictionary, home: ClubResource, away: ClubResource,
+		own_score: int, opp_score: int, result: Dictionary) -> void:
+	var is_home := GameState.player_club.id == home.id
+	var opponent := away if is_home else home
+	var title : String
+	if own_score > opp_score:
+		title = "Victoria ante %s (%d-%d)" % [opponent.display_name, own_score, opp_score]
+	elif own_score < opp_score:
+		title = "Derrota ante %s (%d-%d)" % [opponent.display_name, own_score, opp_score]
+	else:
+		title = "Empate con %s (%d-%d)" % [opponent.display_name, own_score, opp_score]
+	var competition := "Amistoso" if f["type"] == "friendly" else "Fecha %d" % (int(f["matchday"]) + 1)
+	var body := "%s  ·  %s\n%s %d - %d %s" % [competition, "Local" if is_home else "Visitante",
+		home.display_name, f["home_score"], f["away_score"], away.display_name]
+	var fans_delta : int = result.get("fans_delta", 0)
+	body += "\n\nHinchas: %s%d" % ["+" if fans_delta >= 0 else "", fans_delta]
+	if result.get("ticket_revenue", 0) > 0:
+		body += "\nEntradas: +$%s (%s asistentes)" % [
+			MoneyFormat.format(result["ticket_revenue"]), MoneyFormat.format(result["attendance"])]
+	if f["type"] == "league":
+		body += "\n\nPosición en la tabla: #%d" % Standings.position_of(GameState.player_club)
+	GameState.post_news(title, body, "result")
+
+
+## The player's own fixtures, oldest first — played and unplayed. Used by the
+## Home screen for the next-match card and the recent-form chips.
+func player_fixtures() -> Array:
+	var player_id := GameState.player_club.id if GameState.player_club != null else ""
+	var own := fixtures.filter(func(f: Dictionary) -> bool:
+		return f["home_id"] == player_id or f["away_id"] == player_id)
+	own.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return [a["year"], a["month"], a["day"]] < [b["year"], b["month"], b["day"]])
+	return own
+
+
+## First upcoming player fixture (today's pending one included), or {} once
+## the schedule is exhausted. An unplayed fixture whose date already passed
+## can never be played — resolve_day() only picks up today's — so it's skipped.
+func next_player_fixture() -> Dictionary:
+	if not pending_player_fixture.is_empty():
+		return pending_player_fixture
+	for f in player_fixtures():
+		if not f["played"] and GameState.days_until(f["day"], f["month"], f["year"]) > 0:
+			return f
+	return {}
 
 
 ## Presentational data for the pre-match popup (hub.gd) — the true (unpenalized)

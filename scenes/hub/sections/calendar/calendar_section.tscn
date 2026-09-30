@@ -40,9 +40,26 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 6
 
-[node name="Title" type="Label" parent="HBox/FixturesPanel/VBox"]
+[node name="TitleRow" type="HBoxContainer" parent="HBox/FixturesPanel/VBox"]
 layout_mode = 2
+
+[node name="Title" type="Label" parent="HBox/FixturesPanel/VBox/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "CALENDARIO"
+
+[node name="PhaseNote" type="Label" parent="HBox/FixturesPanel/VBox/TitleRow"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="PhaseGrid" type="GridContainer" parent="HBox/FixturesPanel/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 3
+theme_override_constants/v_separation = 3
+columns = 7
+
+[node name="GridSeparator" type="HSeparator" parent="HBox/FixturesPanel/VBox"]
+layout_mode = 2
 
 [node name="FixturesTree" type="Tree" parent="HBox/FixturesPanel/VBox"]
 layout_mode = 2

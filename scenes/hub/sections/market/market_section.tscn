@@ -110,6 +110,10 @@ theme_override_constants/separation = 6
 layout_mode = 2
 text = "COMPRAR"
 
+[node name="FilterRow" type="VBoxContainer" parent="HBox/RightPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
 [node name="BuyTree" type="Tree" parent="HBox/RightPanel/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -120,4 +124,5 @@ select_mode = 1
 
 [connection signal="item_selected" from="HBox/SellPanel/VBox/SellTree" to="." method="_on_sell_tree_item_selected"]
 [connection signal="item_selected" from="HBox/RightPanel/VBox/BuyTree" to="." method="_on_buy_tree_item_selected"]
+[connection signal="column_title_clicked" from="HBox/RightPanel/VBox/BuyTree" to="." method="_on_buy_tree_column_title_clicked"]
 [connection signal="pressed" from="HBox/MidPanel/VBox/ActionButton" to="." method="_on_action_pressed"]

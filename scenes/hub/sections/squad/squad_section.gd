@@ -2,14 +2,21 @@ extends Control
 
 const COL_NAME := 0
 const COL_POS  := 1
-const COL_OVR  := 2
+const COL_AGE  := 2
+const COL_OVR  := 3
 
 ## Column layout, shared by the header setup and the per-row alignment.
 const ROSTER_COLUMNS : Array = [
 	{"title": "Nombre", "expand": true,  "align": HORIZONTAL_ALIGNMENT_LEFT},
 	{"title": "Pos",  "expand": false, "min_width": 46, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "Edad", "expand": false, "min_width": 40, "align": HORIZONTAL_ALIGNMENT_CENTER},
 	{"title": "OVR",  "expand": false, "min_width": 44, "align": HORIZONTAL_ALIGNMENT_CENTER},
 ]
+
+## Starting-XI fit colours, shared with the pitch rings (field_overlay.gd).
+const FIT_NATURAL   := Color(0.4, 0.9, 0.4)
+const FIT_SECONDARY := Color(1.0, 0.75, 0.25)
+const FIT_OUT       := Color(1.0, 0.3, 0.3)
 
 # All available preset templates (cycled when pressing + New)
 const PRESET_TEMPLATES : Array[String] = ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1", "5-3-2", "3-4-3"]
@@ -22,6 +29,7 @@ const PRESET_TEMPLATES : Array[String] = ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1", 
 @onready var lock_button   : Button         = $HBox/TacticsPanel/TacticsLayout/ButtonsColumn/LockButton
 @onready var delete_button : Button         = $HBox/TacticsPanel/TacticsLayout/ButtonsColumn/DeleteTacticButton
 @onready var field_overlay : Control        = $HBox/MiddleColumn/FieldAspect/FieldBorder/FieldInnerMargin/FieldOverlay
+@onready var lineup_summary : VBoxContainer = $HBox/TacticsPanel/TacticsLayout/TacticsListColumn/LineupSummary
 
 var players       : Array = []
 ## Sorted by position by default: the enum runs back-to-front, so the roster
@@ -42,6 +50,7 @@ func _ready() -> void:
 	_active_index = GameState.active_tactic_index
 	_populate_tactics()
 	field_overlay.set_tactic(GameState.get_active_tactic())
+	_update_lineup_summary()
 	field_overlay.player_dropped.connect(_on_player_dropped)
 	# Auto-select first row
 	var first := roster_tree.get_root().get_first_child()
@@ -52,6 +61,7 @@ func _ready() -> void:
 func refresh() -> void:
 	_populate_tree()
 	field_overlay.set_tactic(GameState.get_active_tactic())
+	_update_lineup_summary()
 	var first := roster_tree.get_root().get_first_child()
 	if first:
 		roster_tree.set_selected(first, COL_NAME)
@@ -68,6 +78,9 @@ func _populate_tree() -> void:
 		COL_NAME:
 			sorted.sort_custom(func(a, b):
 				return a.full_name < b.full_name if _sort_asc else a.full_name > b.full_name)
+		COL_AGE:
+			sorted.sort_custom(func(a, b):
+				return a.age < b.age if _sort_asc else a.age > b.age)
 		COL_POS:
 			# Same position → best first, so each line reads strongest down.
 			sorted.sort_custom(func(a, b):
@@ -85,6 +98,8 @@ func _populate_tree() -> void:
 			name_text += " (OUT %d)" % p.unavailable_matches
 		item.set_text(COL_NAME, name_text)
 		item.set_text(COL_POS,  Positions.label(p.role))
+		item.set_text(COL_AGE,  str(p.age))
+		item.set_custom_color(COL_AGE, HubPalette.MUTED)
 		item.set_text(COL_OVR,  str(p.overall()))
 		item.set_metadata(COL_NAME, p)
 		var qcolor : Color = QualityStyle.COLORS[p.quality]
@@ -154,6 +169,53 @@ func _tree_drop_data(_at_position: Vector2, _data: Variant) -> void:
 func _on_player_dropped(_slot_index: int, _player: PlayerResource) -> void:
 	_dragged_player = null
 	GameState.save_tactics()
+	_update_lineup_summary()
+
+# ── Starting XI summary ───────────────────────────────────────────────────────
+
+## FM-style team-sheet readout under the tactic list: how strong the chosen XI
+## is and how well each player fits the slot he's in — the same three-way fit
+## the pitch rings show, counted up so a bad lineup is obvious before kickoff.
+func _update_lineup_summary() -> void:
+	for child in lineup_summary.get_children():
+		lineup_summary.remove_child(child)
+		child.queue_free()
+	var tactic = GameState.get_active_tactic()
+	if tactic == null:
+		return
+
+	var natural := 0
+	var secondary := 0
+	var out := 0
+	var total_ovr := 0
+	var filled := 0
+	for slot in tactic.slots:
+		if not slot.is_assigned():
+			continue
+		filled += 1
+		total_ovr += slot.player.overall()
+		match Positions.aptitude(slot.player.role, slot.role):
+			Positions.Aptitude.NATURAL: natural += 1
+			Positions.Aptitude.SECONDARY: secondary += 1
+			_: out += 1
+
+	_summary_line(tr("ONCE TITULAR"), HubPalette.MUTED)
+	_summary_line(tr("OVR medio: %d") % (roundi(float(total_ovr) / filled) if filled > 0 else 0), Color.WHITE)
+	_summary_line(tr("Puestos cubiertos: %d / %d") % [filled, tactic.slots.size()],
+		Color.WHITE if filled == tactic.slots.size() else FIT_OUT)
+	_summary_line(tr("En su puesto: %d") % natural, FIT_NATURAL)
+	if secondary > 0:
+		_summary_line(tr("Adaptados: %d") % secondary, FIT_SECONDARY)
+	if out > 0:
+		_summary_line(tr("Fuera de posición: %d") % out, FIT_OUT)
+	var bench := players.size() - filled
+	_summary_line(tr("Suplentes: %d") % bench, HubPalette.MUTED)
+
+func _summary_line(text: String, color: Color) -> void:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", color)
+	lineup_summary.add_child(label)
 
 # ── Tactics ───────────────────────────────────────────────────────────────────
 
@@ -176,6 +238,7 @@ func _on_tactic_selected(index: int) -> void:
 	_active_index = index
 	GameState.set_active_tactic(index)
 	field_overlay.set_tactic(GameState.get_active_tactic())
+	_update_lineup_summary()
 	# Reset lock
 	lock_button.button_pressed = false
 	field_overlay.set_locked(false)
@@ -253,5 +316,6 @@ func _on_delete_tactic_pressed() -> void:
 	_active_index = GameState.active_tactic_index
 	_populate_tactics()
 	field_overlay.set_tactic(GameState.get_active_tactic())
+	_update_lineup_summary()
 	lock_button.button_pressed = false
 	field_overlay.set_locked(false)

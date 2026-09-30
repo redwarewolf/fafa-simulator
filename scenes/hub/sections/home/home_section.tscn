@@ -1,0 +1,278 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/hub/sections/home/home_section.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="2"]
+[ext_resource type="Script" path="res://scenes/hub/sections/home/budget_chart.gd" id="3"]
+
+[node name="HomeSection" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="InboxPanel" parent="HBox" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.25
+
+[node name="VBox" type="VBoxContainer" parent="HBox/InboxPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="TitleRow" type="HBoxContainer" parent="HBox/InboxPanel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="HBox/InboxPanel/VBox/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "BUZÓN"
+
+[node name="UnreadLabel" type="Label" parent="HBox/InboxPanel/VBox/TitleRow"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="InboxTree" type="Tree" parent="HBox/InboxPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 3
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+
+[node name="Separator" type="HSeparator" parent="HBox/InboxPanel/VBox"]
+layout_mode = 2
+
+[node name="Subject" type="Label" parent="HBox/InboxPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+
+[node name="Meta" type="Label" parent="HBox/InboxPanel/VBox"]
+layout_mode = 2
+
+[node name="BodyScroll" type="ScrollContainer" parent="HBox/InboxPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Body" type="Label" parent="HBox/InboxPanel/VBox/BodyScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+
+[node name="RightColumn" type="VBoxContainer" parent="HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="NextMatchPanel" parent="HBox/RightColumn" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.1
+
+[node name="VBox" type="VBoxContainer" parent="HBox/RightColumn/NextMatchPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HBox/RightColumn/NextMatchPanel/VBox"]
+layout_mode = 2
+text = "PRÓXIMO PARTIDO"
+
+[node name="CrestRow" type="HBoxContainer" parent="HBox/RightColumn/NextMatchPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HomeSide" type="VBoxContainer" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="Logo" type="TextureRect" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow/HomeSide"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow/HomeSide"]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Center" type="VBoxContainer" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="Vs" type="Label" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow/Center"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "VS"
+horizontal_alignment = 1
+
+[node name="When" type="Label" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow/Center"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="Kind" type="Label" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow/Center"]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="AwaySide" type="VBoxContainer" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="Logo" type="TextureRect" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow/AwaySide"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="HBox/RightColumn/NextMatchPanel/VBox/CrestRow/AwaySide"]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="TablePanel" parent="HBox/RightColumn" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.2
+
+[node name="VBox" type="VBoxContainer" parent="HBox/RightColumn/TablePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="TitleRow" type="HBoxContainer" parent="HBox/RightColumn/TablePanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="HBox/RightColumn/TablePanel/VBox/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "TABLA"
+
+[node name="FormTitle" type="Label" parent="HBox/RightColumn/TablePanel/VBox/TitleRow"]
+layout_mode = 2
+text = "FORMA"
+
+[node name="FormRow" type="HBoxContainer" parent="HBox/RightColumn/TablePanel/VBox/TitleRow"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="TableTree" type="Tree" parent="HBox/RightColumn/TablePanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 5
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+
+[node name="FinancePanel" parent="HBox/RightColumn" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.8
+
+[node name="VBox" type="VBoxContainer" parent="HBox/RightColumn/FinancePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="TitleRow" type="HBoxContainer" parent="HBox/RightColumn/FinancePanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="HBox/RightColumn/FinancePanel/VBox/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "FINANZAS"
+
+[node name="Budget" type="Label" parent="HBox/RightColumn/FinancePanel/VBox/TitleRow"]
+layout_mode = 2
+
+[node name="Delta" type="Label" parent="HBox/RightColumn/FinancePanel/VBox/TitleRow"]
+layout_mode = 2
+
+[node name="Chart" type="Control" parent="HBox/RightColumn/FinancePanel/VBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("3")
+
+[node name="TodoPanel" parent="HBox/RightColumn" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.9
+
+[node name="VBox" type="VBoxContainer" parent="HBox/RightColumn/TodoPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HBox/RightColumn/TodoPanel/VBox"]
+layout_mode = 2
+text = "PENDIENTES"
+
+[node name="TodoList" type="VBoxContainer" parent="HBox/RightColumn/TodoPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 3
+
+[connection signal="item_selected" from="HBox/InboxPanel/VBox/InboxTree" to="." method="_on_message_selected"]

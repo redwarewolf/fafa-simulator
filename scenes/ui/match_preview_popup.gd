@@ -23,10 +23,13 @@ signal simulate_pressed
 @onready var away_tag     : Label       = $PanelRoot/Margin/Main/MatchupRow/AwaySide/Tag
 @onready var odds_label          : Label = $PanelRoot/Margin/Main/OddsLabel
 @onready var simulate_odds_label : Label = $PanelRoot/Margin/Main/SimulateOddsLabel
+@onready var odds_bar            : Control = $PanelRoot/Margin/Main/OddsBar
+@onready var simulate_odds_bar   : Control = $PanelRoot/Margin/Main/SimulateOddsBar
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
+	simulate_odds_label.add_theme_color_override("font_color", HubPalette.MUTED)
 
 ## [param preview] is SeasonManager.get_pending_match_preview()'s return value.
 func show_for_fixture(preview: Dictionary) -> void:
@@ -47,16 +50,13 @@ func show_for_fixture(preview: Dictionary) -> void:
 
 	var own_odds : Dictionary = preview["own_odds"]
 	var sim_odds : Dictionary = preview["simulate_odds"]
-	odds_label.text = tr("Tus probabilidades — Victoria %d%%  ·  Empate %d%%  ·  Derrota %d%%") % [
-		_pct(own_odds["win"]), _pct(own_odds["draw"]), _pct(own_odds["loss"])]
-	simulate_odds_label.text = tr("Si simulás (–10%% en Victoria) — Victoria %d%%  ·  Empate %d%%  ·  Derrota %d%%") % [
-		_pct(sim_odds["win"]), _pct(sim_odds["draw"]), _pct(sim_odds["loss"])]
+	odds_label.text = tr("Si jugás  —  victoria / empate / derrota")
+	odds_bar.set_odds(own_odds["win"], own_odds["draw"], own_odds["loss"])
+	simulate_odds_label.text = tr("Si simulás  —  victoria –10%")
+	simulate_odds_bar.set_odds(sim_odds["win"], sim_odds["draw"], sim_odds["loss"])
 
 	visible = true
 	get_tree().paused = true
-
-func _pct(p: float) -> int:
-	return int(round(p * 100.0))
 
 func _hide_popup() -> void:
 	visible = false
