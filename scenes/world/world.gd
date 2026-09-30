@@ -107,6 +107,7 @@ func _enter_tree() -> void:
 	MatchRng.seed_match(MatchConfig.match_seed)
 
 func _ready() -> void:
+	AudioManager.stop_music()  # the hub's music doesn't follow into the match
 	GameEvents.team_scored.connect(_on_team_scored)
 	GameEvents.kickoff_ready.connect(_on_kickoff_ready)
 	GameEvents.ball_possessed.connect(_on_ball_possessed)

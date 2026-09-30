@@ -3,10 +3,26 @@ extends Control
 @onready var spanish_button : Button = $Center/VBox/LocaleRow/SpanishButton
 @onready var english_button : Button = $Center/VBox/LocaleRow/EnglishButton
 @onready var disable_tutorial_check_box : CheckBox = $Center/VBox/TutorialCheckRow/DisableTutorialCheckBox
+@onready var master_slider : HSlider = $Center/VBox/VolumeGrid/MasterSlider
+@onready var music_slider : HSlider = $Center/VBox/VolumeGrid/MusicSlider
+@onready var sfx_slider : HSlider = $Center/VBox/VolumeGrid/SfxSlider
 
 func _ready() -> void:
+	AudioManager.play_music(AudioManager.MENU_MUSIC)
 	_refresh_buttons()
 	disable_tutorial_check_box.button_pressed = GameState.tutorials_disabled
+	_setup_volume_slider(master_slider, $Center/VBox/VolumeGrid/MasterValue, "master", GameState.master_volume)
+	_setup_volume_slider(music_slider, $Center/VBox/VolumeGrid/MusicValue, "music", GameState.music_volume)
+	_setup_volume_slider(sfx_slider, $Center/VBox/VolumeGrid/SfxValue, "sfx", GameState.sfx_volume)
+	# Letting go of the effects slider plays a click at the new level.
+	sfx_slider.drag_ended.connect(func(_changed: bool): AudioManager.play_navigate())
+
+func _setup_volume_slider(slider: HSlider, value_label: Label, bus: String, current: float) -> void:
+	slider.value = roundf(current * 100.0)
+	value_label.text = "%d%%" % int(slider.value)
+	slider.value_changed.connect(func(v: float):
+		value_label.text = "%d%%" % int(v)
+		GameState.set_volume(bus, v / 100.0))
 
 func _refresh_buttons() -> void:
 	spanish_button.disabled = GameState.locale == "es"

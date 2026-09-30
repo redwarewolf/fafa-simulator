@@ -133,6 +133,7 @@ func _on_action_pressed() -> void:
 		club.youth_unseen += 1
 		club.budget -= price
 		GameState.budget_changed.emit()
+		AudioManager.play_purchase()
 		GameState.pool_badges_changed.emit()
 		GameState.save_upgrades()
 		GameState.save_staff()
@@ -143,6 +144,7 @@ func _on_action_pressed() -> void:
 	club.players.append(p)
 	club.budget -= price
 	GameState.budget_changed.emit()
+	AudioManager.play_purchase()
 	GameState.save_upgrades()
 	GameState.save_staff()
 	refresh()

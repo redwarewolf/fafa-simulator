@@ -5,7 +5,6 @@ extends Control
 ## confirm to generate a brand-new Division E: their own club plus 7
 ## procedurally-generated AI clubs (see ClubFactory/SquadGenerator).
 
-const BUTTON_SOUND_TRACK := "res://assets/music/ui-button-sound.mp3"
 const DIVISION := "E"
 
 @onready var name_edit : LineEdit = $Margin/Root/Body/LeftColumn/NameEdit
@@ -16,28 +15,14 @@ const DIVISION := "E"
 @onready var secondary_button : ColorPickerButton = $Margin/Root/Body/LeftColumn/ColorsGrid/SecondaryColorButton
 @onready var crest_preview : TextureRect = $Margin/Root/Body/RightColumn/PreviewCenter/CrestPreview
 @onready var preview_name_label : Label = $Margin/Root/Body/RightColumn/PreviewNameLabel
-@onready var button_sound : AudioStreamPlayer = $ButtonSound
 
 var _selected_template : int = 1
 
 func _ready() -> void:
-	button_sound.stream = load(BUTTON_SOUND_TRACK)
-	for button in _find_buttons(self):
-		button.pressed.connect(_play_button_sound)
+	AudioManager.play_music(AudioManager.MENU_MUSIC)
 	error_label.add_theme_color_override("font_color", HubPalette.LOSS)
 	_select_template(1)
 	_refresh_preview()
-
-func _find_buttons(node: Node) -> Array:
-	var result : Array = []
-	for child in node.get_children():
-		if child is BaseButton:
-			result.append(child)
-		result.append_array(_find_buttons(child))
-	return result
-
-func _play_button_sound() -> void:
-	button_sound.play()
 
 func _on_template_selected(template: int) -> void:
 	_select_template(template)

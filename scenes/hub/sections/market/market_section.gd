@@ -371,6 +371,7 @@ func _sell_selected() -> void:
 	_clear_from_tactics(p)
 	club.budget += _sell_price(p)
 	GameState.budget_changed.emit()
+	AudioManager.play_purchase()
 	_populate()
 
 
@@ -393,6 +394,7 @@ func _buy_selected() -> void:
 	club.players.append(p)
 	club.budget -= price
 	GameState.budget_changed.emit()
+	AudioManager.play_purchase()
 	_populate()
 
 

@@ -70,6 +70,66 @@ alignment = 1
 layout_mode = 2
 text = "Desactivar Tutorial"
 
+[node name="Spacer3" type="Control" parent="Center/VBox"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+
+[node name="VolumeLabel" type="Label" parent="Center/VBox"]
+layout_mode = 2
+text = "Volumen"
+horizontal_alignment = 1
+
+[node name="VolumeGrid" type="GridContainer" parent="Center/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="MasterLabel" type="Label" parent="Center/VBox/VolumeGrid"]
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+text = "General"
+
+[node name="MasterSlider" type="HSlider" parent="Center/VBox/VolumeGrid"]
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+size_flags_vertical = 4
+step = 5.0
+
+[node name="MasterValue" type="Label" parent="Center/VBox/VolumeGrid"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="MusicLabel" type="Label" parent="Center/VBox/VolumeGrid"]
+layout_mode = 2
+text = "Música"
+
+[node name="MusicSlider" type="HSlider" parent="Center/VBox/VolumeGrid"]
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+size_flags_vertical = 4
+step = 5.0
+
+[node name="MusicValue" type="Label" parent="Center/VBox/VolumeGrid"]
+layout_mode = 2
+horizontal_alignment = 2
+
+[node name="SfxLabel" type="Label" parent="Center/VBox/VolumeGrid"]
+layout_mode = 2
+text = "Efectos"
+
+[node name="SfxSlider" type="HSlider" parent="Center/VBox/VolumeGrid"]
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+size_flags_vertical = 4
+step = 5.0
+
+[node name="SfxValue" type="Label" parent="Center/VBox/VolumeGrid"]
+layout_mode = 2
+horizontal_alignment = 2
+
 [node name="BackButton" type="Button" parent="."]
 layout_mode = 1
 offset_left = 16.0

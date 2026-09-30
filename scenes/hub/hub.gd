@@ -9,9 +9,6 @@ extends Control
 @onready var capacity_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Capacity
 @onready var division_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Division
 @onready var content : Control = $Content
-@onready var music : AudioStreamPlayer = $Music
-@onready var button_sound : AudioStreamPlayer = $ButtonSound
-@onready var header : Control = $Header
 @onready var dialogue_box : DialogueBox = $DialogueBox
 @onready var club_nav_button : Button = $Header/HeaderLayout/NavSection/ClubButton
 @onready var youth_nav_button : Button = $Header/HeaderLayout/NavSection/YouthButton
@@ -29,12 +26,6 @@ extends Control
 	"youth": youth_nav_button,
 	"lab": $Header/HeaderLayout/NavSection/LabButton,
 }
-
-## Musica de fondo del Hub. Apagada mientras trabajamos en la UI.
-@export var music_enabled : bool = false
-
-const MUSIC_TRACK := "res://assets/art/sound/music/main-menu-soundtrack.mp3"
-const BUTTON_SOUND_TRACK := "res://assets/music/ui-button-sound.mp3"
 
 const LANDLORD_TOP := preload("res://assets/art/characters/tapir-top.png")
 const LANDLORD_BOTTOM := preload("res://assets/art/characters/tapir-bottom.png")
@@ -129,7 +120,6 @@ func _ready() -> void:
 	match_preview_popup.simulate_pressed.connect(_on_match_preview_simulate)
 	_update_nav_badges()
 	_start_music()
-	_connect_button_sounds()
 	_run_intro_sequence()
 
 ## First-boot-only sequence: Grandi Tapir's debt speech, then Pepito
@@ -182,26 +172,7 @@ func _on_season_ended(promoted: bool, new_division: String, position: int) -> vo
 	_update_header()
 
 func _start_music() -> void:
-	if not music_enabled:
-		return
-	music.stream = load(MUSIC_TRACK)
-	music.play()
-
-func _connect_button_sounds() -> void:
-	button_sound.stream = load(BUTTON_SOUND_TRACK)
-	for button in _find_buttons(header):
-		button.pressed.connect(_play_button_sound)
-
-func _find_buttons(node: Node) -> Array:
-	var result : Array = []
-	for child in node.get_children():
-		if child is BaseButton:
-			result.append(child)
-		result.append_array(_find_buttons(child))
-	return result
-
-func _play_button_sound() -> void:
-	button_sound.play()
+	AudioManager.play_music(AudioManager.HUB_MUSIC)
 
 func _preload_sections() -> void:
 	for key in SECTIONS:

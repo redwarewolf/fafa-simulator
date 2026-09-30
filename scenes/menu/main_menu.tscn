@@ -96,10 +96,6 @@ custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "Salir"
 
-[node name="ButtonSound" type="AudioStreamPlayer" parent="."]
-volume_db = -10.0
-pitch_scale = 0.85
-
 [connection signal="pressed" from="Center/VBox/NewGameButton" to="." method="_on_new_game_pressed"]
 [connection signal="pressed" from="Center/VBox/LoadGameButton" to="." method="_on_load_game_pressed"]
 [connection signal="pressed" from="Center/VBox/SettingsButton" to="." method="_on_settings_pressed"]

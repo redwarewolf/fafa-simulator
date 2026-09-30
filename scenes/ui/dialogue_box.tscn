@@ -200,4 +200,5 @@ vertical_alignment = 1
 text = "Personaje"
 
 [node name="TalkSound" type="AudioStreamPlayer" parent="."]
+bus = &"SFX"
 volume_db = -14.0

@@ -200,6 +200,7 @@ func _on_buy_pressed(key: String) -> void:
 	club.budget        -= cost
 	club.upgrades[key]  = cur_lvl + 1
 	GameState.budget_changed.emit()
+	AudioManager.play_purchase()
 	GameState.save_upgrades()
 
 	if key == "scout" and was_unhired:

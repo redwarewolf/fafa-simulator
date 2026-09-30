@@ -174,10 +174,6 @@ layout_mode = 2
 text = "EMPEZAR CARRERA"
 theme_type_variation = &"PrimaryButton"
 
-[node name="ButtonSound" type="AudioStreamPlayer" parent="."]
-volume_db = -10.0
-pitch_scale = 0.85
-
 [connection signal="pressed" from="Margin/Root/TopBar/BackButton" to="." method="_on_back_pressed"]
 [connection signal="pressed" from="Margin/Root/Body/LeftColumn/CrestRow/Template1Button" to="." method="_on_template_selected" binds= [1]]
 [connection signal="pressed" from="Margin/Root/Body/LeftColumn/CrestRow/Template2Button" to="." method="_on_template_selected" binds= [2]]

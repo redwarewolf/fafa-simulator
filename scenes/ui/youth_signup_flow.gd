@@ -81,9 +81,11 @@ func _run_event(club: ClubResource, event: Dictionary) -> void:
 	if fee > 0 and fee_direction == "to_us":
 		club.budget += fee
 		GameState.budget_changed.emit()
+		AudioManager.play_purchase()
 	elif fee > 0 and fee_direction == "to_family":
 		club.budget -= fee
 		GameState.budget_changed.emit()
+		AudioManager.play_purchase()
 	club.youth_unseen += 1
 	GameState.post_news("Nuevo juvenil: %s" % kid.full_name,
 		"%s (%s, %d años, %s) se sumó a la Academia Juvenil." % [

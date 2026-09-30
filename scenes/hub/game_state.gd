@@ -35,6 +35,12 @@ var locale : String = DEFAULT_LOCALE
 ## see settings_screen.gd's "Desactivar Tutorial" checkbox.
 var tutorials_disabled : bool = false
 
+## Settings-screen volume sliders, linear 0-1, applied to the Master/Music/SFX
+## buses by AudioManager. App-wide, like locale.
+var master_volume : float = 1.0
+var music_volume : float = 0.7
+var sfx_volume : float = 1.0
+
 func _ready() -> void:
 	TranslationServer.add_translation(LocaleENClass.build())
 	_load_settings()
@@ -57,6 +63,17 @@ func set_tutorials_disabled(disabled: bool) -> void:
 	tutorials_disabled = disabled
 	_save_settings()
 
+## [param bus]: "master", "music" or "sfx".
+func set_volume(bus: String, value: float) -> void:
+	value = clampf(value, 0.0, 1.0)
+	match bus:
+		"master": master_volume = value
+		"music": music_volume = value
+		"sfx": sfx_volume = value
+		_: return
+	AudioManager.apply_volumes()
+	_save_settings()
+
 func _load_settings() -> void:
 	if not FileAccess.file_exists(SETTINGS_SAVE_PATH):
 		return
@@ -71,13 +88,17 @@ func _load_settings() -> void:
 	var data : Dictionary = json.data
 	locale = data.get("locale", DEFAULT_LOCALE)
 	tutorials_disabled = data.get("tutorials_disabled", false)
+	master_volume = float(data.get("master_volume", master_volume))
+	music_volume = float(data.get("music_volume", music_volume))
+	sfx_volume = float(data.get("sfx_volume", sfx_volume))
 
 func _save_settings() -> void:
 	var file := FileAccess.open(SETTINGS_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		printerr("GameState: could not open %s for writing" % SETTINGS_SAVE_PATH)
 		return
-	file.store_string(JSON.stringify({"locale": locale, "tutorials_disabled": tutorials_disabled}, "\t"))
+	file.store_string(JSON.stringify({"locale": locale, "tutorials_disabled": tutorials_disabled,
+		"master_volume": master_volume, "music_volume": music_volume, "sfx_volume": sfx_volume}, "\t"))
 	file.close()
 
 # Club

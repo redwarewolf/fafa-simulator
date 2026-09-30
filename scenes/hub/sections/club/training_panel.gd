@@ -153,6 +153,7 @@ func _on_train_pressed(stat: String) -> void:
 	_selected_player.add_permanent_modifier(
 		"training_%s" % stat, "Centro de Entrenamiento", stat, SESSION_BOOST_PCT)
 	GameState.budget_changed.emit()
+	AudioManager.play_purchase()
 	GameState.save_upgrades()
 	GameState.save_career()
 	refresh()

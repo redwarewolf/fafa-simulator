@@ -58,6 +58,7 @@ func _on_debug_back_pressed() -> void:
 func _on_add_money_pressed() -> void:
 	GameState.player_club.budget += 10000
 	GameState.budget_changed.emit()
+	AudioManager.play_purchase()
 	GameState.save_upgrades()
 
 func _on_add_fans_pressed() -> void:

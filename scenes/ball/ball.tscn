@@ -109,4 +109,5 @@ shape = SubResource("CircleShape2D_v8l5b")
 
 [node name="KickSound" type="AudioStreamPlayer" parent="."]
 unique_name_in_owner = true
+bus = &"SFX"
 stream = ExtResource("4_kicksfx")
