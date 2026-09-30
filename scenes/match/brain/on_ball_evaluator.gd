@@ -30,7 +30,7 @@ class Option:
 	var p_success := 1.0
 
 const PASS_MIN_PX := 45.0
-const PASS_MAX_PX := 1100.0
+const PASS_MAX_PX := 880.0
 ## Carry probe: how far ahead a carry option looks (seconds of dribbling).
 const CARRY_HORIZON_S := 0.9
 const CARRY_ANGLES := [0, 35, -35, 70, -70, 110, -110]

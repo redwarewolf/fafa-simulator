@@ -65,10 +65,14 @@ const GROUND_PASS_ARRIVAL_SPEED := 110.0
 ## ~26-30% of the intended distance (350px → 90px, 900px → 264px). Every long
 ## pass, switch and through ball fell short. See docs/match-engine-v2.md
 ## Findings #2.
-const LOFT_TIME_BASE := 0.4
-const LOFT_TIME_PER_PX := 1.0 / 900.0
-const LOFT_TIME_MIN := 0.7
-const LOFT_TIME_MAX := 1.6
+##
+## All four scaled ×1.25 (from 0.4, 1/900, 0.7, 1.6) so lofted balls fly ~20%
+## slower over the same distance: a 1100px ball used to leave the boot at
+## ~715 px/s, faster than the hardest shot.
+const LOFT_TIME_BASE := 0.5
+const LOFT_TIME_PER_PX := 1.0 / 720.0
+const LOFT_TIME_MIN := 0.875
+const LOFT_TIME_MAX := 2.0
 const TUMBLE_HEIGHT_VELOCITY := 3.0
 const LONG_KICK_ARC_MULTIPLIER := 3.0
 

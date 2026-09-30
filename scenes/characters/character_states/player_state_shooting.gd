@@ -9,9 +9,11 @@ extends PlayerState
 ## Real shots travel ~20-30 m/s; at ~21 px/m along the pitch that's ~420-620
 ## px/s. The pre-Phase-8 range (140-274 px/s, ~7-13 m/s) made shots crawl: a
 ## keeper that actually reads the ball saved nearly everything
-## (docs/match-engine-v2.md Findings #8).
-const SHOT_SPEED_MIN := 300.0   # power 0
-const SHOT_SPEED_MAX := 560.0   # power 100
+## (docs/match-engine-v2.md Findings #8). Then toned down 20% from 300/560,
+## which read as too fast on screen (GoalkeeperBrain's HANDLING_SPEED_* were
+## scaled with it).
+const SHOT_SPEED_MIN := 240.0   # power 0
+const SHOT_SPEED_MAX := 450.0   # power 100
 
 func _enter_tree() -> void:
 	player.play_anim("kick")

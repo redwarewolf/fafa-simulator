@@ -47,9 +47,10 @@ const SAVE_SCALE_PX := 18.0
 ## Goal tuning (user's choice: more goals over strict realism): -0.1 takes
 ## save share from ~70% to ~60-68%. 0.0 = the calibrated keeper.
 const SAVE_BIAS := -0.1
-## Fast shots are harder to hold/parry cleanly even when reached.
-const HANDLING_SPEED_START := 300.0
-const HANDLING_SPEED_RANGE := 350.0
+## Fast shots are harder to hold/parry cleanly even when reached. Scaled
+## ×0.8 with PlayerStateShooting.SHOT_SPEED_MIN/MAX.
+const HANDLING_SPEED_START := 240.0
+const HANDLING_SPEED_RANGE := 280.0
 const HANDLING_PENALTY := 0.35
 ## Of saves, how many are caught (vs parried) — slower shots and good hands
 ## are caught.

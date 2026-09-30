@@ -11,7 +11,7 @@ extends PlayerState
 ## the delay scales up to MAX_WINDUP_MS at PASS_MAX_DISTANCE.
 const MAX_WINDUP_MS := 400.0
 ## The longest pass anyone plays (OnBallEvaluator.PASS_MAX_PX).
-const PASS_MAX_DISTANCE := 1100.0
+const PASS_MAX_DISTANCE := 880.0
 
 ## On top of the lofted-arc wind-up: a pass beyond the kicker's own power-gated
 ## natural range adds charge time, so a weak-legged player visibly has to wind
