@@ -574,12 +574,16 @@ func report_player_match_result(home_score: int, away_score: int,
 			var attendance : int = f.get("attendance", -1)
 			if attendance < 0:
 				attendance = FanEconomy.roll_attendance(player_club)  # fallback; shouldn't normally trigger
-			var revenue := FanEconomy.ticket_revenue_for(player_club, attendance)
+			# La barra's entradas de favor get in without paying.
+			var paying := attendance - roundi(attendance * BarraBrava.free_ticket_share(GameState.barra))
+			var revenue := FanEconomy.ticket_revenue_for(player_club, paying)
 			player_club.budget += revenue
 			result["ticket_revenue"] = revenue
 			result["attendance"] = attendance
 
 		_apply_match_morale(player_club, away if is_home else home, outcome, appearances, scorers, suspended)
+		if f["type"] == "league":
+			BarraBrava.on_match_result(GameState.barra, outcome)
 
 		GameState.budget_changed.emit()
 		_post_result_news(f, home, away, own_score, opp_score, result)

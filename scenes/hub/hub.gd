@@ -136,6 +136,10 @@ func _run_intro_sequence() -> void:
 	await _maybe_play_tab_tutorial("squad")
 	# Back from a played match whose day was also a payday.
 	await play_tapir_lines()
+	if GameState.barra["visit_pending"]:
+		await BarraBrava.run_visit()
+		_update_header()
+		GameState.save_career()
 
 func _play_intro_dialogue() -> void:
 	dialogue_box.say([
@@ -349,6 +353,7 @@ func _advance_day() -> void:
 	# while one is already showing would stomp it. _maybe_narrate_hub_event()
 	# awaits its own line to completion before this moves on.
 	await play_tapir_lines()
+	await BarraBrava.run_visit()
 	await _maybe_narrate_hub_event()
 	await YouthSignupFlow.run_daily_signup(GameState.player_club)
 	_update_header()
@@ -400,13 +405,22 @@ func _on_match_preview_simulate() -> void:
 ## same as the ordinary non-match "Next Date" flow's tail. Deliberately skips
 ## _maybe_narrate_hub_event()/YouthSignupFlow — match days already skip those
 ## for a played match too (see the early-return branches above).
+##
+## A payday that lands on a match day queues Barroni's visit too; it plays
+## right after Tapir, same order as the ordinary day advance.
 func _after_match_day() -> void:
-	play_tapir_lines()
 	_update_header()
 	_update_nav_badges()
 	if _active_section != "" and _section_instances[_active_section].has_method("refresh"):
 		_section_instances[_active_section].refresh()
 	GameState.save_career()
+	await play_tapir_lines()
+	if GameState.barra["visit_pending"]:
+		await BarraBrava.run_visit()
+		_update_header()
+		if _active_section != "" and _section_instances[_active_section].has_method("refresh"):
+			_section_instances[_active_section].refresh()
+		GameState.save_career()
 
 ## Rolled only on days that don't send the player straight into a match —
 ## see the early returns above. Applying the event's effect (inside

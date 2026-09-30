@@ -85,6 +85,13 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_1")
 text = "Contrataciones"
 
+[node name="BarraButton" type="Button" parent="HBox/Sidebar/SidebarLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ButtonGroup_1")
+text = "La Barra"
+
 [node name="Spacer" type="Control" parent="HBox/Sidebar/SidebarLayout"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -99,3 +106,4 @@ size_flags_vertical = 3
 [connection signal="pressed" from="HBox/Sidebar/SidebarLayout/TrainingButton" to="." method="_on_sub_nav_pressed" binds= ["training"]]
 [connection signal="pressed" from="HBox/Sidebar/SidebarLayout/FinancesButton" to="." method="_on_sub_nav_pressed" binds= ["finances"]]
 [connection signal="pressed" from="HBox/Sidebar/SidebarLayout/HiringButton" to="." method="_on_sub_nav_pressed" binds= ["hiring"]]
+[connection signal="pressed" from="HBox/Sidebar/SidebarLayout/BarraButton" to="." method="_on_sub_nav_pressed" binds= ["barra"]]

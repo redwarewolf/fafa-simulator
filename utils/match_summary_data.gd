@@ -35,4 +35,5 @@ static func build(own_name: String, opp_name: String, own_score: int, opp_score:
 		data["wage_cost"] = ledger.get("wage_cost", 0)
 		data["staff_cost"] = ledger.get("staff_upkeep_cost", 0)
 		data["debt_payment"] = ledger.get("debt_payment", 0)
+		data["barra_cost"] = ledger.get("barra_cost", 0)
 	return data

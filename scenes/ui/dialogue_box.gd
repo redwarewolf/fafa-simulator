@@ -242,6 +242,9 @@ func _prepare_portrait(line: DialogueLine) -> void:
 		_bottom_frame_count = maxi(line.portrait_bottom_frames, 1)
 		_setup_portrait_atlas(_bottom_atlas, line.portrait_bottom, _bottom_frame_count)
 		_bottom_frame_offsets = _frame_offsets_for(line.portrait_bottom, _bottom_frame_count)
+	# A one-piece portrait (Barroni Flaquito's) has no bottom half — hide the
+	# previous speaker's instead of leaving it under the new head.
+	_portrait_bottom.visible = line.portrait_bottom != null
 	_layout_portrait(line)
 	_portrait_frame_index = 0
 	_portrait_frame_timer = 0.0

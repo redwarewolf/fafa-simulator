@@ -69,6 +69,19 @@ func say_with_choice(text: String, right_control: Control) -> bool:
 	var accepted : bool = await _dialogue_box.choice_made
 	return accepted
 
+## Same shared box, another speaker — [param lines] carry their own name and
+## portrait (e.g. Barroni Flaquito, see BarraBrava.line()).
+func speak(lines: Array[DialogueLine]) -> void:
+	if lines.is_empty():
+		return
+	_dialogue_box.say(lines)
+
+## say_with_choice() for a line with its own speaker and portrait.
+func speak_with_choice(line: DialogueLine, right_control: Control) -> bool:
+	_dialogue_box.say_with_choice(line, right_control)
+	var accepted : bool = await _dialogue_box.choice_made
+	return accepted
+
 func _make_line(text: String) -> DialogueLine:
 	return DialogueLine.new(SPEAKER_NAME, TOP, BOTTOM, text, null,
 		PORTRAIT_FRAMES, PORTRAIT_FRAMES, PORTRAIT_OVERLAP_FRACTION,

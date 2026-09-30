@@ -9,6 +9,7 @@ const DEFAULT_PITCH := 1.0
 const _PITCH_BY_SPEAKER := {
 	"Grandi Tapir": 0.85,
 	"Pepito Perinola": 0.6,
+	"Barroni Flaquito": 0.38,  # very low, on purpose
 }
 
 static func pitch_for(speaker_name: String) -> float:

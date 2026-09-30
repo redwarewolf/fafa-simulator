@@ -11,6 +11,7 @@ const SUB_SECTIONS := {
 	# Gastos + Ingresos used to be two sub-tabs; finances_panel embeds both.
 	"finances": preload("res://scenes/hub/sections/club/finances_panel.tscn"),
 	"hiring": preload("res://scenes/hub/sections/club/hiring_panel.tscn"),
+	"barra": preload("res://scenes/hub/sections/club/barra_panel.tscn"),
 }
 
 const HIRING_LABEL := "Contrataciones"
@@ -36,6 +37,10 @@ const SUB_TUTORIALS := {
 	],
 	"hiring": [
 		"Esta es la pestaña de Contrataciones. Acá aparecen los candidatos que te trae el ojeador — fichalos antes de que se enfríen.",
+	],
+	"barra": [
+		"Esta es La Barra. Ese de ahí es Barroni Flaquito... yo que vos no lo miro mucho a los ojos.",
+		"Lo que les des cada semana se cobra el día de pago. Contentos, te hacen la vida fácil. Enojados... bueno, ya vas a ver.",
 	],
 }
 
@@ -116,7 +121,7 @@ func _show_panel(key: String) -> void:
 ## also moves the active highlight.
 const SUB_NAV_BUTTONS := {
 	"stadium": "StadiumButton", "staff": "StaffButton", "training": "TrainingButton",
-	"finances": "FinancesButton", "hiring": "HiringButton",
+	"finances": "FinancesButton", "hiring": "HiringButton", "barra": "BarraButton",
 }
 
 ## Opens [param key] as if its sidebar button had been clicked.
