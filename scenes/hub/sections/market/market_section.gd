@@ -40,6 +40,7 @@ var _selected_mode   : String = ""  # "sell" or "buy"
 var _selected_source_club : ClubResource = null  # buy only — club to remove the player from
 
 @onready var filter_row : VBoxContainer = $HBox/RightPanel/VBox/FilterRow
+@onready var compare_box : VBoxContainer = $HBox/MidPanel/VBox/CompareBox
 
 ## FM-style search filters over the buy list (see _build_filters()).
 const GROUP_FILTERS := [
@@ -252,6 +253,7 @@ func _on_sell_tree_item_selected() -> void:
 
 	_selected_player = p
 	_selected_mode = "sell"
+	_clear_comparison()
 	_selected_source_club = null
 	player_card.setup(p, GameState.player_club.team_key)
 
@@ -279,6 +281,7 @@ func _on_buy_tree_item_selected() -> void:
 	_selected_mode = "buy"
 	_selected_source_club = club
 	player_card.setup(p, club.team_key)
+	_show_comparison(p)
 
 	if not _window_open():
 		action_button.text = "MERCADO DE PASES CERRADO"
@@ -293,6 +296,54 @@ func _on_buy_tree_item_selected() -> void:
 		action_button.text = "PRESUPUESTO INSUFICIENTE"
 	action_button.disabled = not can_buy
 
+
+## FM-style "compare with": the target's six stats against the best player
+## you already have in the same line (keeper/defence/midfield/attack), with
+## the difference coloured — is this signing actually an upgrade?
+func _show_comparison(target: PlayerResource) -> void:
+	_clear_comparison()
+	var group := Positions.group(target.role)
+	var own : PlayerResource = null
+	for p : PlayerResource in GameState.player_club.players:
+		if Positions.group(p.role) == group and (own == null or p.overall() > own.overall()):
+			own = p
+	var title := Label.new()
+	compare_box.add_child(title)
+	if own == null:
+		title.text = tr("No tenés jugadores en esa línea")
+		title.add_theme_color_override("font_color", HubPalette.MUTED)
+		return
+	title.text = tr("COMPARADO CON %s (%s, OVR %d)") % [own.full_name, Positions.label(own.role), own.overall()]
+	title.add_theme_color_override("font_color", HubPalette.MUTED)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 16)
+	compare_box.add_child(grid)
+	for header in ["", tr("Él"), tr("Tuyo"), "+/-"]:
+		_compare_cell(grid, header, HubPalette.MUTED)
+	for key in ["pac", "sho", "pas", "dri", "def", "phy", "ovr"]:
+		var theirs : int = target.overall() if key == "ovr" else target.get_effective_stat(key)
+		var mine : int = own.overall() if key == "ovr" else own.get_effective_stat(key)
+		var diff := theirs - mine
+		_compare_cell(grid, key.to_upper(), HubPalette.MUTED)
+		_compare_cell(grid, str(theirs), Color.WHITE)
+		_compare_cell(grid, str(mine), Color.WHITE)
+		_compare_cell(grid, "%+d" % diff if diff != 0 else "=",
+			HubPalette.WIN if diff > 0 else (HubPalette.LOSS if diff < 0 else HubPalette.MUTED))
+
+func _compare_cell(grid: GridContainer, text: String, color: Color) -> void:
+	var l := Label.new()
+	l.text = text
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.add_theme_color_override("font_color", color)
+	grid.add_child(l)
+
+func _clear_comparison() -> void:
+	for child in compare_box.get_children():
+		compare_box.remove_child(child)
+		child.queue_free()
 
 func _on_action_pressed() -> void:
 	if _selected_player == null:
@@ -354,5 +405,6 @@ func _clear_selection() -> void:
 	_selected_mode = ""
 	_selected_source_club = null
 	player_card.clear()
+	_clear_comparison()
 	action_button.disabled = true
 	action_button.text = "SELECCIONÁ UN JUGADOR"

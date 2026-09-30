@@ -137,12 +137,13 @@ visible = false
 
 [node name="Stats" type="VBoxContainer" parent="VBox"]
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 10
 
 [node name="PAC" type="HBoxContainer" parent="VBox/Stats"]
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-size_flags_vertical = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 6
 
 [node name="Name" type="Label" parent="VBox/Stats/PAC"]
@@ -152,7 +153,7 @@ size_flags_vertical = 4
 text = "PAC"
 
 [node name="Bar" type="ProgressBar" parent="VBox/Stats/PAC"]
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
@@ -177,8 +178,9 @@ text = ""
 visible = false
 
 [node name="SHO" type="HBoxContainer" parent="VBox/Stats"]
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-size_flags_vertical = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 6
 
 [node name="Name" type="Label" parent="VBox/Stats/SHO"]
@@ -188,7 +190,7 @@ size_flags_vertical = 4
 text = "SHO"
 
 [node name="Bar" type="ProgressBar" parent="VBox/Stats/SHO"]
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
@@ -213,8 +215,9 @@ text = ""
 visible = false
 
 [node name="PAS" type="HBoxContainer" parent="VBox/Stats"]
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-size_flags_vertical = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 6
 
 [node name="Name" type="Label" parent="VBox/Stats/PAS"]
@@ -224,7 +227,7 @@ size_flags_vertical = 4
 text = "PAS"
 
 [node name="Bar" type="ProgressBar" parent="VBox/Stats/PAS"]
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
@@ -249,8 +252,9 @@ text = ""
 visible = false
 
 [node name="DRI" type="HBoxContainer" parent="VBox/Stats"]
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-size_flags_vertical = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 6
 
 [node name="Name" type="Label" parent="VBox/Stats/DRI"]
@@ -260,7 +264,7 @@ size_flags_vertical = 4
 text = "DRI"
 
 [node name="Bar" type="ProgressBar" parent="VBox/Stats/DRI"]
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
@@ -285,8 +289,9 @@ text = ""
 visible = false
 
 [node name="DEF" type="HBoxContainer" parent="VBox/Stats"]
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-size_flags_vertical = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 6
 
 [node name="Name" type="Label" parent="VBox/Stats/DEF"]
@@ -296,7 +301,7 @@ size_flags_vertical = 4
 text = "DEF"
 
 [node name="Bar" type="ProgressBar" parent="VBox/Stats/DEF"]
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
@@ -321,8 +326,9 @@ text = ""
 visible = false
 
 [node name="PHY" type="HBoxContainer" parent="VBox/Stats"]
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-size_flags_vertical = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 6
 
 [node name="Name" type="Label" parent="VBox/Stats/PHY"]
@@ -332,7 +338,7 @@ size_flags_vertical = 4
 text = "PHY"
 
 [node name="Bar" type="ProgressBar" parent="VBox/Stats/PHY"]
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
