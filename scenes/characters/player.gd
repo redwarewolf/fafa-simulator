@@ -302,19 +302,9 @@ func initialize(context_position : Vector2, context_ball : Ball, context_own_goa
 		is_left_team = own_goal.position.x < target_goal.position.x
 		anchor_position = context_position
 		role = context_slot_role
-		# Morale rides along with positional aptitude as one more per-match
-		# percent — see PlayerMorale.stat_pct().
-		var apt_pct := Positions.aptitude_stat_pct(Positions.aptitude(context_player_data.role, role)) \
-			+ PlayerMorale.stat_pct(context_player_data)
-		power = context_player_data.get_effective_stat_for_role("sho", apt_pct)
-		speed = context_player_data.get_effective_stat_for_role("pac", apt_pct)
-		pace = speed
-		defense = context_player_data.get_effective_stat_for_role("def", apt_pct)
-		dribbling = context_player_data.get_effective_stat_for_role("dri", apt_pct)
-		passing = context_player_data.get_effective_stat_for_role("pas", apt_pct)
-		physicality = context_player_data.get_effective_stat_for_role("phy", apt_pct)
-		teamplay = context_player_data.teamplay
 		player_data = context_player_data
+		_apply_stats()
+		teamplay = context_player_data.teamplay
 		stamina = context_player_data.stamina
 		full_name = context_player_data.full_name
 		skin = context_player_data.skin_color
@@ -324,6 +314,31 @@ func initialize(context_position : Vector2, context_ball : Ball, context_own_goa
 		heading = Vector2.LEFT if target_goal.position.x < position.x else Vector2.RIGHT
 		team = context_team
 		return self
+
+## Match stats from player_data for the slot [member role]: effective stats
+## plus positional aptitude and morale, as one per-match percent (see
+## Positions.aptitude_stat_pct(), PlayerMorale.stat_pct()).
+func _apply_stats() -> void:
+	var pct := Positions.aptitude_stat_pct(Positions.aptitude(player_data.role, role)) \
+		+ PlayerMorale.stat_pct(player_data)
+	power = player_data.get_effective_stat_for_role("sho", pct)
+	speed = player_data.get_effective_stat_for_role("pac", pct)
+	pace = speed
+	defense = player_data.get_effective_stat_for_role("def", pct)
+	dribbling = player_data.get_effective_stat_for_role("dri", pct)
+	passing = player_data.get_effective_stat_for_role("pas", pct)
+	physicality = player_data.get_effective_stat_for_role("phy", pct)
+
+## Re-reads the stats after player_data's morale changed mid-match (the
+## half-time team talk). Movement is re-derived too; the brains' mental
+## profile and a keeper's reflexes, fixed when they were built, stay as they
+## were.
+func refresh_stats() -> void:
+	if player_data == null:
+		return
+	_apply_stats()
+	if SpecialPlayerTypes.movable(special_type):
+		apply_realistic_movement()
 
 func _ready() -> void:
 	spawn_position = position

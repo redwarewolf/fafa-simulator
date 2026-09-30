@@ -463,4 +463,17 @@ const MESSAGES := {
 	"LISTO": "DONE",
 	"Cambio en %s: entra %s, sale %s": "%s substitution: %s on, %s off",
 	"Cambio: entra %s, sale %s": "Sub: %s on, %s off",
+	# Half-time team talk (MatchHUD, TeamTalk)
+	"ENTRETIEMPO  —  %d - %d": "HALF TIME  —  %d - %d",
+	"¿Qué les decís en el vestuario?": "What do you tell them in the dressing room?",
+	"ELOGIAR": "PRAISE",
+	"TRANQUILIZAR": "CALM THEM DOWN",
+	"EXIGIR": "DEMAND MORE",
+	"PATEAR EL VESTUARIO": "LOSE IT",
+	"Felicitarlos. Ideal si vienen ganando; si van perdiendo, no se lo creen.": "Congratulate them. Great when winning; when losing, they won't buy it.",
+	"Bajar un cambio. Mueve poco, para bien o para mal.": "Take the heat out. Small effect, good or bad.",
+	"Pedir más. Funciona cuando el resultado no alcanza; ganando, molesta.": "Ask for more. Works when the result isn't enough; when winning, it grates.",
+	"Tirar la heladera. Todo o nada: a unos los prende fuego, a otros los hunde.": "Throw the teacups. All or nothing: it fires some up and sinks others.",
+	"HACER CAMBIOS": "MAKE SUBSTITUTIONS",
+	"Charla del entretiempo: %s": "Half-time talk: %s",
 }

@@ -84,6 +84,7 @@ func _ready() -> void:
 	_build_stats_panel()
 	_build_commentary()
 	_build_subs_panel()
+	_build_team_talk()
 
 func _on_cam_mode_button_pressed() -> void:
 	_camera.toggle_mode()
@@ -316,6 +317,86 @@ func _event_line(text: String, color: Color) -> void:
 	l.add_theme_color_override("font_color", color)
 	_events_list.add_child(l)
 
+# ── half-time team talk ───────────────────────────────────────────────────────
+
+var _talk_panel : PanelContainer = null
+var _talk_title : Label = null
+## True from the whistle until a tone is picked (the panel may be hidden
+## meanwhile, while the substitutions panel is open).
+var _talk_open := false
+
+## ENTRETIEMPO panel: the score, the four tones (TeamTalk) and a shortcut to
+## the substitutions panel. MatchWorld holds half time until it's done.
+func _build_team_talk() -> void:
+	_talk_panel = PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = PANEL_BG
+	style.set_content_margin_all(16)
+	style.set_corner_radius_all(3)
+	_talk_panel.add_theme_stylebox_override("panel", style)
+	_talk_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_talk_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_talk_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_talk_panel.visible = false
+	ui_container.add_child(_talk_panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	_talk_panel.add_child(box)
+	_talk_title = Label.new()
+	_talk_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_talk_title.add_theme_color_override("font_color", HubPalette.HIGHLIGHT)
+	box.add_child(_talk_title)
+	var ask := Label.new()
+	ask.text = tr("¿Qué les decís en el vestuario?")
+	ask.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(ask)
+
+	for tone in TeamTalk.LABELS.size():
+		var btn := Button.new()
+		btn.text = tr(TeamTalk.LABELS[tone])
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.custom_minimum_size = Vector2(420, 34)
+		btn.pressed.connect(_on_talk_chosen.bind(tone))
+		box.add_child(btn)
+		var tip := Label.new()
+		tip.text = tr(TeamTalk.TIPS[tone])
+		tip.add_theme_color_override("font_color", HubPalette.MUTED)
+		tip.autowrap_mode = TextServer.AUTOWRAP_WORD
+		tip.custom_minimum_size.x = 420
+		box.add_child(tip)
+
+	if _subs_button != null:
+		box.add_child(HSeparator.new())
+		var subs := Button.new()
+		subs.text = tr("HACER CAMBIOS")
+		subs.focus_mode = Control.FOCUS_NONE
+		subs.pressed.connect(func() -> void:
+			_talk_panel.visible = false
+			_toggle_subs_panel())
+		box.add_child(subs)
+
+	GameEvents.half_time.connect(_open_team_talk)
+
+func _open_team_talk() -> void:
+	if not _world.team_talk_pending:
+		return
+	_talk_open = true
+	var own := _world.score_left if _player_side_left() else _world.score_right
+	var opp := _world.score_right if _player_side_left() else _world.score_left
+	_talk_title.text = tr("ENTRETIEMPO  —  %d - %d") % [own, opp]
+	_talk_panel.visible = true
+
+func _on_talk_chosen(tone: int) -> void:
+	_talk_open = false
+	_talk_panel.visible = false
+	if _subs_panel != null and _subs_panel.visible:
+		_toggle_subs_panel()
+	_say(tr("Charla del entretiempo: %s") % tr(TeamTalk.LABELS[tone]), HubPalette.HIGHLIGHT)
+	ClubTrainer.say(_world.deliver_team_talk(tone))
+	await ClubTrainer.finished
+	_world.end_team_talk()
+
 # ── substitutions ─────────────────────────────────────────────────────────────
 
 var _subs : Substitutions = null
@@ -379,10 +460,13 @@ func _toggle_subs_panel() -> void:
 			_toggle_pause()
 			_subs_paused_match = true
 		_refresh_subs()
-	elif _subs_paused_match:
-		_subs_paused_match = false
-		if _paused:
-			_toggle_pause()
+	else:
+		if _subs_paused_match:
+			_subs_paused_match = false
+			if _paused:
+				_toggle_pause()
+		if _talk_open:
+			_talk_panel.visible = true  # back to the dressing room
 
 func _refresh_subs() -> void:
 	if _subs_button == null:

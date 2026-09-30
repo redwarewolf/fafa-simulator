@@ -167,6 +167,9 @@ func _start_half_time() -> void:
 	GameEvents.match_time_updated.emit(match_time)
 	_kickoff_team = actors_container.team_right if _first_kickoff_team == actors_container.team_left \
 		else actors_container.team_left
+	# Watched matches wait in the dressing room for the team talk (MatchHUD
+	# opens it on half_time, so set this first).
+	team_talk_pending = not MatchConfig.headless and not _player_side_players().is_empty()
 	GameEvents.half_time.emit()
 	substitutions.on_half_time()
 	_transition(MatchState.HALFTIME)
@@ -229,7 +232,7 @@ func _process(delta: float) -> void:
 				_transition(MatchState.RESET)
 		MatchState.HALFTIME:
 			_state_timer += delta
-			if MatchConfig.headless or _state_timer >= DURATION_HALFTIME:
+			if MatchConfig.headless or (_state_timer >= DURATION_HALFTIME and not team_talk_pending):
 				_transition(MatchState.RESET)
 		MatchState.KICKOFF:
 			_state_timer += delta
@@ -557,6 +560,48 @@ func _write_back_stamina() -> void:
 	for p in actors_container.left_team + actors_container.right_team:
 		if p.player_data != null:
 			p.player_data.stamina = p.stamina
+
+## True from the half-time whistle until the team talk is over (see
+## deliver_team_talk()/end_team_talk()) — HALFTIME doesn't end before that.
+var team_talk_pending := false
+
+## The human club's players on the pitch — empty when neither side is the
+## player's club (a dev test match between two AI clubs).
+func _player_side_players() -> Array[Player]:
+	if GameState.player_club == null:
+		return []
+	var left := actors_container.is_player_team_left
+	var side := actors_container.left_team if left else actors_container.right_team
+	if side.is_empty() or side[0].team != GameState.player_club.team_key:
+		return []
+	return side
+
+## The half-time talk: TeamTalk moves the on-pitch players' morale for
+## [param tone] and they carry it into the second half (Player.refresh_stats()).
+## In a dev test match (no season fixture) the change is for this match only
+## — morale is put back straight after the stats are re-read, so a test match
+## never leaks into the career. Returns Pepito's line about how it went.
+func deliver_team_talk(tone: int) -> String:
+	var players := _player_side_players()
+	var own := score_left if actors_container.is_player_team_left else score_right
+	var opp := score_right if actors_container.is_player_team_left else score_left
+	var career := not SeasonManager.pending_player_fixture.is_empty()
+	var saved := {}
+	if not career:
+		for p in players:
+			saved[p.player_data] = [p.player_data.morale, p.player_data.morale_log.duplicate()]
+	var data : Array = players.map(func(p: Player) -> PlayerResource: return p.player_data)
+	var rng := RandomNumberGenerator.new()
+	var result := TeamTalk.deliver(data, tone, own - opp, rng)
+	for p in players:
+		p.refresh_stats()
+	for pr : PlayerResource in saved:
+		pr.morale = saved[pr][0]
+		pr.morale_log.assign(saved[pr][1])
+	return TeamTalk.narration(result)
+
+func end_team_talk() -> void:
+	team_talk_pending = false
 
 ## Every PlayerResource the human club fielded this match, subs who came on
 ## and players they replaced included — for morale (see
