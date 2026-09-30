@@ -21,6 +21,7 @@ const PORTRAIT := preload("res://assets/art/club/barra-lider.png")
 ## gets this crop of the figure (hat to belly).
 const PORTRAIT_REGION := Rect2(260, 0, 1016, 1024)
 
+enum Band { ENEMISTADOS, TENSOS, TRANQUILOS, CONTENTOS, INCONDICIONALES }
 const BANDS := ["Enemistados", "Tensos", "Tranquilos", "Contentos", "Incondicionales"]
 const BAND_MIN := [0.0, 20.0, 40.0, 60.0, 80.0]
 const BAND_COLORS := [
@@ -105,7 +106,7 @@ static func new_state() -> Dictionary:
 		"met": false, "relacion": 50.0, "poder": 15.0,
 		"entradas": 0, "colaboracion": 0, "micros": false, "puestos": 0,
 		"cooldown": 0, "loss_streak": 0, "visit_pending": false,
-		"negocios": {},
+		"negocios": {}, "season_used": {},
 	}
 
 ## A saved state (JSON: every number a float) merged over the defaults.
@@ -115,10 +116,14 @@ static func from_save(saved: Dictionary) -> Dictionary:
 		if not saved.has(k):
 			continue
 		var d = s[k]
-		if d is Dictionary:  # negocios: key → weeks running
+		if k == "negocios":  # key → weeks running
 			for n in saved[k]:
 				if NEGOCIOS.has(n):
 					s[k][n] = int(saved[k][n])
+		elif k == "season_used":  # once-a-season perk → used
+			for n in saved[k]:
+				if PERKS.has(n):
+					s[k][n] = bool(saved[k][n])
 		elif d is bool:
 			s[k] = bool(saved[k])
 		elif d is int:
@@ -186,6 +191,9 @@ static func on_match_result(s: Dictionary, outcome: String) -> void:
 	var d : float = RESULT_RELACION.get(outcome, 0.0)
 	if s["loss_streak"] >= LOSS_STREAK_HOT:
 		d += LOSS_STREAK_EXTRA
+	# "Aguante en las malas": a barra this close doesn't hold defeats against you.
+	if outcome == "loss" and has_perk(s, "aguante"):
+		d = 0.0
 	s["relacion"] = clampf(s["relacion"] + d, 0.0, 100.0)
 
 ## Share of a home crowd let in free — ticket revenue is charged on the rest.
@@ -272,7 +280,7 @@ static func aguante(s: Dictionary) -> float:
 static func presence(s: Dictionary, is_home: bool) -> float:
 	if is_home:
 		return 0.0 if ClubHeat.closed_doors_now(GameState.afa, true) else 1.0
-	return AWAY_PRESENCE if s["micros"] else 0.0
+	return AWAY_PRESENCE if s["micros"] or has_perk(s, "viajan") else 0.0
 
 ## {"own_pct", "rival_pct", "own_foul_scale", "mood": Tribune row (0 neutral,
 ## 1 angry, 2 happy), "mood_share": 0-1 of the crowd showing it}. All neutral
@@ -514,6 +522,109 @@ static func apriete(s: Dictionary, club: ClubResource, p: PlayerResource, rng: R
 			"Se filtró que la barra fue a apretar a %s a la casa." % p.full_name, price, rng)
 	GameState.budget_changed.emit()
 	return leaked
+
+# ── Beneficios ────────────────────────────────────────────────────────────────
+#
+# Perks a good relationship unlocks, by relacion band — Contentos (60+) and
+# Incondicionales (80+). Checked live, so dropping a band loses them. The
+# once-a-season ones (ONCE_A_SEASON) are marked in s["season_used"], cleared
+# at season end (new_season()). Each perk's hook lives where the thing it
+# changes does; has_perk()/perk() is the one question they all ask.
+
+const PERKS := {
+	"arbitro": {"band": Band.CONTENTOS, "label": "Árbitros amigos",
+		"desc": "Te cobran un 20% menos de faltas, de local y de visitante."},
+	"obras": {"band": Band.CONTENTOS, "label": "Mano de obra",
+		"desc": "Las mejoras del estadio y el personal salen un 15% más baratos."},
+	"aguante": {"band": Band.CONTENTOS, "label": "Aguante en las malas",
+		"desc": "Perder no les baja la relación."},
+	"tribuna": {"band": Band.CONTENTOS, "label": "Tribuna llena",
+		"desc": "Viene más gente a los partidos de local."},
+	"pibes": {"band": Band.CONTENTOS, "label": "Pibes del barrio",
+		"desc": "Los chicos que llegan a la academia son mejores."},
+	"lesion": {"band": Band.INCONDICIONALES, "label": "\"Cuidar\" a la figura",
+		"desc": "Antes de un partido, por debajo de la mesa: la figura rival no juega."},
+	"sueldos": {"band": Band.INCONDICIONALES, "label": "Sueldos",
+		"desc": "Los jugadores aceptan cobrar un 10% menos."},
+	"mercado": {"band": Band.INCONDICIONALES, "label": "Mercado",
+		"desc": "Fichajes un 15% más baratos: nadie quiere problemas con la barra."},
+	"tapir": {"band": Band.INCONDICIONALES, "label": "Charla con Tapir",
+		"desc": "Una vez por temporada, frenan un embargo de Grandi Tapir."},
+	"colecta": {"band": Band.INCONDICIONALES, "label": "Colecta",
+		"desc": "Una vez por temporada, si el club está en rojo, juntan plata en la tribuna."},
+	"culpa": {"band": Band.INCONDICIONALES, "label": "Se hacen cargo",
+		"desc": "Una vez por temporada, se comen una multa de la AFA (y la relación lo sufre)."},
+	"sponsor": {"band": Band.INCONDICIONALES, "label": "Contactos",
+		"desc": "Los comercios del barrio ponen plata: +15% de sponsor."},
+	"viajan": {"band": Band.INCONDICIONALES, "label": "Siempre viajan",
+		"desc": "Aguante de visitante aunque no pagues los micros."},
+}
+const ONCE_A_SEASON := ["tapir", "colecta", "culpa"]
+
+const PERK_REFEREE_FOULS := 0.8
+## The referee perk in the odds (simulated matches, the preview).
+const PERK_REFEREE_EDGE := 1.0
+const PERK_UPGRADE_FACTOR := 0.85
+const PERK_ATTENDANCE_BONUS := 0.10
+const PERK_WAGE_FACTOR := 0.9
+const PERK_TRANSFER_FACTOR := 0.85
+const PERK_SPONSOR_FACTOR := 1.15
+const PERK_COLECTA_E := 6000
+const PERK_CULPA_RELACION := -25.0
+
+static func has_perk(s: Dictionary, key: String) -> bool:
+	return band(float(s["relacion"])) >= PERKS[key]["band"]
+
+## has_perk() on the career's barra, for callers outside it. False with no
+## career loaded (the economy sim, a dev scene).
+static func perk(key: String) -> bool:
+	return GameState.player_club != null and has_perk(GameState.barra, key)
+
+## True for [param club] being the player's own and holding [param key].
+static func club_perk(club: ClubResource, key: String) -> bool:
+	return club != null and GameState.player_club != null and club.id == GameState.player_club.id and perk(key)
+
+static func perk_used(s: Dictionary, key: String) -> bool:
+	return s["season_used"].get(key, false)
+
+## A once-a-season perk: true (and marked used) if it's available now.
+static func use_once(s: Dictionary, key: String) -> bool:
+	if not has_perk(s, key) or perk_used(s, key):
+		return false
+	s["season_used"][key] = true
+	return true
+
+static func new_season(s: Dictionary) -> void:
+	s["season_used"] = {}
+
+static func upgrade_price(price: int) -> int:
+	return roundi(price * PERK_UPGRADE_FACTOR) if perk("obras") else price
+
+static func transfer_price(price: int) -> int:
+	return roundi(price * PERK_TRANSFER_FACTOR) if perk("mercado") else price
+
+## Payday, club in the red: the stands pass the hat (once a season). Returns
+## what they raised.
+static func maybe_colecta(s: Dictionary, club: ClubResource) -> int:
+	if club.budget >= 0 or not use_once(s, "colecta"):
+		return 0
+	var raised := mini(-club.budget, cost(PERK_COLECTA_E, club.division))
+	club.budget += raised
+	GameState.post_news("La barra hizo una colecta",
+		"Barroni y los muchachos pasaron la gorra en la tribuna: juntaron $%s para el club. \"Esto no se olvida\", dicen. Nosotros tampoco." % MoneyFormat.format(raised),
+		"barra")
+	return raised
+
+## An AFA fine of [param amount]: the barra takes the blame once a season,
+## at the cost of relacion. True when they did (so the club doesn't pay).
+static func take_blame(s: Dictionary, amount: int) -> bool:
+	if amount <= 0 or not use_once(s, "culpa"):
+		return false
+	s["relacion"] = clampf(float(s["relacion"]) + PERK_CULPA_RELACION, 0.0, 100.0)
+	GameState.post_news("La barra se hizo cargo",
+		"La multa de $%s de la AFA la pagó la barra: \"fue cosa nuestra\", dijeron. Eso sí, Barroni no está contento." % MoneyFormat.format(amount),
+		"barra")
+	return true
 
 ## A DialogueLine spoken by Barroni.
 static func line(text: String) -> DialogueLine:

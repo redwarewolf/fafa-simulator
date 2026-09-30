@@ -126,7 +126,7 @@ func _populate_buy_tree() -> void:
 			return false
 		if p.quality < _filter_min_quality:
 			return false
-		if _filter_affordable and PlayerValue.estimate(p) > budget:
+		if _filter_affordable and BarraBrava.transfer_price(PlayerValue.estimate(p)) > budget:
 			return false
 		return true)
 	listings.sort_custom(_compare_listings)
@@ -141,7 +141,7 @@ func _populate_buy_tree() -> void:
 		item.set_text(BUY_COL_NAME,  p.full_name)
 		item.set_text(BUY_COL_OVR,   str(p.overall()))
 		item.set_text(BUY_COL_CLUB,  club.display_name)
-		item.set_text(BUY_COL_VALUE, "$%s" % MoneyFormat.format(PlayerValue.estimate(p)))
+		item.set_text(BUY_COL_VALUE, "$%s" % MoneyFormat.format(BarraBrava.transfer_price(PlayerValue.estimate(p))))
 		for col in [BUY_COL_NAME, BUY_COL_OVR, BUY_COL_CLUB, BUY_COL_VALUE]:
 			item.set_custom_color(col, qcolor)
 		_set_pos_badge(item, BUY_COL_POS, p)
@@ -288,7 +288,7 @@ func _on_buy_tree_item_selected() -> void:
 		action_button.disabled = true
 		return
 
-	var price := PlayerValue.estimate(p)
+	var price := BarraBrava.transfer_price(PlayerValue.estimate(p))
 	var can_buy := GameState.player_club.budget >= price
 	if can_buy:
 		action_button.text = tr("COMPRAR — $%s") % MoneyFormat.format(price)
@@ -381,7 +381,7 @@ func _buy_selected() -> void:
 	var p := _selected_player
 	var source := _selected_source_club
 	var club := GameState.player_club
-	var price := PlayerValue.estimate(p)
+	var price := BarraBrava.transfer_price(PlayerValue.estimate(p))
 	if club.budget < price or source == null:
 		return
 

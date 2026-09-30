@@ -80,10 +80,13 @@ func test_aguante_signs_and_power() -> void:
 	assert_near(BarraBrava.aguante(_state(0, 100)), -1.0, 0.001)
 
 func test_away_needs_micros() -> void:
-	var fx := BarraBrava.match_effect(_state(100, 100), false)
+	var fx := BarraBrava.match_effect(_state(75, 100), false)
 	assert_near(fx["own_pct"], 0.0, 0.001, "no micros")
-	fx = BarraBrava.match_effect(_state(100, 100, true), false)
-	assert_near(fx["own_pct"], BarraBrava.CROWD_STAT_PCT * BarraBrava.AWAY_PRESENCE, 0.001, "micros")
+	fx = BarraBrava.match_effect(_state(75, 100, true), false)
+	assert_near(fx["own_pct"], BarraBrava.CROWD_STAT_PCT * BarraBrava.AWAY_PRESENCE * BarraBrava.aguante(_state(75, 100)), 0.001, "micros")
+	# Incondicionales always travel (perk "viajan").
+	fx = BarraBrava.match_effect(_state(100, 100), false)
+	assert_near(fx["own_pct"], BarraBrava.CROWD_STAT_PCT * BarraBrava.AWAY_PRESENCE, 0.001, "viajan")
 
 func test_happy_barra_helps_and_angry_one_whistles_its_own() -> void:
 	var happy := BarraBrava.match_effect(_state(100, 100), true)
@@ -209,6 +212,45 @@ func test_rival_visit_needs_power() -> void:
 	assert_true(not ClubHeat.bribe_available("visita", _state(50, 10)))
 	assert_true(ClubHeat.bribe_available("visita", _state(50, 40)))
 	assert_true(ClubHeat.bribe_available("referee", _state(50, 0)))
+
+func test_perks_follow_the_bands() -> void:
+	assert_true(not BarraBrava.has_perk(_state(59, 50), "aguante"))
+	assert_true(BarraBrava.has_perk(_state(60, 50), "aguante"))
+	assert_true(not BarraBrava.has_perk(_state(79, 50), "tapir"))
+	assert_true(BarraBrava.has_perk(_state(80, 50), "tapir"))
+	assert_true(BarraBrava.has_perk(_state(80, 50), "arbitro"), "80 keeps the 60 perks")
+
+func test_losing_doesnt_hurt_a_happy_barra() -> void:
+	var s := _state(70, 50)
+	for i in 4:
+		BarraBrava.on_match_result(s, "loss")
+	assert_near(s["relacion"], 70.0, 0.001)
+
+func test_once_a_season_perks() -> void:
+	var s := _state(90, 50)
+	assert_true(BarraBrava.use_once(s, "tapir"))
+	assert_true(not BarraBrava.use_once(s, "tapir"), "only once")
+	BarraBrava.new_season(s)
+	assert_true(BarraBrava.use_once(s, "tapir"), "back next season")
+	assert_true(not BarraBrava.use_once(_state(70, 50), "tapir"), "needs Incondicionales")
+
+func test_colecta_and_blame() -> void:
+	var saved_inbox := GameState.inbox.duplicate()
+	var s := _state(90, 50)
+	var club := _club()
+	club.budget = -3000
+	assert_eq(BarraBrava.maybe_colecta(s, club), 3000, "covers the hole, no more")
+	assert_eq(club.budget, 0)
+	club.budget = -3000
+	assert_eq(BarraBrava.maybe_colecta(s, club), 0, "once a season")
+	assert_true(BarraBrava.take_blame(s, 5000))
+	assert_near(s["relacion"], 90.0 + BarraBrava.PERK_CULPA_RELACION, 0.001)
+	assert_true(not BarraBrava.take_blame(s, 5000), "once a season")
+	GameState.inbox = saved_inbox
+
+func test_injury_bribe_needs_incondicionales() -> void:
+	assert_true(not ClubHeat.bribe_available("lesion", _state(79, 100)))
+	assert_true(ClubHeat.bribe_available("lesion", _state(80, 0)))
 
 func test_save_round_trip_restores_types() -> void:
 	var s := BarraBrava.new_state()

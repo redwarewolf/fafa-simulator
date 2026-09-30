@@ -48,10 +48,12 @@ static func _fit_score(t: Resource) -> int:
 static func build_best_fit(club: ClubResource) -> Resource:
 	var best_tactic : Resource = null
 	var best_score := INF
+	# Suspended or "injured" players (unavailable_matches) sit it out.
+	var available := club.players.filter(func(p: PlayerResource) -> bool: return p.unavailable_matches <= 0)
 	for template in Formations.ALL.keys():
 		var t : Resource = TacticResourceClass.new(template, template)
 		t.init_slots_from_positions(Formations.positions_for(template), Formations.roles_for(template))
-		auto_fill(t, club.players)
+		auto_fill(t, available)
 		var score := _fit_score(t)
 		if score < best_score:
 			best_score = score

@@ -381,6 +381,7 @@ func _start_second_half() -> void:
 ## opponents for the new division (same as career start).
 func _end_season() -> void:
 	var player_club := GameState.player_club
+	BarraBrava.new_season(GameState.barra)  # once-a-season perks come back
 	var position := Standings.position_of(player_club)
 	var old_division := player_club.division
 	var new_division := old_division
@@ -742,6 +743,8 @@ func _overall_diff_with_morale(home: ClubResource, away: ClubResource) -> float:
 			player_club.get_squad_overall(), rival.get_squad_overall())
 		# ...and so do this match's bribes (ClubHeat), paid or just picked.
 		var own_edge : float = bonus[0] - bonus[1] + ClubHeat.bribe_edge(GameState.afa)
+		if BarraBrava.perk("arbitro"):
+			own_edge += BarraBrava.PERK_REFEREE_EDGE
 		diff += own_edge if is_home else -own_edge
 	return diff
 

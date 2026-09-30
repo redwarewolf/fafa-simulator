@@ -52,6 +52,12 @@ const BRIBES := {
 		"cost_e": 1500, "heat": 18.0, "edge": 2.5, "min_power": 25.0,
 		"scandal": "La figura de ellos contó en la tele que lo fueron a apretar a la casa.",
 	},
+	"lesion": {
+		"label": "Que la barra \"cuide\" a su figura",
+		"tip": "La noche anterior, su mejor jugador tiene un \"accidente\". No juega.",
+		"cost_e": 1000, "heat": 25.0, "edge": 3.5, "min_relacion": 80.0,
+		"scandal": "Se supo que la lesión de la figura rival no fue un accidente.",
+	},
 }
 ## Referee bribe in a watched match: share of our fouls still called, and of
 ## theirs (more free kicks for us).
@@ -72,7 +78,8 @@ const SCANDAL_HEAT := 15.0
 static func new_state() -> Dictionary:
 	return {
 		"heat": 0.0, "investigation": false, "closed_doors": false,
-		"bribes": {"referee": false, "keeper": false, "visita": false}, "bribes_paid": false, "bribes_spent": 0,
+		"bribes": {"referee": false, "keeper": false, "visita": false, "lesion": false},
+		"bribes_paid": false, "bribes_spent": 0, "lesion_target": {},
 	}
 
 static func from_save(saved: Dictionary) -> Dictionary:
@@ -82,6 +89,9 @@ static func from_save(saved: Dictionary) -> Dictionary:
 	s["closed_doors"] = bool(saved.get("closed_doors", false))
 	s["bribes_paid"] = bool(saved.get("bribes_paid", false))
 	s["bribes_spent"] = int(saved.get("bribes_spent", 0))
+	var target = saved.get("lesion_target", {})
+	if target is Dictionary:
+		s["lesion_target"] = target
 	var b : Dictionary = saved.get("bribes", {})
 	for k in s["bribes"]:
 		s["bribes"][k] = bool(b.get(k, false))
@@ -122,6 +132,8 @@ static func weekly(s: Dictionary, club: ClubResource, barra: Dictionary) -> int:
 	var fine := 0
 	if float(s["heat"]) >= FINES_AT:
 		fine = BarraBrava.cost(WEEKLY_FINE_E, club.division)
+		if BarraBrava.take_blame(barra, fine):
+			fine = 0
 		club.budget -= fine
 	if s["investigation"] and float(s["heat"]) < INVESTIGATION_AT:
 		s["investigation"] = false
@@ -135,7 +147,8 @@ static func bribe_cost(key: String, division: String) -> int:
 ## Whether [param key] is on offer: the barra's visit needs a barra with
 ## enough poder to pull it off.
 static func bribe_available(key: String, barra: Dictionary) -> bool:
-	return float(barra["poder"]) >= float(BRIBES[key].get("min_power", 0.0))
+	return float(barra["poder"]) >= float(BRIBES[key].get("min_power", 0.0)) \
+		and float(barra["relacion"]) >= float(BRIBES[key].get("min_relacion", 0.0))
 
 static func any_bribe(s: Dictionary) -> bool:
 	return s["bribes"].values().has(true)
@@ -164,7 +177,42 @@ static func commit_bribes(s: Dictionary, club: ClubResource) -> void:
 	club.budget -= spent
 	s["bribes_paid"] = true
 	s["bribes_spent"] = spent
+	if s["bribes"]["lesion"]:
+		_injure_rival_star(s)
 	GameState.budget_changed.emit()
+
+## The "lesion" bribe: the rival's best outfield player sits this one out —
+## unavailable for the match (TacticBuilder skips him), remembered in
+## s["lesion_target"] so after_match() puts him back (AI clubs never count
+## down unavailable_matches themselves).
+static func _injure_rival_star(s: Dictionary) -> void:
+	var f := SeasonManager.pending_player_fixture
+	if f.is_empty() or GameState.player_club == null:
+		return
+	var rival_id : String = f["away_id"] if f["home_id"] == GameState.player_club.id else f["home_id"]
+	var rival := DataLoader.get_club(rival_id)
+	if rival == null:
+		return
+	var star : PlayerResource = null
+	for p : PlayerResource in rival.players:
+		if p.role != Positions.Role.GK and p.unavailable_matches <= 0 and (star == null or p.overall() > star.overall()):
+			star = p
+	if star == null:
+		return
+	star.unavailable_matches = 1
+	s["lesion_target"] = {"club_id": rival.id, "name": star.full_name}
+	GameState.post_news("Mala suerte para %s" % rival.display_name,
+		"%s se lesionó en un \"accidente doméstico\" y no juega el próximo partido. Qué casualidad." % star.full_name, "barra")
+
+static func _heal_rival_star(s: Dictionary) -> void:
+	var t : Dictionary = s["lesion_target"]
+	s["lesion_target"] = {}
+	var rival := DataLoader.get_club(t.get("club_id", ""))
+	if rival == null:
+		return
+	for p : PlayerResource in rival.players:
+		if p.full_name == t["name"]:
+			p.unavailable_matches = 0
 
 ## Full time: each bribe may leak (a fine, lost fans, more heat); then
 ## they're spent. Returns {"bribe_cost", "scandal_fine"} — what this match's
@@ -180,6 +228,8 @@ static func after_match(s: Dictionary, club: ClubResource, rng: RandomNumberGene
 		s["bribes"][k] = false
 	s["bribes_paid"] = false
 	s["bribes_spent"] = 0
+	if not s["lesion_target"].is_empty():
+		_heal_rival_star(s)
 	return out
 
 ## Returns the fine.
@@ -192,6 +242,9 @@ static func _scandal(s: Dictionary, club: ClubResource, key: String, rng: Random
 static func scandal(s: Dictionary, club: ClubResource, text: String, price: int, rng: RandomNumberGenerator) -> int:
 	var fine := roundi(price * SCANDAL_FINE_MULT)
 	var fans := BarraBrava.cost(rng.randi_range(SCANDAL_FANS_E[0], SCANDAL_FANS_E[1]), club.division)
+	# Once a season a devoted barra takes the blame and the club pays nothing.
+	if BarraBrava.take_blame(GameState.barra, fine):
+		fine = 0
 	club.budget -= fine
 	club.fans = maxi(FanEconomy.MIN_FANS, club.fans - fans)
 	GameState.post_news("Escándalo", "%s Multa de $%s, %d hinchas menos, y la AFA toma nota." % [

@@ -82,8 +82,12 @@ func _refresh_bribes(preview: Dictionary) -> void:
 		if not available:
 			afa["bribes"][key] = false
 		btn.disabled = not available
-		btn.tooltip_text = tr(ClubHeat.BRIBES[key]["tip"]) if available \
-			else tr("La barra todavía no tiene poder para esto.")
+		if available:
+			btn.tooltip_text = tr(ClubHeat.BRIBES[key]["tip"])
+		elif float(GameState.barra["relacion"]) < float(ClubHeat.BRIBES[key].get("min_relacion", 0.0)):
+			btn.tooltip_text = tr("Para esto la barra tiene que ser Incondicional.")
+		else:
+			btn.tooltip_text = tr("La barra todavía no tiene poder para esto.")
 		btn.set_pressed_no_signal(afa["bribes"][key])
 	if ClubHeat.any_bribe(afa):
 		_risk_label.text = tr("Riesgo de que se sepa: %d%% por arreglo") % roundi(ClubHeat.scandal_chance(afa) * 100.0)

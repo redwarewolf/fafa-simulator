@@ -92,9 +92,11 @@ func _apply_crowd() -> void:
 	crowd_effect = BarraBrava.match_effect(GameState.barra, is_player_team_left)
 	var own := left_team if is_player_team_left else right_team
 	var rival := right_team if is_player_team_left else left_team
+	# A happy barra has "talked" to the referees too (perk "arbitro"), home or away.
+	var referee := BarraBrava.PERK_REFEREE_FOULS if BarraBrava.perk("arbitro") else 1.0
 	for p in own:
 		p.crowd_pct = crowd_effect["own_pct"]
-		p.foul_call_scale = crowd_effect["own_foul_scale"]
+		p.foul_call_scale = crowd_effect["own_foul_scale"] * referee
 		p.refresh_stats()
 	for p in rival:
 		p.crowd_pct = crowd_effect["rival_pct"]

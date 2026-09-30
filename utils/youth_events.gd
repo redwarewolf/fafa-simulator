@@ -68,7 +68,11 @@ static func _pick_weighted(pool: Array) -> Dictionary:
 ## below-"E" division — used in examples as a hypothetical "F" — clamps down
 ## to COMMON, same as being in the lowest real division).
 static func _tier_index_for(club: ClubResource) -> int:
-	return clampi(ClubFactory.DIVISION_ORDER.find(club.division), 0, PlayerResource.Quality.LEGENDARY)
+	var tier := ClubFactory.DIVISION_ORDER.find(club.division)
+	# The barra's families send better kids (BarraBrava perk "pibes").
+	if BarraBrava.club_perk(club, "pibes"):
+		tier += 1
+	return clampi(tier, 0, PlayerResource.Quality.LEGENDARY)
 
 ## Returns {kid: PlayerResource, line: String, fee_amount: int, fee_direction:
 ## String, reserved: bool}.

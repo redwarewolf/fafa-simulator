@@ -78,7 +78,7 @@ func _populate_pool_tree() -> void:
 
 ## Discounted hiring price for a scouted player (see SCOUT_DISCOUNT).
 func _price_for(p: PlayerResource) -> int:
-	return maxi(0, roundi(PlayerValue.estimate(p) * SCOUT_DISCOUNT))
+	return maxi(0, BarraBrava.transfer_price(roundi(PlayerValue.estimate(p) * SCOUT_DISCOUNT)))
 
 
 func _on_pool_tree_item_selected() -> void:

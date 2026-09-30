@@ -5,12 +5,13 @@ extends Control
 ##   APORTES   what you give them every week (charged on payday)
 ##   NEGOCIOS  their businesses around the club, switched on and off here
 ##   APRIETES  sending them to "talk" to a player of yours who wants out
+##   BENEFICIOS  what a good relationship unlocks (BarraBrava.PERKS)
 
 @onready var portrait : TextureRect = $HBox/Portrait
 @onready var vbox : VBoxContainer = $HBox/Scroll/VBox
 
-const TABS := ["aportes", "negocios", "aprietes"]
-const TAB_LABELS := ["APORTES", "NEGOCIOS", "APRIETES"]
+const TABS := ["aportes", "negocios", "aprietes", "beneficios"]
+const TAB_LABELS := ["APORTES", "NEGOCIOS", "APRIETES", "BENEFICIOS"]
 
 var _relacion_bar : ProgressBar = null
 var _relacion_label : Label = null
@@ -79,6 +80,7 @@ func _build() -> void:
 	_build_aportes(_tab_boxes["aportes"])
 	_build_negocios(_tab_boxes["negocios"])
 	_build_aprietes(_tab_boxes["aprietes"])
+	_build_beneficios(_tab_boxes["beneficios"])
 	_show_tab(_tab)
 
 func _show_tab(key: String) -> void:
@@ -247,6 +249,58 @@ func _on_apriete(p: PlayerResource) -> void:
 		_apriete_result.add_theme_color_override("font_color", HubPalette.WIN)
 	_changed()
 
+# ── Beneficios ────────────────────────────────────────────────────────────────
+
+## key → {"name": Label, "status": Label}
+var _perk_rows := {}
+
+func _build_beneficios(box: VBoxContainer) -> void:
+	var info := Label.new()
+	info.text = tr("Lo que te da tener a la barra de tu lado. Se ganan por relación y se pierden si baja.")
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_theme_color_override("font_color", HubPalette.MUTED)
+	box.add_child(info)
+	for band in [BarraBrava.Band.CONTENTOS, BarraBrava.Band.INCONDICIONALES]:
+		box.add_child(HSeparator.new())
+		var head := Label.new()
+		head.text = "%s  (%d+)" % [tr(BarraBrava.BANDS[band]).to_upper(), roundi(BarraBrava.BAND_MIN[band])]
+		head.add_theme_color_override("font_color", BarraBrava.BAND_COLORS[band])
+		box.add_child(head)
+		for key in BarraBrava.PERKS:
+			var perk : Dictionary = BarraBrava.PERKS[key]
+			if perk["band"] != band:
+				continue
+			var row := HBoxContainer.new()
+			box.add_child(row)
+			var name_label := Label.new()
+			name_label.text = tr(perk["label"])
+			name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(name_label)
+			var status := Label.new()
+			row.add_child(status)
+			var desc := Label.new()
+			desc.text = tr(perk["desc"])
+			desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			desc.add_theme_color_override("font_color", HubPalette.MUTED)
+			box.add_child(desc)
+			_perk_rows[key] = {"name": name_label, "status": status}
+
+func _refresh_beneficios() -> void:
+	var s := GameState.barra
+	for key in _perk_rows:
+		var row : Dictionary = _perk_rows[key]
+		var on := BarraBrava.has_perk(s, key)
+		if not on:
+			row["status"].text = tr("BLOQUEADO")
+			row["status"].add_theme_color_override("font_color", HubPalette.MUTED)
+		elif key in BarraBrava.ONCE_A_SEASON and BarraBrava.perk_used(s, key):
+			row["status"].text = tr("USADO ESTA TEMPORADA")
+			row["status"].add_theme_color_override("font_color", HubPalette.HIGHLIGHT)
+		else:
+			row["status"].text = tr("ACTIVO")
+			row["status"].add_theme_color_override("font_color", HubPalette.WIN)
+		row["name"].add_theme_color_override("font_color", Color.WHITE if on else HubPalette.MUTED)
+
 # ── Shared ────────────────────────────────────────────────────────────────────
 
 ## A labelled 0-100 bar with an explanation underneath. Returns [bar, value label].
@@ -363,6 +417,7 @@ func refresh() -> void:
 			row["button"].text = tr("CORTAR")
 
 	_refresh_aprietes()
+	_refresh_beneficios()
 
 func _on_entradas(level: int) -> void:
 	GameState.barra["entradas"] = level

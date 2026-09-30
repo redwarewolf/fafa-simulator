@@ -108,6 +108,9 @@ static func _loss_dampen_multiplier(current_fans: int) -> float:
 ## ticket_revenue_for() rather than rolling attendance twice.
 static func roll_attendance(club: ClubResource) -> int:
 	var rate := randf_range(ATTENDANCE_RATE_MIN, ATTENDANCE_RATE_MAX)
+	# A happy barra fills our own stands (BarraBrava perk "tribuna").
+	if BarraBrava.club_perk(club, "tribuna"):
+		rate += BarraBrava.PERK_ATTENDANCE_BONUS
 	var wanted := int(round(club.fans * rate))
 	return mini(wanted, club.get_stadium_capacity())
 

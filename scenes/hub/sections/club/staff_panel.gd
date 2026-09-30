@@ -158,7 +158,7 @@ func _populate() -> void:
 			continue
 
 		var next_data : Dictionary = data["levels"][cur_lvl]
-		var cost      : int        = next_data["cost"]
+		var cost      : int        = BarraBrava.upgrade_price(next_data["cost"])
 		var verb      := tr("CONTRATAR") if cur_lvl == 0 else tr("MEJORAR — Nvl %d") % (cur_lvl + 1)
 
 		if club.budget < cost:
@@ -205,7 +205,7 @@ func _on_buy_pressed(key: String) -> void:
 	if cur_lvl >= data["levels"].size():
 		return
 
-	var cost : int = data["levels"][cur_lvl]["cost"]
+	var cost : int = BarraBrava.upgrade_price(data["levels"][cur_lvl]["cost"])
 	if club.budget < cost:
 		return
 

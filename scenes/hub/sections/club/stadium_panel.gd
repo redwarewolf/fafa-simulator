@@ -208,7 +208,7 @@ func refresh() -> void:
 			continue
 
 		var next_data : Dictionary = data["levels"][cur_lvl]
-		var cost      : int        = next_data["cost"]
+		var cost      : int        = BarraBrava.upgrade_price(next_data["cost"])
 		var reqs      : Dictionary = next_data["requires"]
 
 		var req_label := ""
@@ -264,7 +264,7 @@ func _on_buy_pressed(key: String) -> void:
 	if cur_lvl >= data["levels"].size():
 		return
 
-	var cost : int = data["levels"][cur_lvl]["cost"]
+	var cost : int = BarraBrava.upgrade_price(data["levels"][cur_lvl]["cost"])
 	if club.budget < cost:
 		return
 

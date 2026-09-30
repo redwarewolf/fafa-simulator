@@ -54,6 +54,13 @@ static func collect(club: ClubResource, lines: Array[String]) -> int:
 		GameState.post_news("Cuota impaga", "No alcanzó la plata para la cuota de Grandi Tapir. Deuda atrasada: $%s. Si la semana que viene seguimos sin pagar, se va a cobrar con algo del club." %
 			MoneyFormat.format(GameState.debt_arrears), "debt")
 		return 0
+	# A devoted barra "talks" to Tapir once a season: he waits another week.
+	if BarraBrava.use_once(GameState.barra, "tapir"):
+		lines.append("Ayer vinieron unos muchachos de la barra a... charlar. Muy simpáticos. Te doy una semana más. Una.")
+		GameState.post_news("La barra habló con Tapir",
+			"Grandi Tapir iba a llevarse algo del club, pero unos muchachos de la barra lo fueron a ver. Nos dio una semana más. Seguimos debiendo $%s." % MoneyFormat.format(GameState.debt_arrears),
+			"debt")
+		return 0
 	_seize(club, lines)
 	return 0
 

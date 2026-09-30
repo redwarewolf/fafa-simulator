@@ -760,6 +760,11 @@ func _run_payday() -> void:
 	ledger["sponsor_revenue"] = FanEconomy.sponsor_revenue(player_club)
 	ledger["tv_revenue"] = FanEconomy.tv_revenue(player_club)
 	ledger["wage_cost"] = player_club.get_wage_cost()
+	# A devoted barra (BarraBrava perks): cheaper wages, local sponsors.
+	if BarraBrava.perk("sueldos"):
+		ledger["wage_cost"] = roundi(ledger["wage_cost"] * BarraBrava.PERK_WAGE_FACTOR)
+	if BarraBrava.perk("sponsor"):
+		ledger["sponsor_revenue"] = roundi(ledger["sponsor_revenue"] * BarraBrava.PERK_SPONSOR_FACTOR)
 	ledger["staff_upkeep_cost"] = player_club.get_staff_upkeep_cost()
 	# The barra's businesses take the food stalls and part of the merch.
 	var business := BarraBrava.adjust_payday(barra, ledger, player_club.division)
@@ -771,6 +776,8 @@ func _run_payday() -> void:
 	ledger["afa_fine"] = ClubHeat.weekly(afa, player_club, barra)
 	# Income lands first, so the week's earnings can cover Tapir's instalment.
 	ledger["debt_payment"] = ClubDebt.collect(player_club, tapir_lines)
+	# Still in the red: the stands may pass the hat (once a season).
+	ledger["barra_income"] += BarraBrava.maybe_colecta(barra, player_club)
 	last_payday_ledger = ledger
 	# Wages the budget couldn't cover are "late" as far as the squad knows.
 	if player_club.budget < 0 and ledger["wage_cost"] > 0:
