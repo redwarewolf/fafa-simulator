@@ -424,7 +424,12 @@ func _maybe_narrate_hub_event() -> void:
 	var line := RandomEvents.maybe_trigger_hub_event(GameState.player_club)
 	if line.is_empty():
 		return
-	GameState.post_news("Novedad del plantel", line, "event")
+	# Titled with the event's own opening words — a column of identical
+	# "Novedad del plantel" subjects told the inbox reader nothing.
+	var subject := line.get_slice(".", 0).strip_edges()
+	if subject.length() > 48:
+		subject = subject.substr(0, 45).strip_edges() + "..."
+	GameState.post_news(subject if subject != "" else tr("Novedad del plantel"), line, "event")
 	ClubTrainer.say(line)
 	await ClubTrainer.finished
 

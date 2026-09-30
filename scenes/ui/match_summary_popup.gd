@@ -49,6 +49,32 @@ func show_result(data: Dictionary) -> void:
 			_add_row("%s   %s (%s)" % [s["time_str"], s["player"], s["team"]], "")
 		_add_separator()
 
+	if data.has("position_after"):
+		var before : int = data.get("position_before", 0)
+		var after : int = data["position_after"]
+		var moved := before - after
+		var arrow := ""
+		var color := HubPalette.MUTED
+		if moved > 0:
+			arrow = tr("  (sube %d)") % moved
+			color = HubPalette.WIN
+		elif moved < 0:
+			arrow = tr("  (baja %d)") % -moved
+			color = HubPalette.LOSS
+		_add_header(tr("TABLA"))
+		var row := Label.new()
+		row.text = tr("Posición: #%d → #%d") % [before, after] + arrow
+		row.add_theme_color_override("font_color", color)
+		rows.add_child(row)
+		_add_separator()
+
+	var others : Array = data.get("other_results", [])
+	if not others.is_empty():
+		_add_header(tr("OTROS RESULTADOS DE LA FECHA"))
+		for line in others:
+			_add_row(line, "")
+		_add_separator()
+
 	var stats : Array = data.get("stats", [])
 	if not stats.is_empty():
 		_add_header(tr("ESTADÍSTICAS"))

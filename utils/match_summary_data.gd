@@ -19,6 +19,9 @@ static func build(own_name: String, opp_name: String, own_score: int, opp_score:
 		data["show_finance"] = false
 		return data
 	data["show_finance"] = true
+	for key in ["position_before", "position_after", "other_results"]:
+		if match_result.has(key):
+			data[key] = match_result[key]
 	data["fans_delta"] = match_result.get("fans_delta", 0)
 	data["fans_now"] = GameState.player_club.fans if GameState.player_club != null else 0
 	data["ticket_revenue"] = match_result.get("ticket_revenue", 0)

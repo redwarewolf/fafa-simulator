@@ -523,10 +523,14 @@ func report_player_match_result(home_score: int, away_score: int) -> Dictionary:
 	f["played"] = true
 	f["home_score"] = home_score
 	f["away_score"] = away_score
-	if home != null and away != null and f["type"] == "league":
-		_apply_result(home, away, home_score, away_score)
-
 	var result := {"fans_delta": 0, "ticket_revenue": 0, "attendance": 0}
+	if home != null and away != null and f["type"] == "league":
+		# Table movement for the post-match summary (▲▼ like FM's result screen).
+		result["position_before"] = Standings.position_of(GameState.player_club)
+		_apply_result(home, away, home_score, away_score)
+		result["position_after"] = Standings.position_of(GameState.player_club)
+	result["other_results"] = _other_results_for(f)
+
 	var player_club := GameState.player_club
 	if player_club != null and home != null and away != null:
 		var is_home := player_club.id == home.id
@@ -561,6 +565,22 @@ func report_player_match_result(home_score: int, away_score: int) -> Dictionary:
 	pending_player_fixture = {}
 	_check_phase_transition()
 	return result
+
+
+## "Home 2 - 1 Away" for every other fixture of [param f]'s division played on
+## the same day — resolve_day() simulates those before the player's own match.
+func _other_results_for(f: Dictionary) -> Array:
+	var out : Array = []
+	for g in fixtures:
+		if g == f or not g["played"] or g["division"] != f["division"]:
+			continue
+		if g["day"] != f["day"] or g["month"] != f["month"] or g["year"] != f["year"]:
+			continue
+		var h := DataLoader.get_club(g["home_id"])
+		var a := DataLoader.get_club(g["away_id"])
+		out.append("%s  %d - %d  %s" % [h.display_name if h != null else g["home_id"],
+			g["home_score"], g["away_score"], a.display_name if a != null else g["away_id"]])
+	return out
 
 
 func _post_result_news(f: Dictionary, home: ClubResource, away: ClubResource,
