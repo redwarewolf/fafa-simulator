@@ -3,8 +3,9 @@ extends CanvasLayer
 
 ## Post-match popup shown after a played OR simulated player match — score,
 ## scorers, and (when [param data] carries "show_finance": true) the full
-## revenue/cost breakdown for that date: gate revenue, merch/food passive
-## income, squad wages, staff upkeep, and the net total. Styled like
+## revenue/cost breakdown for that date: gate revenue and, when the weekly
+## payday landed on the match day, stand income, sponsor, TV, wages, staff
+## upkeep and the debt instalment — plus the net total. Styled like
 ## PauseMenu, reused by both world.gd (a played match's GAMEOVER) and hub.gd
 ## (a simulated one) instead of each building its own summary UI.
 
@@ -24,7 +25,8 @@ func _ready() -> void:
 ## (Array of {player, team, time_str}), simulated (bool), show_finance (bool —
 ## when false, only the score/scorers show, e.g. the Hub's dev Test Match with
 ## no season fixture behind it), fans_delta, fans_now, ticket_revenue,
-## attendance, merch_revenue, food_revenue, wage_cost, staff_cost.
+## attendance, merch_revenue, food_revenue, sponsor_revenue, tv_revenue,
+## wage_cost, staff_cost, debt_payment.
 func show_result(data: Dictionary) -> void:
 	_clear_rows()
 
@@ -94,28 +96,34 @@ func _build_finance_rows(data: Dictionary) -> void:
 	_add_row(tr("Hinchas"), "%s%d  (%s)" % [
 		"+" if fans_delta >= 0 else "", fans_delta, MoneyFormat.format(data.get("fans_now", 0))])
 
+	var income := 0
 	var ticket_revenue : int = data.get("ticket_revenue", 0)
 	if ticket_revenue > 0:
 		_add_row(tr("Entradas (%s asistentes)") % MoneyFormat.format(data.get("attendance", 0)),
 			"+$%s" % MoneyFormat.format(ticket_revenue))
+		income += ticket_revenue
+	# The weekly payday's lines, only when payday landed on this match day.
+	for row in [["merch_revenue", "Merchandising"], ["food_revenue", "Comida y Bebida"],
+			["sponsor_revenue", "Sponsor"], ["tv_revenue", "Derechos de TV"]]:
+		var amount : int = data.get(row[0], 0)
+		if amount > 0:
+			_add_row(tr(row[1]), "+$%s" % MoneyFormat.format(amount))
+			income += amount
 
-	var merch_revenue : int = data.get("merch_revenue", 0)
-	if merch_revenue > 0:
-		_add_row(tr("Merchandising"), "+$%s" % MoneyFormat.format(merch_revenue))
+	var costs := 0
+	var cost_rows : Array = [["wage_cost", "Sueldos del plantel"], ["staff_cost", "Personal contratado"],
+		["debt_payment", "Cuota de la deuda"]]
+	for row in cost_rows:
+		costs += int(data.get(row[0], 0))
+	if costs > 0:
+		_add_separator()
+		_add_header(tr("GASTOS"))
+		for row in cost_rows:
+			var amount : int = data.get(row[0], 0)
+			if amount > 0:
+				_add_row(tr(row[1]), "-$%s" % MoneyFormat.format(amount))
 
-	var food_revenue : int = data.get("food_revenue", 0)
-	if food_revenue > 0:
-		_add_row(tr("Comida y Bebida"), "+$%s" % MoneyFormat.format(food_revenue))
-
-	_add_separator()
-	_add_header(tr("GASTOS"))
-	var wage_cost : int = data.get("wage_cost", 0)
-	_add_row(tr("Sueldos del plantel"), "-$%s" % MoneyFormat.format(wage_cost))
-	var staff_cost : int = data.get("staff_cost", 0)
-	if staff_cost > 0:
-		_add_row(tr("Personal contratado"), "-$%s" % MoneyFormat.format(staff_cost))
-
-	var net := ticket_revenue + merch_revenue + food_revenue - wage_cost - staff_cost
+	var net := income - costs
 	net_label.visible = true
 	net_label.text = tr("NETO: %s$%s") % ["+" if net >= 0 else "-", MoneyFormat.format(abs(net))]
 	net_label.add_theme_color_override("font_color", HubPalette.WIN if net >= 0 else HubPalette.LOSS)

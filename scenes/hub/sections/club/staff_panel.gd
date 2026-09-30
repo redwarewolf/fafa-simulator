@@ -1,6 +1,6 @@
 extends Control
 
-## Hire/upgrade the Club Trainer and Talent Scout. Same card-per-item pattern
+## Hire, upgrade or let go the club staff. Same card-per-item pattern
 ## as stadium_panel.gd's building upgrades, reading tiers from StaffData
 ## instead of a local const since ClubResource.get_staff_upkeep_cost() also
 ## needs that table.
@@ -12,6 +12,7 @@ const CARD_BORDER := Color(0.0, 0.0, 0.0, 0.45)
 @onready var card_row : HBoxContainer = $VBox/CardRow
 
 var _card_buttons : Dictionary = {}
+var _card_dismiss : Dictionary = {}
 var _card_pips    : Dictionary = {}
 var _card_levels  : Dictionary = {}
 var _card_upkeep  : Dictionary = {}
@@ -112,6 +113,13 @@ func _build_cards() -> void:
 		card.add_child(btn)
 		_card_buttons[key] = btn
 
+		var dismiss := Button.new()
+		dismiss.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		dismiss.theme_type_variation = &"GhostButton"
+		dismiss.pressed.connect(_on_dismiss_pressed.bind(key))
+		card.add_child(dismiss)
+		_card_dismiss[key] = dismiss
+
 
 func _populate() -> void:
 	var club := GameState.player_club
@@ -126,10 +134,15 @@ func _populate() -> void:
 
 		lvl_label.text = (tr("Sin contratar") if cur_lvl == 0 else tr("Nivel %d / %d") % [cur_lvl, max_lvl])
 		if cur_lvl > 0:
-			var monthly : int = data["levels"][cur_lvl - 1]["monthly"]
-			upkeep.text = tr("$%s / fecha") % MoneyFormat.format(monthly)
+			var weekly : int = data["levels"][cur_lvl - 1]["weekly"]
+			upkeep.text = tr("$%s / semana") % MoneyFormat.format(weekly)
 		else:
 			upkeep.text = ""
+
+		var dismiss : Button = _card_dismiss[key]
+		dismiss.visible = cur_lvl > 0
+		if cur_lvl > 0:
+			dismiss.text = tr("DESPEDIR") if cur_lvl == 1 else tr("BAJAR A NIVEL %d") % (cur_lvl - 1)
 
 		if key == "academy" and _card_pool.has(key):
 			_card_pool[key].text = (tr("Juveniles: %d / %d") % [club.youth_players.size(), GameState.get_youth_academy_cap()]) if cur_lvl > 0 else ""
@@ -174,7 +187,7 @@ func _effect_text(key: String, data: Dictionary, cur_lvl: int) -> String:
 			stat_key = "pool_size"
 			label = "Cupo de juveniles"
 	var next : Dictionary = levels[cur_lvl]
-	var upkeep := tr("Sueldo: $%s / fecha") % MoneyFormat.format(next["monthly"])
+	var upkeep := tr("Sueldo: $%s / semana") % MoneyFormat.format(next["weekly"])
 	if stat_key == "":
 		return upkeep
 	var now_value : int = levels[cur_lvl - 1][stat_key] if cur_lvl > 0 else 0
@@ -209,4 +222,45 @@ func _on_buy_pressed(key: String) -> void:
 	elif key == "academy" and was_unhired:
 		await YouthSignupFlow.run_first_signup(club)
 
+	_populate()
+
+
+## Lets a hire go one level, after a confirmation that spells out the
+## severance (StaffData.DISMISS_SEVERANCE_WEEKS of their weekly upkeep) and
+## what the club loses. Nothing of the original hiring price comes back.
+func _on_dismiss_pressed(key: String) -> void:
+	var club := GameState.player_club
+	var cur_lvl : int = club.upgrades.get(key, 0)
+	if cur_lvl <= 0:
+		return
+	var data : Dictionary = StaffData.STAFF[key]
+	var severance : int = data["levels"][cur_lvl - 1]["weekly"] * StaffData.DISMISS_SEVERANCE_WEEKS
+	var saves : int = data["levels"][cur_lvl - 1]["weekly"] - (data["levels"][cur_lvl - 2]["weekly"] if cur_lvl > 1 else 0)
+	var dialog := ConfirmationDialog.new()
+	dialog.title = tr("Despedir personal")
+	dialog.dialog_text = tr("%s baja al nivel %d.\n\nIndemnización: $%s (%d semanas de sueldo).\nAhorro: $%s por semana.\nPara volver a subirlo hay que pagar el precio completo.") % [
+		tr(data["label"]), cur_lvl - 1, MoneyFormat.format(severance), StaffData.DISMISS_SEVERANCE_WEEKS, MoneyFormat.format(saves)]
+	dialog.ok_button_text = tr("Despedir")
+	dialog.cancel_button_text = tr("Cancelar")
+	dialog.confirmed.connect(func():
+		_dismiss(key, severance)
+		dialog.queue_free())
+	dialog.canceled.connect(func(): dialog.queue_free())
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _dismiss(key: String, severance: int) -> void:
+	var club := GameState.player_club
+	var cur_lvl : int = club.upgrades.get(key, 0)
+	if cur_lvl <= 0:
+		return
+	club.budget -= severance
+	club.upgrades[key] = cur_lvl - 1
+	GameState.budget_changed.emit()
+	AudioManager.play_purchase()
+	GameState.post_news("Despido: %s" % tr(StaffData.STAFF[key]["label"]),
+		"Bajó al nivel %d. Pagamos $%s de indemnización." % [cur_lvl - 1, MoneyFormat.format(severance)], "info")
+	GameState.save_upgrades()
+	GameState.save_staff()
 	_populate()

@@ -20,12 +20,14 @@ const DIVISION_QUALITY_ODDS : Dictionary = {
 ## Lowest to highest division.
 const DIVISION_ORDER : Array[String] = ["E", "D", "C", "B", "A"]
 
+## Division E is where every career starts, owing Grandi Tapir ClubDebt.
+## STARTING_DEBT on top — see tools/economy_sim.tscn.
 const STARTING_BUDGET : Dictionary = {
-	"E": 300000,
-	"D": 90000,
-	"C": 150000,
-	"B": 250000,
-	"A": 400000,
+	"E": 150000,
+	"D": 150000,
+	"C": 250000,
+	"B": 400000,
+	"A": 700000,
 }
 
 const NAME_PREFIXES : Array[String] = [

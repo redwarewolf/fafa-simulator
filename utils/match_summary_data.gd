@@ -1,9 +1,9 @@
 class_name MatchSummaryData
 
 ## Builds the Dictionary MatchSummaryPopup.show_result() expects, shared by
-## hub.gd's "Simular" flow and world.gd's played-match GAMEOVER so both pull
-## that date's cost/income breakdown from GameState.last_day_ledger the same
-## way instead of duplicating the lookup.
+## hub.gd's "Simular" flow and world.gd's played-match GAMEOVER. Adds the
+## weekly payday's lines (GameState.last_payday_ledger) only when that payday
+## ran on this match day — otherwise the summary shows just the gate.
 
 static func build(own_name: String, opp_name: String, own_score: int, opp_score: int,
 		scorers: Array, simulated: bool, match_result: Dictionary) -> Dictionary:
@@ -26,8 +26,13 @@ static func build(own_name: String, opp_name: String, own_score: int, opp_score:
 	data["fans_now"] = GameState.player_club.fans if GameState.player_club != null else 0
 	data["ticket_revenue"] = match_result.get("ticket_revenue", 0)
 	data["attendance"] = match_result.get("attendance", 0)
-	data["merch_revenue"] = GameState.last_day_ledger.get("merchandise_revenue", 0)
-	data["food_revenue"] = GameState.last_day_ledger.get("food_revenue", 0)
-	data["wage_cost"] = GameState.last_day_ledger.get("wage_cost", 0)
-	data["staff_cost"] = GameState.last_day_ledger.get("staff_upkeep_cost", 0)
+	if GameState.payday_today:
+		var ledger := GameState.last_payday_ledger
+		data["merch_revenue"] = ledger.get("merchandise_revenue", 0)
+		data["food_revenue"] = ledger.get("food_revenue", 0)
+		data["sponsor_revenue"] = ledger.get("sponsor_revenue", 0)
+		data["tv_revenue"] = ledger.get("tv_revenue", 0)
+		data["wage_cost"] = ledger.get("wage_cost", 0)
+		data["staff_cost"] = ledger.get("staff_upkeep_cost", 0)
+		data["debt_payment"] = ledger.get("debt_payment", 0)
 	return data

@@ -26,20 +26,45 @@ const FAN_LOSS_MIN_DAMPEN := 0.15
 ## Starting fan count for a brand-new career (see team_creation.gd).
 const STARTING_FANS := 100
 
+## Every number below was tuned with tools/economy_sim.tscn, which plays out
+## whole careers of money under these rules — rerun it after changing any.
+## Weekly figures are paid on GameState's payday (every PAY_PERIOD_DAYS).
+
 ## Flat per-ticket price, scaled by the player's own division.
-const TICKET_PRICE_PER_DIVISION := {"E": 30, "D": 50, "C": 70, "B": 100, "A": 150}
+const TICKET_PRICE_PER_DIVISION := {"E": 40, "D": 60, "C": 90, "B": 130, "A": 200}
 const ATTENDANCE_RATE_MIN := 0.50
 const ATTENDANCE_RATE_MAX := 0.75
 
 ## Per-item merch price scales with the "merchandise_sales" upgrade level.
-const MERCH_PRICE_BY_LEVEL := {1: 300, 2: 500, 3: 800}
+## Rolled weekly. Level 1 pays for itself in about a season in Division E;
+## the upper levels only pay off with a higher division's bigger fanbase.
+const MERCH_PRICE_BY_LEVEL := {1: 250, 2: 600, 3: 1200}
 const MERCH_RATE_MIN := 0.02
 const MERCH_RATE_MAX := 0.08
 
 ## Per-item food/drink price scales with the "food_sales" upgrade level.
-const FOOD_PRICE_BY_LEVEL := {1: 60, 2: 100, 3: 140}
+const FOOD_PRICE_BY_LEVEL := {1: 60, 2: 150, 3: 300}
 const FOOD_RATE_MIN := 0.03
 const FOOD_RATE_MAX := 0.10
+
+## Weekly sponsor money: a division base plus a little per fan, so a growing
+## fanbase pays even without stands.
+const SPONSOR_BASE_PER_DIVISION := {"E": 1500, "D": 3500, "C": 8000, "B": 18000, "A": 40000}
+const SPONSOR_PER_FAN := 4.0
+
+## Weekly TV money — the big reason to climb divisions.
+const TV_PER_DIVISION := {"E": 1000, "D": 3000, "C": 8000, "B": 20000, "A": 50000}
+
+## End-of-season prize money by final league position (1st..8th).
+const PRIZE_BY_POSITION := {
+	"E": [60000, 40000, 25000, 15000, 8000, 5000, 3000, 2000],
+	"D": [150000, 100000, 60000, 35000, 20000, 12000, 8000, 5000],
+	"C": [350000, 220000, 140000, 80000, 45000, 25000, 15000, 10000],
+	"B": [800000, 500000, 300000, 180000, 100000, 60000, 40000, 25000],
+	"A": [2000000, 1300000, 800000, 450000, 250000, 150000, 100000, 60000],
+}
+## Bonus for winning promotion OUT of a division.
+const PROMOTION_BONUS := {"E": 50000, "D": 120000, "C": 300000, "B": 700000}
 
 
 ## Random fan swing for one player match. `result` is "win" / "draw" / "loss".
@@ -93,7 +118,7 @@ static func ticket_revenue_for(club: ClubResource, attendance: int) -> int:
 	return attendance * price
 
 
-## Passive merchandise income, rolled once per calendar day-advance.
+## Passive merchandise income, rolled once per payday (weekly).
 ## Returns 0 if the club has no "merchandise_sales" upgrade.
 static func roll_merchandise_revenue(club: ClubResource) -> int:
 	var level : int = club.upgrades.get("merchandise_sales", 0)
@@ -105,7 +130,7 @@ static func roll_merchandise_revenue(club: ClubResource) -> int:
 	return buyers * price
 
 
-## Passive food/drink income, rolled once per calendar day-advance.
+## Passive food/drink income, rolled once per payday (weekly).
 ## Returns 0 if the club has no "food_sales" upgrade.
 static func roll_food_revenue(club: ClubResource) -> int:
 	var level : int = club.upgrades.get("food_sales", 0)
@@ -115,3 +140,20 @@ static func roll_food_revenue(club: ClubResource) -> int:
 	var buyers := int(round(club.fans * rate))
 	var price : int = FOOD_PRICE_BY_LEVEL.get(level, FOOD_PRICE_BY_LEVEL[1])
 	return buyers * price
+
+
+## This week's sponsor payment.
+static func sponsor_revenue(club: ClubResource) -> int:
+	var base : int = SPONSOR_BASE_PER_DIVISION.get(club.division, SPONSOR_BASE_PER_DIVISION["E"])
+	return base + roundi(SPONSOR_PER_FAN * club.fans)
+
+
+## This week's TV money.
+static func tv_revenue(club: ClubResource) -> int:
+	return TV_PER_DIVISION.get(club.division, TV_PER_DIVISION["E"])
+
+
+## Season-end prize for finishing [param position] (1-based) in [param division].
+static func prize_for(division: String, position: int) -> int:
+	var table : Array = PRIZE_BY_POSITION.get(division, PRIZE_BY_POSITION["E"])
+	return table[clampi(position - 1, 0, table.size() - 1)]

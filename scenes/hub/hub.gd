@@ -134,6 +134,8 @@ func _run_intro_sequence() -> void:
 		await dialogue_box.finished
 		GameState.mark_tutorial_seen("intro")
 	await _maybe_play_tab_tutorial("squad")
+	# Back from a played match whose day was also a payday.
+	await play_tapir_lines()
 
 func _play_intro_dialogue() -> void:
 	dialogue_box.say([
@@ -171,6 +173,25 @@ func _on_season_ended(promoted: bool, new_division: String, position: int) -> vo
 	])
 	_update_header()
 
+## Grandi Tapir's payday lines — a missed instalment, a seizure, the debt
+## paid off — queued in GameState.tapir_lines by ClubDebt. Also called (via
+## the "hub" group) by the Finances screen's pay-off button.
+func play_tapir_lines() -> void:
+	if GameState.tapir_lines.is_empty():
+		return
+	while dialogue_box.visible:
+		await dialogue_box.finished
+	var lines : Array[DialogueLine] = []
+	for text in GameState.tapir_lines:
+		lines.append(DialogueLine.new("Grandi Tapir", LANDLORD_TOP, LANDLORD_BOTTOM, text))
+	GameState.tapir_lines.clear()
+	dialogue_box.say(lines)
+	await dialogue_box.finished
+	_update_header()
+	_update_nav_badges()
+	if _active_section != "" and _section_instances[_active_section].has_method("refresh"):
+		_section_instances[_active_section].refresh()
+
 func _start_music() -> void:
 	AudioManager.play_music(AudioManager.HUB_MUSIC)
 
@@ -190,7 +211,7 @@ func _preload_sections() -> void:
 func _update_header() -> void:
 	club_name_label.text = GameState.player_club.display_name
 	division_label.text = tr("División %s") % GameState.player_club.division
-	budget_label.text = "$%s" % MoneyFormat.format(GameState.player_club.budget)
+	budget_label.text = MoneyFormat.dollars(GameState.player_club.budget)
 	fans_label.text = tr("%s hinchas") % MoneyFormat.format(GameState.player_club.fans)
 	capacity_label.text = tr("Capacidad: %s") % MoneyFormat.format(GameState.player_club.get_stadium_capacity())
 	date_label.text = SeasonManager.current_phase_date_string()
@@ -327,6 +348,7 @@ func _advance_day() -> void:
 	# ClubTrainer dialogue box, and a second say()/say_with_choice() call
 	# while one is already showing would stomp it. _maybe_narrate_hub_event()
 	# awaits its own line to completion before this moves on.
+	await play_tapir_lines()
 	await _maybe_narrate_hub_event()
 	await YouthSignupFlow.run_daily_signup(GameState.player_club)
 	_update_header()
@@ -379,6 +401,7 @@ func _on_match_preview_simulate() -> void:
 ## _maybe_narrate_hub_event()/YouthSignupFlow — match days already skip those
 ## for a played match too (see the early-return branches above).
 func _after_match_day() -> void:
+	play_tapir_lines()
 	_update_header()
 	_update_nav_badges()
 	if _active_section != "" and _section_instances[_active_section].has_method("refresh"):

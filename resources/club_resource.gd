@@ -94,20 +94,17 @@ func get_squad_overall() -> int:
 		total += p.overall()
 	return total / players.size()
 
-## Total upkeep from hired staff, deducted automatically on every date advance
-## ("Next Date" press). StaffData's tiers are still labeled/tuned as monthly
-## figures — charged in full each date for now, pending a rebalance pass.
+## Weekly upkeep from hired staff, deducted on every payday (see GameState.
+## _run_payday()).
 func get_staff_upkeep_cost() -> int:
 	var total := 0
 	for key in ["trainer", "scout", "academy", "butcher"]:
 		var lvl : int = upgrades.get(key, 0)
 		if lvl > 0:
-			total += StaffData.STAFF[key]["levels"][lvl - 1]["monthly"]
+			total += StaffData.STAFF[key]["levels"][lvl - 1]["weekly"]
 	return total
 
-## Total wages owed to the squad, deducted automatically on every date advance
-## ("Next Date" press). PlayerWage's formula is still tuned as a monthly
-## figure — charged in full each date for now, pending a rebalance pass.
+## Weekly wages owed to the squad, deducted on every payday.
 func get_wage_cost() -> int:
 	var total := 0
 	for p in players:

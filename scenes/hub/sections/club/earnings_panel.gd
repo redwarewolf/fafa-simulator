@@ -1,10 +1,10 @@
 extends Control
 
-## Read-only breakdown of everything that can add to the budget — passive
-## upgrade income (merchandise/food, rolled every "Next Date") and matchday
+## Read-only breakdown of everything that can add to the budget — weekly
+## stand income (merchandise/food), sponsor and TV money, season prizes, and matchday
 ## gate revenue (rolled only on home fixtures — see SeasonManager.
 ## report_player_match_result()). Mirrors the actual rolls in
-## GameState._tick_passive_income() / FanEconomy.
+## GameState._run_payday() / FanEconomy.
 
 const CARD_BG     := Color(0.05, 0.13, 0.17, 1.0)
 const CARD_BORDER := Color(0.0, 0.0, 0.0, 0.45)
@@ -26,6 +26,7 @@ func refresh() -> void:
 	fans_label.text = tr("%s hinchas  ·  Capacidad del estadio %d") % [MoneyFormat.format(club.fans), club.get_stadium_capacity()]
 
 	_ticket_card(club)
+	_sponsor_card(club)
 	_upgrade_income_card(club, "merchandise_sales", "Venta de Merchandising",
 		FanEconomy.MERCH_RATE_MIN, FanEconomy.MERCH_RATE_MAX, FanEconomy.MERCH_PRICE_BY_LEVEL)
 	_upgrade_income_card(club, "food_sales", "Venta de Comida",
@@ -95,4 +96,17 @@ func _upgrade_income_card(club: ClubResource, key: String, label: String,
 	var lo := int(round(club.fans * rate_min))
 	var hi := int(round(club.fans * rate_max))
 	_add_row(body, tr("Compradores esperados: %d – %d") % [lo, hi])
-	_add_row(body, tr("Ingreso estimado por fecha: $%s – $%s") % [MoneyFormat.format(lo * price), MoneyFormat.format(hi * price)])
+	_add_row(body, tr("Ingreso estimado por semana: $%s – $%s") % [MoneyFormat.format(lo * price), MoneyFormat.format(hi * price)])
+
+
+func _sponsor_card(club: ClubResource) -> void:
+	var body := _new_card("Sponsor y TV")
+	var base : int = FanEconomy.SPONSOR_BASE_PER_DIVISION.get(club.division, 0)
+	_add_row(body, tr("Sponsor: $%s por semana") % MoneyFormat.format(FanEconomy.sponsor_revenue(club)))
+	_add_row(body, tr("($%s fijos + $%d por hincha)") % [MoneyFormat.format(base), roundi(FanEconomy.SPONSOR_PER_FAN)], true)
+	_add_row(body, tr("TV: $%s por semana (División %s)") % [MoneyFormat.format(FanEconomy.tv_revenue(club)), club.division])
+	_add_row(body, tr("Premio de liga: $%s al 1° … $%s al 8°") % [
+		MoneyFormat.format(FanEconomy.prize_for(club.division, 1)), MoneyFormat.format(FanEconomy.prize_for(club.division, 8))])
+	var bonus : int = FanEconomy.PROMOTION_BONUS.get(club.division, 0)
+	if bonus > 0:
+		_add_row(body, tr("Bono de ascenso: $%s") % MoneyFormat.format(bonus))

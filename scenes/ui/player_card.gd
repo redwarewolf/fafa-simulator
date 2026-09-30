@@ -67,7 +67,7 @@ func setup(p: PlayerResource, team_key: String = "") -> void:
 
 	overall_label.text = "OVR  %d" % p.overall()
 
-	value_wage_label.text = tr("Valor $%s  ·  Sueldo $%s") % [
+	value_wage_label.text = tr("Valor $%s  ·  Sueldo $%s/sem") % [
 		MoneyFormat.format(PlayerValue.estimate(p)), MoneyFormat.format(PlayerWage.estimate(p))]
 	value_wage_label.add_theme_color_override("font_color", HubPalette.MUTED)
 

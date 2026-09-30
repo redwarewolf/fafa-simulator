@@ -33,6 +33,7 @@ const KIND_TAGS := {
 	"youth":  ["JUVENIL", Color(0.4, 0.9, 0.4)],
 	"season": ["TORNEO",  Color(0.45, 0.75, 1.0)],
 	"info":   ["CLUB",    Color(0.62, 0.72, 0.78)],
+	"debt":   ["DEUDA",   Color(0.9, 0.4, 0.4)],
 }
 
 @onready var unread_label : Label       = $HBox/InboxPanel/VBox/TitleRow/UnreadLabel
@@ -235,7 +236,7 @@ func _form_chip(text: String, color: Color, tooltip: String) -> Control:
 
 func _populate_finances() -> void:
 	var budget := GameState.player_club.budget
-	budget_label.text = "$%s" % MoneyFormat.format(budget)
+	budget_label.text = MoneyFormat.dollars(budget)
 	budget_label.add_theme_color_override("font_color", HubPalette.LOSS if budget < 0 else Color.WHITE)
 	var values : Array = GameState.budget_history.duplicate()
 	values.append(budget)
@@ -286,6 +287,8 @@ func _populate_todo() -> void:
 		_add_todo(tr("%d juveniles nuevos en la Academia") % club.youth_unseen, "youth")
 	if club.budget < 0:
 		_add_todo(tr("Presupuesto en rojo — revisá los gastos"), "club")
+	if GameState.debt_arrears > 0:
+		_add_todo(tr("Cuota atrasada con Tapir: $%s — juntá la plata antes del próximo pago") % MoneyFormat.format(GameState.debt_arrears), "club")
 
 	if todo_list.get_child_count() == 0:
 		var done := Label.new()

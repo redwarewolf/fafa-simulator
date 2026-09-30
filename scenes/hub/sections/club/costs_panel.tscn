@@ -95,10 +95,10 @@ layout_mode = 2
 [node name="TotalLabel" type="Label" parent="HBox/SummaryPanel/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
-text = "TOTAL POR FECHA: $0"
+text = "TOTAL POR SEMANA: $0"
 
 [node name="Note" type="Label" parent="HBox/SummaryPanel/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 autowrap_mode = 2
-text = "Se descuenta automáticamente cada vez que avanzás la fecha."
+text = "Se descuenta automáticamente cada semana, el día de pago."

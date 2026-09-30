@@ -58,7 +58,13 @@ theme_override_font_sizes/font_size = 24
 [node name="Delta" type="Label" parent="VBox/OverviewPanel/HBox/Summary"]
 layout_mode = 2
 
-[node name="Ledger" type="VBoxContainer" parent="VBox/OverviewPanel/HBox/Summary"]
+[node name="Ledger" type="VBoxContainer" parent="VBox/OverviewPanel/HBox"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Debt" type="VBoxContainer" parent="VBox/OverviewPanel/HBox"]
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 theme_override_constants/separation = 2
 

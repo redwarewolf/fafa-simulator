@@ -1,8 +1,8 @@
 extends Control
 
-## Read-only breakdown of everything deducted from the budget on every "Next
-## Date" press — squad wages (PlayerWage, per player) plus hired-staff upkeep
-## (StaffData). Mirrors the actual deduction in GameState._tick_costs().
+## Read-only breakdown of everything deducted from the budget on every weekly
+## payday — squad wages (PlayerWage, per player) plus hired-staff upkeep
+## (StaffData). Mirrors the actual deduction in GameState._run_payday().
 
 const COL_NAME := 0
 const COL_ROLE := 1
@@ -35,7 +35,7 @@ func refresh() -> void:
 	var wage_total : int = club.get_wage_cost()
 	var staff_total : int = club.get_staff_upkeep_cost()
 	wage_total_label.text = tr("Sueldos del plantel: $%s") % MoneyFormat.format(wage_total)
-	total_label.text = tr("TOTAL POR FECHA: $%s") % MoneyFormat.format(wage_total + staff_total)
+	total_label.text = tr("TOTAL POR SEMANA: $%s") % MoneyFormat.format(wage_total + staff_total)
 
 
 func _populate_wages_tree(club: ClubResource) -> void:
@@ -69,7 +69,7 @@ func _populate_staff_list(club: ClubResource) -> void:
 			continue
 		any_hired = true
 		var data : Dictionary = StaffData.STAFF[key]
-		var cost : int = data["levels"][lvl - 1]["monthly"]
+		var cost : int = data["levels"][lvl - 1]["weekly"]
 
 		var row := HBoxContainer.new()
 		var name_label := Label.new()

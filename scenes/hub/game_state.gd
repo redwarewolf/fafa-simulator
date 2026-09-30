@@ -243,8 +243,10 @@ func advance_day() -> void:
 			month = 1
 			year += 1
 		_on_month_start()
-	_tick_costs()
-	_tick_passive_income()
+	career_day += 1
+	payday_today = career_day % PAY_PERIOD_DAYS == 0
+	if payday_today:
+		_run_payday()
 
 ## Returns [day, month, year] resulting from adding `days` days to the given date.
 func advance_date(d: int, m: int, y: int, days: int) -> Array:
@@ -298,10 +300,17 @@ func start_new_career(club: ClubResource, ai_clubs: Array[ClubResource]) -> void
 	tutorials_seen.clear()
 	inbox.clear()
 	budget_history.clear()
+	career_day = 0
+	payday_today = false
+	last_payday_ledger = _empty_ledger()
+	debt = ClubDebt.STARTING_DEBT
+	debt_arrears = 0
+	debt_strikes = 0
+	tapir_lines.clear()
 	_init_default_tactics()
 	SeasonManager.start_pre_season()
 	post_news("Bienvenido a %s" % club.display_name,
-		"La comisión directiva te dio las llaves del club. Arrancamos en la División %s con una deuda con Grandi Tapir y un plantel que hay que poner a punto.\n\nAcá en el Buzón te van a llegar los resultados, las novedades del plantel y los avisos del torneo." % club.division,
+		"La comisión directiva te dio las llaves del club. Arrancamos en la División %s debiéndole $%s a Grandi Tapir, que se cobra $%s por semana, y con un plantel que hay que poner a punto.\n\nAcá en el Buzón te van a llegar los resultados, las novedades del plantel y los avisos del torneo." % [club.division, MoneyFormat.format(ClubDebt.STARTING_DEBT), MoneyFormat.format(ClubDebt.WEEKLY_PAYMENT)],
 		"info")
 
 	if not DEBUG_DISABLE_PERSISTENCE:
@@ -370,9 +379,18 @@ func load_career() -> bool:
 	inbox = data.get("inbox", [])
 	budget_history = data.get("budget_history", [])
 	# JSON hands numbers back as floats; the ledger's readers expect ints.
-	var saved_ledger : Dictionary = data.get("last_day_ledger", {})
-	for k in last_day_ledger:
-		last_day_ledger[k] = int(saved_ledger.get(k, 0))
+	var saved_ledger : Dictionary = data.get("last_payday_ledger", {})
+	last_payday_ledger = _empty_ledger()
+	for k in last_payday_ledger:
+		last_payday_ledger[k] = int(saved_ledger.get(k, 0))
+	career_day = int(data.get("career_day", 0))
+	payday_today = false
+	# Saves from before the weekly economy still owe Tapir the full loan —
+	# the intro always said so; now it's real.
+	debt = int(data.get("debt", ClubDebt.STARTING_DEBT))
+	debt_arrears = int(data.get("debt_arrears", 0))
+	debt_strikes = int(data.get("debt_strikes", 0))
+	tapir_lines.clear()
 
 	var fixtures_data : Array[Dictionary] = []
 	for f : Dictionary in data.get("fixtures", []):
@@ -411,7 +429,11 @@ func save_career() -> void:
 		"tutorials_seen": tutorials_seen,
 		"inbox": inbox,
 		"budget_history": budget_history,
-		"last_day_ledger": last_day_ledger,
+		"last_payday_ledger": last_payday_ledger,
+		"career_day": career_day,
+		"debt": debt,
+		"debt_arrears": debt_arrears,
+		"debt_strikes": debt_strikes,
 	}
 	var file := FileAccess.open(CAREER_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -419,6 +441,9 @@ func save_career() -> void:
 		return
 	file.store_string(JSON.stringify(payload, "\t"))
 	file.close()
+	# load_career() takes the budget from upgrades.json (_load_upgrades), so
+	# keep it in step — gate money, prizes and events don't save it themselves.
+	save_upgrades()
 
 ## Replaces whatever's currently registered under `division` in
 ## DataLoader.clubs with exactly the given set — required because
@@ -611,7 +636,7 @@ func _load_upgrades() -> void:
 ## one is hired. Called on every calendar month rollover, and once
 ## immediately after a first-time scout hire so the player doesn't have to
 ## wait until next month to see any candidates. Wages/staff upkeep used to be
-## deducted here too — that now happens every date advance, see _tick_costs().
+## deducted here once — that now happens every payday, see _run_payday().
 func _on_month_start() -> void:
 	refresh_scout_pool()
 	save_staff()
@@ -677,45 +702,78 @@ func clear_player_from_tactics(p: PlayerResource) -> void:
 				slot.clear()
 	save_tactics()
 
-## This date's cost/income breakdown, refreshed by every advance_day() call
-## (_tick_costs()/_tick_passive_income() below) — read by the match preview/
-## summary popups (hub.gd, world.gd) to show wages/staff/merch/food alongside
-## that day's match revenue, since all of it already landed on the budget
-## before a match-day popup ever shows (advance_day() runs before
-## SeasonManager.resolve_day() sets pending_player_fixture — see hub.gd).
-## Keys: wage_cost, staff_upkeep_cost, merchandise_revenue, food_revenue.
-var last_day_ledger : Dictionary = {
-	"wage_cost": 0, "staff_upkeep_cost": 0, "merchandise_revenue": 0, "food_revenue": 0,
-}
+# ── Weekly payday ─────────────────────────────────────────────────────────────
 
-## Wages + hired-staff upkeep, deducted on every calendar day-advance ("Next
-## Date" press) — see ClubResource.get_wage_cost()/get_staff_upkeep_cost().
-func _tick_costs() -> void:
+## Wages, staff upkeep, stand income, sponsor and TV money, and Tapir's debt
+## instalment all settle together every PAY_PERIOD_DAYS "Next Date" presses.
+const PAY_PERIOD_DAYS := 7
+
+## Days advanced since the career began — drives the payday cycle.
+var career_day : int = 0
+## True for the day advance that just ran a payday — the match summary only
+## shows the weekly ledger when that payday landed on the match day.
+var payday_today : bool = false
+
+## Grandi Tapir's loan (see ClubDebt): principal still to repay, overdue
+## instalments (incl. late fees), and consecutive missed paydays.
+var debt : int = 0
+var debt_arrears : int = 0
+var debt_strikes : int = 0
+
+## Tapir's lines from the latest payday, waiting for the Hub to narrate them
+## (transient — every one is also posted to the Inbox).
+var tapir_lines : Array[String] = []
+
+## The latest payday's breakdown — read by the Finances screen and, on a
+## payday match day, the match summary. Keys: wage_cost, staff_upkeep_cost,
+## merchandise_revenue, food_revenue, sponsor_revenue, tv_revenue,
+## debt_payment.
+var last_payday_ledger : Dictionary = _empty_ledger()
+
+static func _empty_ledger() -> Dictionary:
+	return {"wage_cost": 0, "staff_upkeep_cost": 0, "merchandise_revenue": 0, "food_revenue": 0,
+		"sponsor_revenue": 0, "tv_revenue": 0, "debt_payment": 0}
+
+## "Next Date" presses until the next payday (1-7).
+func days_until_payday() -> int:
+	return PAY_PERIOD_DAYS - career_day % PAY_PERIOD_DAYS
+
+func _run_payday() -> void:
 	if player_club == null:
 		return
-	var wage_cost := player_club.get_wage_cost()
-	var staff_cost := player_club.get_staff_upkeep_cost()
-	last_day_ledger["wage_cost"] = wage_cost
-	last_day_ledger["staff_upkeep_cost"] = staff_cost
-	var cost := wage_cost + staff_cost
-	if cost > 0:
-		player_club.budget -= cost
-		budget_changed.emit()
-		save_upgrades()
+	var ledger := _empty_ledger()
+	ledger["merchandise_revenue"] = FanEconomy.roll_merchandise_revenue(player_club)
+	ledger["food_revenue"] = FanEconomy.roll_food_revenue(player_club)
+	ledger["sponsor_revenue"] = FanEconomy.sponsor_revenue(player_club)
+	ledger["tv_revenue"] = FanEconomy.tv_revenue(player_club)
+	ledger["wage_cost"] = player_club.get_wage_cost()
+	ledger["staff_upkeep_cost"] = player_club.get_staff_upkeep_cost()
+	player_club.budget += ledger["merchandise_revenue"] + ledger["food_revenue"] \
+		+ ledger["sponsor_revenue"] + ledger["tv_revenue"] \
+		- ledger["wage_cost"] - ledger["staff_upkeep_cost"]
+	# Income lands first, so the week's earnings can cover Tapir's instalment.
+	ledger["debt_payment"] = ClubDebt.collect(player_club, tapir_lines)
+	last_payday_ledger = ledger
+	budget_changed.emit()
+	save_upgrades()
+	save_staff()
 
-## Passive income from the "merchandise_sales"/"food_sales" upgrades, rolled
-## on every calendar day-advance regardless of whether a match was played.
-func _tick_passive_income() -> void:
-	if player_club == null:
-		return
-	var merch_revenue := FanEconomy.roll_merchandise_revenue(player_club)
-	var food_revenue := FanEconomy.roll_food_revenue(player_club)
-	last_day_ledger["merchandise_revenue"] = merch_revenue
-	last_day_ledger["food_revenue"] = food_revenue
-	var income := merch_revenue + food_revenue
-	if income > 0:
-		player_club.budget += income
-		budget_changed.emit()
+## Pays off everything still owed to Tapir in one go. False if the budget
+## can't cover it.
+func pay_off_debt() -> bool:
+	var total := debt + debt_arrears
+	if total <= 0 or player_club == null or player_club.budget < total:
+		return false
+	player_club.budget -= total
+	debt = 0
+	debt_arrears = 0
+	debt_strikes = 0
+	post_news("Deuda saldada", "Le pagaste a Grandi Tapir los $%s que quedaban. El club ya no le debe nada." % MoneyFormat.format(total), "debt")
+	tapir_lines.append("¿Todo junto? Mirá vos... Se terminó la deuda. Un placer hacer negocios con vos.")
+	budget_changed.emit()
+	save_upgrades()
+	save_career()
+	return true
 
 func save_staff() -> void:
 	if DEBUG_DISABLE_PERSISTENCE:

@@ -247,7 +247,7 @@ func _effect_text(key: String, cur_lvl: int, max_lvl: int) -> String:
 			if maxed:
 				return tr("Precio por unidad: $%d (máximo)") % prices[cur_lvl]
 			if cur_lvl == 0:
-				return tr("Abre el puesto: $%d por unidad vendida, todos los días") % prices[1]
+				return tr("Abre el puesto: $%d por unidad vendida, todas las semanas") % prices[1]
 			return tr("Precio por unidad: $%d → $%d") % [prices[cur_lvl], prices[cur_lvl + 1]]
 		"building":
 			if cur_lvl == 0:
@@ -336,7 +336,7 @@ func _tooltip_text_for(key: String) -> String:
 			return ""
 
 	var lines : Array[String] = [title]
-	lines.append(tr("Cada día que pasa, entre un %d%% y un %d%% de tus hinchas %s.") %
+	lines.append(tr("Cada semana, entre un %d%% y un %d%% de tus hinchas %s.") %
 		[roundi(rate_min * 100.0), roundi(rate_max * 100.0), verb])
 
 	if cur_lvl > 0:

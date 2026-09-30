@@ -7,7 +7,9 @@ class_name RandomEvents
 ## utility, same calling convention as MoneyFormat/StaffData — no autoload
 ## needed.
 
-const HUB_TRIGGER_CHANCE := 0.60
+## Lowered from 0.60: at that rate the (then lopsided) money events added more
+## per season than the squad cost in wages. See tools/economy_sim.tscn.
+const HUB_TRIGGER_CHANCE := 0.20
 const MATCH_TRIGGER_CHANCE := 0.10
 
 static func maybe_trigger_hub_event(club: ClubResource) -> String:

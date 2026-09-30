@@ -370,7 +370,8 @@ func _start_second_half() -> void:
 		"season")
 
 
-## Checks the player's final standing, promotes their club a division if they
+## Checks the player's final standing, pays the league's prize money (plus a
+## promotion bonus — FanEconomy), promotes their club a division if they
 ## finished first, resets every club's season stats, and starts the next
 ## pre-season. Only the player's own club can be promoted — since just one
 ## division is populated at runtime, moving up spins a fresh set of AI
@@ -387,6 +388,13 @@ func _end_season() -> void:
 		if idx >= 0 and idx < ClubFactory.DIVISION_ORDER.size() - 1:
 			new_division = ClubFactory.DIVISION_ORDER[idx + 1]
 			promoted = true
+
+	# Prize money for the final position, plus a bonus for going up.
+	var prize := FanEconomy.prize_for(old_division, position)
+	if promoted:
+		prize += FanEconomy.PROMOTION_BONUS.get(old_division, 0)
+	player_club.budget += prize
+	GameState.budget_changed.emit()
 
 	if promoted:
 		var taken_ids : Array = []
@@ -416,6 +424,7 @@ func _end_season() -> void:
 	var summary := "Terminaste #%d en la División %s." % [position, old_division]
 	if promoted:
 		summary += " ¡Ascenso a la División %s!" % new_division
+	summary += " Premio de la liga%s: $%s." % [" (con bono de ascenso)" if promoted else "", MoneyFormat.format(prize)]
 	summary += "\n\nArranca la pretemporada: el mercado de pases está abierto y hay amistosos para probar el equipo."
 	GameState.post_news("Fin de temporada", summary, "season")
 

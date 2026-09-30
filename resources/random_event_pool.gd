@@ -41,7 +41,7 @@ const HUB_EVENTS := [
 		"weight": 1.0,
 		"line_template": "Un benefactor misterioso nos giró ${amount}, sin hacer preguntas. Seguro que no hay nada raro ahí.",
 		"effect_id": "budget_delta",
-		"effect_params": {"min": 6000, "max": 18000},
+		"effect_params": {"min": 4000, "max": 12000},
 	},
 ]
 
