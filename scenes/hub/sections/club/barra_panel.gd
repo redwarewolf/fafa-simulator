@@ -12,6 +12,10 @@ extends Control
 
 const TABS := ["aportes", "negocios", "aprietes", "beneficios"]
 const TAB_LABELS := ["APORTES", "NEGOCIOS", "APRIETES", "BENEFICIOS"]
+## Tab strip colours: the sheet behind the open tab, and the closed tabs.
+const SHEET_BG  := Color(0.04, 0.11, 0.14, 0.8)
+const TAB_IDLE  := Color(0.06, 0.16, 0.2, 0.4)
+const TAB_HOVER := Color(0.15, 0.33, 0.4, 0.7)
 
 var _relacion_bar : ProgressBar = null
 var _relacion_label : Label = null
@@ -58,9 +62,20 @@ func _build() -> void:
 	_poder_bar = pod[0]
 	_poder_label = pod[1]
 
+	# Folder-style tabs sitting on a dark sheet: the pressed tab shares the
+	# sheet's colour so it reads as attached to its content, unlike the
+	# choice-row toggles inside each tab.
+	var tabs := VBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 0)
+	vbox.add_child(tabs)
 	var tab_row := HBoxContainer.new()
-	tab_row.add_theme_constant_override("separation", 4)
-	vbox.add_child(tab_row)
+	tab_row.add_theme_constant_override("separation", 3)
+	tabs.add_child(tab_row)
+	var sheet := PanelContainer.new()
+	sheet.add_theme_stylebox_override("panel", _sheet_style())
+	tabs.add_child(sheet)
+	var sheet_box := VBoxContainer.new()
+	sheet.add_child(sheet_box)
 	var group := ButtonGroup.new()
 	for i in TABS.size():
 		var btn := Button.new()
@@ -69,12 +84,19 @@ func _build() -> void:
 		btn.button_group = group
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.add_theme_font_size_override("font_size", 14)
+		btn.add_theme_color_override("font_color", HubPalette.MUTED)
+		btn.add_theme_color_override("font_hover_color", Color.WHITE)
+		btn.add_theme_stylebox_override("normal", _tab_style(TAB_IDLE, false))
+		btn.add_theme_stylebox_override("hover", _tab_style(TAB_HOVER, false))
+		btn.add_theme_stylebox_override("pressed", _tab_style(SHEET_BG, true))
+		btn.add_theme_stylebox_override("hover_pressed", _tab_style(SHEET_BG, true))
 		btn.pressed.connect(_show_tab.bind(TABS[i]))
 		tab_row.add_child(btn)
 		_tab_buttons[TABS[i]] = btn
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 8)
-		vbox.add_child(box)
+		sheet_box.add_child(box)
 		_tab_boxes[TABS[i]] = box
 
 	_build_aportes(_tab_boxes["aportes"])
@@ -302,6 +324,33 @@ func _refresh_beneficios() -> void:
 		row["name"].add_theme_color_override("font_color", Color.WHITE if on else HubPalette.MUTED)
 
 # ── Shared ────────────────────────────────────────────────────────────────────
+
+## A folder tab: rounded on top, flush at the bottom. The open one gets a gold
+## top edge and the sheet's colour so it runs straight into its content.
+func _tab_style(bg: Color, open: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 10
+	sb.content_margin_bottom = 10
+	if open:
+		sb.border_width_top = 3
+		sb.border_color = HubPalette.HIGHLIGHT
+	return sb
+
+func _sheet_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = SHEET_BG
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.content_margin_left = 16
+	sb.content_margin_right = 16
+	sb.content_margin_top = 14
+	sb.content_margin_bottom = 16
+	return sb
 
 ## A labelled 0-100 bar with an explanation underneath. Returns [bar, value label].
 func _meter(parent: Control, heading: String, blurb: String) -> Array:

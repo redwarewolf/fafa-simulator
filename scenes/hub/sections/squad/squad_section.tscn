@@ -38,7 +38,7 @@ grow_vertical = 2
 theme_override_constants/separation = 0
 
 [node name="LeftColumn" type="VBoxContainer" parent="HBox"]
-custom_minimum_size = Vector2(280, 0)
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3
@@ -131,7 +131,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="TacticsPanel" parent="HBox" instance=ExtResource("2")]
-custom_minimum_size = Vector2(300, 0)
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3
