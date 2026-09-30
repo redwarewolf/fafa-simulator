@@ -449,4 +449,18 @@ const MESSAGES := {
 	"Normal": "Okay",
 	"Contento": "Happy",
 	"Enchufado": "Buzzing",
+	# In-match substitutions (MatchHUD, MatchStats)
+	"CAMBIOS %d/%d": "SUBS %d/%d",
+	"Atajo: C": "Shortcut: C",
+	"CAMBIOS  —  quedan %d": "SUBSTITUTIONS  —  %d left",
+	"Elegí quién sale y después quién entra. El cambio se hace en la próxima pelota parada.": "Pick who comes off, then who comes on. The change is made at the next stoppage.",
+	"EN CANCHA": "ON THE PITCH",
+	"SUPLENTES": "BENCH",
+	"No hay suplentes": "No substitutes",
+	"Ya tiene un cambio pedido": "Already being substituted",
+	"Pedido: entra %s por %s": "Queued: %s on for %s",
+	"Anular": "Cancel",
+	"LISTO": "DONE",
+	"Cambio en %s: entra %s, sale %s": "%s substitution: %s on, %s off",
+	"Cambio: entra %s, sale %s": "Sub: %s on, %s off",
 }

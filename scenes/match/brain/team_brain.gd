@@ -80,6 +80,24 @@ func _init(p_team_left: bool, team: Array[Player], p_ctx: MatchContext) -> void:
 	shape = TeamShape.new(team_left, players)
 	preset = TacticPreset.from_roster(team)
 
+## A substitution (ActorsContainer.substitute()): [param incoming] takes
+## [param outgoing]'s place and slot. The preset stays — the slot's role, and
+## so the roster's shape, doesn't change.
+func replace_player(outgoing: Player, incoming: Player) -> void:
+	var i := players.find(outgoing)
+	jobs.erase(outgoing)
+	var drives_incoming := incoming.role != Positions.Role.GK and SpecialPlayerTypes.movable(incoming.special_type)
+	if i >= 0 and drives_incoming:
+		players[i] = incoming
+		shape.replace(outgoing, incoming)
+		return
+	# Rarer: a cone coming on or going off changes who the brain drives.
+	if i >= 0:
+		players.remove_at(i)
+	if drives_incoming:
+		players.append(incoming)
+	shape = TeamShape.new(team_left, players)
+
 ## Called every frame by ActorsContainer; thinks at TICK_S.
 func maybe_update(manual_mode: int, score_diff: int, time_fraction_remaining: float) -> void:
 	var now := MatchClock.now()

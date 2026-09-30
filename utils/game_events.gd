@@ -30,6 +30,10 @@ signal kickoff_started
 ## Emitted when match time expires.
 signal game_over
 
+## A substitution was made (see Substitutions): [param off_name] left the
+## pitch for [param on_name], on [param team]'s side.
+signal substitution_made(team: String, off_name: String, on_name: String)
+
 ## Emitted when a successful tackle is ruled a foul (see Player.on_tackle_player).
 ## [param fouled_player] will take the free kick; [param incident_position] is
 ## where the foul happened, for the referee to run to.

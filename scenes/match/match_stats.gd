@@ -48,6 +48,7 @@ func setup(world: Node, left: String, right: String) -> void:
 	GameEvents.score_changed.connect(_on_score_changed)
 	GameEvents.restart_awarded.connect(_on_restart)
 	GameEvents.half_time.connect(_on_half_time)
+	GameEvents.substitution_made.connect(_on_substitution)
 
 func other(team: String) -> String:
 	return team_right if team == team_left else team_left
@@ -127,3 +128,6 @@ func _on_restart(kind: int, team: String, _spot: Vector2) -> void:
 
 func _on_half_time() -> void:
 	_log("half", tr("Entretiempo"), "")
+
+func _on_substitution(team: String, off_name: String, on_name: String) -> void:
+	_log("sub", tr("Cambio: entra %s, sale %s") % [on_name, off_name], team)

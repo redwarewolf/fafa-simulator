@@ -213,6 +213,44 @@ func _process(_delta: float) -> void:
 	team_brain_left.maybe_update(left_mode, score_left - score_right, time_fraction_remaining)
 	team_brain_right.maybe_update(right_mode, score_right - score_left, time_fraction_remaining)
 
+## Puts [param incoming] on in [param outgoing]'s place — same slot role,
+## anchor and kickoff spot, starting where [param outgoing] stood — and
+## patches the side's roster array (in place: every player's teammates/
+## opponents IS that array) and TeamBrain. [param outgoing] isn't freed —
+## brains, the ball and the stats may still hold a reference for a moment —
+## just frozen, hidden and parked off the pitch; its stamina is written back
+## now. Only call at a stoppage (see Substitutions). Returns the new Player,
+## or null if [param outgoing] isn't on the pitch.
+func substitute(outgoing: Player, incoming: PlayerResource) -> Player:
+	var side := left_team if outgoing.is_left_team else right_team
+	var i := side.find(outgoing)
+	if i < 0:
+		return null
+	var p := spawn_player(outgoing.position, outgoing.own_goal, outgoing.target_goal, incoming, outgoing.team, outgoing.role)
+	p.anchor_position = outgoing.anchor_position
+	add_child(p)
+	p.spawn_position = outgoing.spawn_position  # _ready() set it to where he came on
+	p.teammates = side
+	p.opponents = right_team if outgoing.is_left_team else left_team
+	side[i] = p
+
+	if outgoing.player_data != null:
+		outgoing.player_data.stamina = outgoing.stamina
+	outgoing.process_mode = Node.PROCESS_MODE_DISABLED
+	outgoing.visible = false
+	outgoing.position = Vector2(-10000, -10000)
+
+	var tb := team_brain_left if outgoing.is_left_team else team_brain_right
+	if SpecialPlayerTypes.movable(p.special_type):
+		p.apply_realistic_movement()
+	tb.replace_player(outgoing, p)
+	if SpecialPlayerTypes.movable(p.special_type):
+		if p.role == Positions.Role.GK:
+			p.keeper_brain = GoalkeeperBrain.new(p, tb, match_context, p.opponent_detection_area)
+		else:
+			p.brain = PlayerBrain.new(p, tb, match_context, p.opponent_detection_area)
+	return p
+
 ## [param slot_role]: the position this player is actually being fielded in —
 ## a tactic slot's role, or just the player's own role for the legacy
 ## fixed-spawn-point path (spawn_players) where there is no tactic slot to

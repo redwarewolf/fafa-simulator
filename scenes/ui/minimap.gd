@@ -18,7 +18,8 @@ func _process(_delta: float) -> void:
 		
 	sync_team(actors_container.left_team, left_team_color)
 	sync_team(actors_container.right_team, right_team_color)
-	
+	_prune_markers()
+
 	if is_instance_valid(actors_container.ball):
 		if not is_instance_valid(ball_marker):
 			ball_marker = create_marker(ball_color, Vector2(6, 6))
@@ -36,6 +37,16 @@ func sync_team(team: Array[Player], color: Color) -> void:
 			player_markers[player] = marker
 			
 		update_marker_position(player_markers[player], player.global_position)
+
+## Drops the marker of anyone no longer on either roster (substituted off).
+func _prune_markers() -> void:
+	if player_markers.size() <= actors_container.left_team.size() + actors_container.right_team.size():
+		return
+	for player in player_markers.keys():
+		if not player in actors_container.left_team and not player in actors_container.right_team:
+			if is_instance_valid(player_markers[player]):
+				player_markers[player].queue_free()
+			player_markers.erase(player)
 
 func create_marker(color: Color, m_size: Vector2) -> ColorRect:
 	var rect = ColorRect.new()

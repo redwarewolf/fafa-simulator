@@ -83,6 +83,7 @@ func _ready() -> void:
 	_build_shouts()
 	_build_stats_panel()
 	_build_commentary()
+	_build_subs_panel()
 
 func _on_cam_mode_button_pressed() -> void:
 	_camera.toggle_mode()
@@ -193,6 +194,8 @@ func _build_commentary() -> void:
 	GameEvents.score_changed.connect(func() -> void:
 		_say(tr("¡GOOOL de %s!") % _last_ball_carrier, HubPalette.HIGHLIGHT))
 	GameEvents.half_time.connect(func() -> void: _say(tr("Entretiempo"), HubPalette.MUTED))
+	GameEvents.substitution_made.connect(func(team: String, off_name: String, on_name: String) -> void:
+		_say(tr("Cambio en %s: entra %s, sale %s") % [_club_name(team), on_name, off_name], HubPalette.HIGHLIGHT))
 
 func _say(text: String, color: Color) -> void:
 	if _commentary == null:
@@ -313,6 +316,197 @@ func _event_line(text: String, color: Color) -> void:
 	l.add_theme_color_override("font_color", color)
 	_events_list.add_child(l)
 
+# ── substitutions ─────────────────────────────────────────────────────────────
+
+var _subs : Substitutions = null
+var _subs_button : Button = null
+var _subs_panel : PanelContainer = null
+var _subs_body : VBoxContainer = null
+## The on-pitch player picked to come off, waiting for a bench pick.
+var _subs_selected_out : Player = null
+## True when opening the panel paused the match (so closing resumes it).
+var _subs_paused_match := false
+
+## CAMBIOS button under the shouts, and the panel it opens: the human side's
+## players on the pitch (stamina, morale) and its bench. Pick who comes off,
+## then who comes on; the change waits for the next stoppage (Substitutions).
+## Opening it pauses the match, like FM.
+func _build_subs_panel() -> void:
+	_subs = _world.substitutions
+	if _subs == null or not _subs.enabled():
+		return
+	_subs_button = Button.new()
+	_subs_button.tooltip_text = tr("Atajo: C")
+	_subs_button.focus_mode = Control.FOCUS_NONE
+	_subs_button.anchor_left = 1.0
+	_subs_button.anchor_right = 1.0
+	_subs_button.offset_left = -116.0
+	_subs_button.offset_right = -8.0
+	_subs_button.offset_top = 242.0
+	_subs_button.offset_bottom = 266.0
+	_subs_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_subs_button.pressed.connect(_toggle_subs_panel)
+	ui_container.add_child(_subs_button)
+
+	_subs_panel = PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = PANEL_BG
+	style.set_content_margin_all(12)
+	style.set_corner_radius_all(3)
+	_subs_panel.add_theme_stylebox_override("panel", style)
+	_subs_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_subs_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_subs_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_subs_panel.visible = false
+	ui_container.add_child(_subs_panel)
+	_subs_body = VBoxContainer.new()
+	_subs_body.add_theme_constant_override("separation", 6)
+	_subs_panel.add_child(_subs_body)
+
+	_subs.changed.connect(_refresh_subs)
+	_refresh_subs()
+
+func _player_side_left() -> bool:
+	return _actors_container.is_player_team_left
+
+func _toggle_subs_panel() -> void:
+	if _subs_panel == null or _world.state == MatchWorld.MatchState.GAMEOVER:
+		return
+	_subs_panel.visible = not _subs_panel.visible
+	_subs_selected_out = null
+	if _subs_panel.visible:
+		if not _paused:
+			_toggle_pause()
+			_subs_paused_match = true
+		_refresh_subs()
+	elif _subs_paused_match:
+		_subs_paused_match = false
+		if _paused:
+			_toggle_pause()
+
+func _refresh_subs() -> void:
+	if _subs_button == null:
+		return
+	var left := _player_side_left()
+	_subs_button.text = tr("CAMBIOS %d/%d") % [_subs.used(left), Substitutions.MAX_PER_SIDE]
+	if not _subs_panel.visible:
+		return
+	for child in _subs_body.get_children():
+		_subs_body.remove_child(child)
+		child.queue_free()
+
+	var remaining := _subs.remaining(left)
+	var title := Label.new()
+	title.text = tr("CAMBIOS  —  quedan %d") % remaining
+	title.add_theme_color_override("font_color", HubPalette.HIGHLIGHT)
+	_subs_body.add_child(title)
+	var hint := Label.new()
+	hint.text = tr("Elegí quién sale y después quién entra. El cambio se hace en la próxima pelota parada.")
+	hint.add_theme_color_override("font_color", HubPalette.MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+	hint.custom_minimum_size.x = 560
+	_subs_body.add_child(hint)
+
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 16)
+	_subs_body.add_child(columns)
+
+	var on_col := _subs_column(columns, tr("EN CANCHA"))
+	for p in _subs.on_pitch(left):
+		var going := _subs.is_pending_out(p)
+		var stamina := roundi(p.stamina)
+		var btn := _subs_row_button("%s  %s" % [Positions.label(p.role), p.full_name], "%d%%" % stamina,
+			HubPalette.LOSS if stamina < 50 else (HubPalette.HIGHLIGHT if stamina < 75 else HubPalette.WIN),
+			p.player_data)
+		btn.toggle_mode = true
+		btn.button_pressed = p == _subs_selected_out
+		btn.disabled = going or remaining <= 0
+		if going:
+			btn.tooltip_text = tr("Ya tiene un cambio pedido")
+		btn.pressed.connect(func() -> void:
+			_subs_selected_out = null if _subs_selected_out == p else p
+			_refresh_subs())
+		on_col.add_child(btn)
+
+	var bench_col := _subs_column(columns, tr("SUPLENTES"))
+	var bench := _subs.bench(left)
+	if bench.is_empty():
+		var none := Label.new()
+		none.text = tr("No hay suplentes")
+		none.add_theme_color_override("font_color", HubPalette.MUTED)
+		bench_col.add_child(none)
+	for pr in bench:
+		var btn := _subs_row_button("%s  %s" % [Positions.label(pr.role), pr.full_name], "OVR %d" % pr.overall(),
+			QualityStyle.COLORS[pr.quality], pr)
+		btn.disabled = _subs_selected_out == null
+		btn.pressed.connect(func() -> void:
+			_subs.queue(_subs_selected_out, pr)
+			_subs_selected_out = null
+			_refresh_subs())
+		bench_col.add_child(btn)
+
+	for i in _subs.pending.size():
+		var s : Dictionary = _subs.pending[i]
+		if s["left"] != left:
+			continue  # the AI's own queued changes stay a surprise
+		var row := HBoxContainer.new()
+		var l := Label.new()
+		l.text = tr("Pedido: entra %s por %s") % [(s["in"] as PlayerResource).full_name, (s["out"] as Player).full_name]
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(l)
+		var cancel := Button.new()
+		cancel.text = tr("Anular")
+		cancel.focus_mode = Control.FOCUS_NONE
+		cancel.pressed.connect(_subs.cancel.bind(i))
+		row.add_child(cancel)
+		_subs_body.add_child(row)
+
+	var close := Button.new()
+	close.text = tr("LISTO")
+	close.focus_mode = Control.FOCUS_NONE
+	close.pressed.connect(_toggle_subs_panel)
+	_subs_body.add_child(close)
+
+func _subs_column(parent: Control, heading: String) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.custom_minimum_size.x = 272
+	col.add_theme_constant_override("separation", 2)
+	var l := Label.new()
+	l.text = heading
+	l.add_theme_color_override("font_color", HubPalette.MUTED)
+	col.add_child(l)
+	parent.add_child(col)
+	return col
+
+## One player row: name on the left, [param right_text] in [param right_color]
+## on the right, and a morale dot — hover shows PlayerMorale.tooltip().
+func _subs_row_button(text: String, right_text: String, right_color: Color, data: PlayerResource) -> Button:
+	var btn := Button.new()
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size.y = 24
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.text = text
+	btn.clip_text = true
+	if data != null and PlayerMorale.has_morale(data):
+		btn.tooltip_text = PlayerMorale.tooltip(data)
+	var right := HBoxContainer.new()
+	right.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	right.offset_left = -96
+	right.offset_right = -8
+	right.alignment = BoxContainer.ALIGNMENT_END
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var value := Label.new()
+	value.text = right_text
+	value.add_theme_color_override("font_color", right_color)
+	right.add_child(value)
+	if data != null and PlayerMorale.has_morale(data):
+		var dot := Label.new()
+		dot.text = " ●"
+		dot.add_theme_color_override("font_color", PlayerMorale.color(data))
+		right.add_child(dot)
+	btn.add_child(right)
+	return btn
+
 func _update_score() -> void:
 	score_label.text = "%d - %d" % [_world.score_left, _world.score_right]
 
@@ -364,6 +558,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_TAB: _toggle_stats_panel()
+			KEY_C: _toggle_subs_panel()
 			KEY_0: _toggle_pause()
 			KEY_1: _set_speed(0)
 			KEY_2: _set_speed(1)
@@ -398,6 +593,9 @@ func _set_speed(index: int) -> void:
 func _on_game_over() -> void:
 	if _stats_panel != null:
 		_stats_panel.visible = false  # the summary popup shows the same numbers
+	if _subs_panel != null:
+		_subs_panel.visible = false
+		_subs_paused_match = false
 	Engine.time_scale = 1.0
 	_speed_index = 0
 	_paused = false

@@ -91,7 +91,10 @@ var restart_team_left : bool:
 	get: return _restart_team_left
 var restart_ready_at : float:
 	get: return _restart_ready_at
-var _offside_judge : OffsideJudge = null## Which team takes the next kickoff — the conceding team after a goal, or a
+var _offside_judge : OffsideJudge = null
+## In-match substitutions (queue, bench, AI rule) — see Substitutions.
+var substitutions : Substitutions = null
+## Which team takes the next kickoff — the conceding team after a goal, or a
 ## random team for the match's opening kickoff. Consumed by _setup_kickoff().
 var _kickoff_team : String = ""
 ## Set while state == KICKOFF — the only player left unfrozen, walking/running
@@ -105,6 +108,9 @@ var _kickoff_taker : Player = null
 func _enter_tree() -> void:
 	MatchClock.reset()
 	MatchRng.seed_match(MatchConfig.match_seed)
+	# Created this early (added to the tree in _ready) because MatchHUD, a
+	# child, reads it in its own _ready — which runs before ours.
+	substitutions = Substitutions.new()
 
 func _ready() -> void:
 	AudioManager.stop_music()  # the hub's music doesn't follow into the match
@@ -117,6 +123,9 @@ func _ready() -> void:
 	_offside_judge.name = "OffsideJudge"
 	_offside_judge.setup(self)
 	add_child(_offside_judge)
+	substitutions.name = "Substitutions"
+	substitutions.setup(self)
+	add_child(substitutions)
 	match_stats = MatchStatsScript.new()
 	match_stats.name = "MatchStats"
 	add_child(match_stats)
@@ -159,6 +168,7 @@ func _start_half_time() -> void:
 	_kickoff_team = actors_container.team_right if _first_kickoff_team == actors_container.team_left \
 		else actors_container.team_left
 	GameEvents.half_time.emit()
+	substitutions.on_half_time()
 	_transition(MatchState.HALFTIME)
 
 ## Rolls this match's attendance once (kickoff_ready fires only after a goal,
@@ -211,6 +221,7 @@ func _process(delta: float) -> void:
 				_maybe_trigger_match_event()
 				if state != MatchState.IN_PLAY:
 					return
+			substitutions.process_ai(match_time / match_duration())
 			_check_out_of_play()
 		MatchState.SCORED:
 			_state_timer += delta
@@ -468,6 +479,7 @@ func _transition(new_state: MatchState) -> void:
 			# Coming out of HALFTIME the actors are frozen; the kickoff taker
 			# has to be able to walk up to the ball.
 			actors_container.process_mode = Node.PROCESS_MODE_INHERIT
+			substitutions.apply_pending()  # before the reset puts everyone on their kickoff spot
 			GameEvents.team_reset.emit()
 		MatchState.EVENT, MatchState.HALFTIME:
 			# Freeze play while Pepito Perinola narrates (or for the half-time
@@ -503,6 +515,8 @@ func _transition(new_state: MatchState) -> void:
 			# set-piece coordinator) while the taker waits out Restart.setup_time().
 			_restart_taker.is_restart_taker = true
 			call_deferred("_setup_restart")
+			# After the set-up, same deferral: never swap bodies mid physics step.
+			substitutions.call_deferred("apply_pending")
 		MatchState.GAMEOVER:
 			actors_container.process_mode = Node.PROCESS_MODE_DISABLED
 			GameEvents.game_over.emit()
@@ -539,17 +553,20 @@ func _show_game_over(match_result: Dictionary) -> void:
 ## carries fatigue too. See docs/ai-overhaul.md Phase 5; recovery on a rest
 ## day is SeasonManager.resolve_day()'s job, not this scene's.
 func _write_back_stamina() -> void:
+	# Subbed-off players already wrote theirs back when they left the pitch.
 	for p in actors_container.left_team + actors_container.right_team:
 		if p.player_data != null:
 			p.player_data.stamina = p.stamina
 
-## Every PlayerResource the human club fielded this match — for morale (see
+## Every PlayerResource the human club fielded this match, subs who came on
+## and players they replaced included — for morale (see
 ## SeasonManager.report_player_match_result()).
 func _player_club_appearances() -> Array:
-	var side := actors_container.left_team if actors_container.is_player_team_left else actors_container.right_team
+	var left := actors_container.is_player_team_left
+	var side := actors_container.left_team if left else actors_container.right_team
 	var out : Array = []
-	for p in side:
-		if p.player_data != null:
+	for p in side + substitutions.subbed_off:
+		if p.player_data != null and p.is_left_team == left:
 			out.append(p.player_data)
 	return out
 

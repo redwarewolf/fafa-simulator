@@ -125,6 +125,16 @@ func slot(player: Player, params: Params, ball_n: Vector2, max_depth: float = 0.
 func has_player(p: Player) -> bool:
 	return _anchor.has(p)
 
+## A substitution: [param incoming] inherits [param outgoing]'s slot — same
+## anchor (ActorsContainer.substitute() copies it), same rank.
+func replace(outgoing: Player, incoming: Player) -> void:
+	if not _anchor.has(outgoing):
+		return
+	_anchor[incoming] = PitchSpace.normalised(incoming.anchor_position, team_left)
+	_rank[incoming] = _rank[outgoing]
+	_anchor.erase(outgoing)
+	_rank.erase(outgoing)
+
 ## The formation rank (0 deepest … 1 highest) — used for role affinities.
 func rank_of(p: Player) -> float:
 	return _rank.get(p, 0.5)
