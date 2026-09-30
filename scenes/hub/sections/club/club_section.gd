@@ -112,6 +112,22 @@ func _show_panel(key: String) -> void:
 	if panel.has_method("refresh"):
 		panel.refresh()
 
+## Sidebar button per sub-panel key, so a jump from outside (open_panel())
+## also moves the active highlight.
+const SUB_NAV_BUTTONS := {
+	"stadium": "StadiumButton", "staff": "StaffButton", "training": "TrainingButton",
+	"finances": "FinancesButton", "hiring": "HiringButton",
+}
+
+## Opens [param key] as if its sidebar button had been clicked.
+func open_panel(key: String) -> void:
+	# set_pressed_no_signal() doesn't release the group's other buttons itself.
+	for k in SUB_NAV_BUTTONS:
+		var btn := sidebar_layout.get_node_or_null(SUB_NAV_BUTTONS[k]) as Button
+		if btn != null:
+			btn.set_pressed_no_signal(k == key)
+	_on_sub_nav_pressed(key)
+
 func _on_sub_nav_pressed(section: String) -> void:
 	_show_panel(section)
 	_maybe_play_sub_tutorial(section)

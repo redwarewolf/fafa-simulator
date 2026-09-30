@@ -113,6 +113,7 @@ func _ready() -> void:
 		GameState.player_club = dev_clubs[0]
 		SeasonManager.start_pre_season()
 		GameState.ensure_default_tactics()
+	add_to_group("hub")  # LockedHint's "go hire it" buttons call open_club_panel()
 	_preload_sections()
 	_update_header()
 	# First boot opens on the Squad tab — the intro's squad walkthrough talks
@@ -257,7 +258,10 @@ func _show_section(key: String) -> void:
 	_active_section = key
 	_section_instances[key].process_mode = Node.PROCESS_MODE_INHERIT
 	_section_instances[key].visible = true
-	nav_buttons[key].set_pressed_no_signal(true)
+	# set_pressed_no_signal() skips the ButtonGroup's own release of the old
+	# tab, so a code-driven switch (e.g. open_club_panel()) clears it here.
+	for k in nav_buttons:
+		nav_buttons[k].set_pressed_no_signal(k == key)
 	if _section_instances[key].has_method("refresh"):
 		_section_instances[key].refresh()
 
@@ -272,6 +276,14 @@ func _on_nav_pressed(section: String) -> void:
 		var club_section : Control = _section_instances["club"]
 		if club_section.has_method("maybe_play_default_sub_tutorial"):
 			club_section.maybe_play_default_sub_tutorial()
+
+## Jumps to a Club sub-panel (e.g. "staff") from anywhere in the Hub — used
+## by the locked Youth/Lab/Training/Hiring screens' call-to-action button.
+## Skips _on_nav_pressed()'s Club/Stadium tutorials on purpose: the target
+## sub-panel plays its own, and two narrations at once would stomp each other.
+func open_club_panel(key: String) -> void:
+	_show_section("club")
+	_section_instances["club"].open_panel(key)
 
 ## A Home to-do row was clicked: "play" runs the Próxima Fecha flow (opens
 ## today's match preview); anything else is a section key to switch to.

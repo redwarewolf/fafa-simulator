@@ -351,6 +351,17 @@ const MESSAGES := {
 	"GOL — %s": "GOAL — %s",
 	"GOL": "GOAL",
 	"Entretiempo": "Half time",
+	# Staff cards / locked screens
+	"Ir a Club > Personal": "Go to Club > Staff",
+	"Desbloquea Entrenamiento: sesiones que suben un stat de un jugador +6% para siempre.": "Unlocks Training: sessions that raise one player stat +6% for good.",
+	"Desbloquea Contrataciones: cada mes el ojeador te trae candidatos para fichar.": "Unlocks Hiring: every month the scout brings you candidates to sign.",
+	"Desbloquea Juveniles: pibes del barrio que se suman al club y crecen en la academia.": "Unlocks Youth: local kids who join the club and grow in the academy.",
+	"Desbloquea el Laboratorio: sacrificá jugadores y armá uno nuevo con sus órganos.": "Unlocks the Lab: sacrifice players and build a new one from their organs.",
+	"Nivel máximo": "Max level",
+	"Sesiones por jugador": "Sessions per player",
+	"Candidatos por mes": "Candidates per month",
+	"Cupo de juveniles": "Youth slots",
+	"Sueldo: $%s / fecha": "Upkeep: $%s / day",
 	# Market filters
 	"Todas las posiciones": "All positions",
 	"Arqueros": "Goalkeepers",

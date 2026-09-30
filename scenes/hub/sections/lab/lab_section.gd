@@ -74,6 +74,7 @@ var _selected_donor : PlayerResource = null
 
 
 func _ready() -> void:
+	LockedHint.attach(locked_message)
 	TreeStyle.setup_columns(squad_tree, SQUAD_COLUMNS)
 	TreeStyle.setup_columns(organs_tree, ORGAN_COLUMNS)
 	organs_tree.hide_root = true

@@ -42,6 +42,7 @@ var _selected_player : PlayerResource = null
 
 
 func _ready() -> void:
+	LockedHint.attach(locked_message)
 	TreeStyle.setup_columns(squad_tree, SQUAD_COLUMNS)
 	refresh()
 

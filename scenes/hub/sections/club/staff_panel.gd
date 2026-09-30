@@ -18,6 +18,15 @@ var _card_upkeep  : Dictionary = {}
 ## Only populated for the "academy" card — shows current prospects vs. cap,
 ## since that's the only upgrade whose "level" also gates a live pool size.
 var _card_pool    : Dictionary = {}
+var _card_effects : Dictionary = {}
+
+## What each hire unlocks — the cards used to show only a name and a price.
+const STAFF_BLURBS := {
+	"trainer": "Desbloquea Entrenamiento: sesiones que suben un stat de un jugador +6% para siempre.",
+	"scout":   "Desbloquea Contrataciones: cada mes el ojeador te trae candidatos para fichar.",
+	"academy": "Desbloquea Juveniles: pibes del barrio que se suman al club y crecen en la academia.",
+	"butcher": "Desbloquea el Laboratorio: sacrificá jugadores y armá uno nuevo con sus órganos.",
+}
 
 
 func _ready() -> void:
@@ -58,6 +67,11 @@ func _build_cards() -> void:
 
 		card.add_child(HSeparator.new())
 
+		var blurb := Label.new()
+		blurb.text = tr(STAFF_BLURBS.get(key, ""))
+		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card.add_child(blurb)
+
 		var level_label := Label.new()
 		level_label.add_theme_color_override("font_color", HubPalette.MUTED)
 		card.add_child(level_label)
@@ -85,6 +99,12 @@ func _build_cards() -> void:
 			pips_row.add_child(pip)
 			pips.append(pip)
 		_card_pips[key] = pips
+
+		var effect_label := Label.new()
+		effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		effect_label.add_theme_color_override("font_color", HubPalette.HIGHLIGHT)
+		card.add_child(effect_label)
+		_card_effects[key] = effect_label
 
 		var btn := Button.new()
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -117,6 +137,7 @@ func _populate() -> void:
 		var pips : Array = _card_pips[key]
 		for i in pips.size():
 			pips[i].color = HubPalette.HIGHLIGHT if i < cur_lvl else PIP_EMPTY
+		_card_effects[key].text = _effect_text(key, data, cur_lvl)
 
 		if cur_lvl >= max_lvl:
 			btn.text     = "MÁX"
@@ -133,6 +154,31 @@ func _populate() -> void:
 		else:
 			btn.text     = "%s  $%s" % [verb, MoneyFormat.format(cost)]
 			btn.disabled = false
+
+
+## Current → next level in numbers, plus the upkeep the next level costs.
+func _effect_text(key: String, data: Dictionary, cur_lvl: int) -> String:
+	var levels : Array = data["levels"]
+	if cur_lvl >= levels.size():
+		return tr("Nivel máximo")
+	var stat_key := ""
+	var label := ""
+	match key:
+		"trainer":
+			stat_key = "max_sessions"
+			label = "Sesiones por jugador"
+		"scout":
+			stat_key = "pool_size"
+			label = "Candidatos por mes"
+		"academy":
+			stat_key = "pool_size"
+			label = "Cupo de juveniles"
+	var next : Dictionary = levels[cur_lvl]
+	var upkeep := tr("Sueldo: $%s / fecha") % MoneyFormat.format(next["monthly"])
+	if stat_key == "":
+		return upkeep
+	var now_value : int = levels[cur_lvl - 1][stat_key] if cur_lvl > 0 else 0
+	return "%s: %d → %d\n%s" % [tr(label), now_value, next[stat_key], upkeep]
 
 
 func _on_buy_pressed(key: String) -> void:
