@@ -82,6 +82,7 @@ func _ready() -> void:
 	mentality_button.visible = false  # superseded by the shout row below
 	_build_shouts()
 	_build_stats_panel()
+	_build_commentary()
 
 func _on_cam_mode_button_pressed() -> void:
 	_camera.toggle_mode()
@@ -146,6 +147,61 @@ func _build_shouts() -> void:
 func _on_shout_pressed(mode: int) -> void:
 	_actors_container.player_manual_mentality_mode = mode
 	mentality_button.text = tr(MENTALITY_LABELS[mode])
+
+# ── commentary strip ──────────────────────────────────────────────────────────
+
+var _commentary : Label = null
+
+## One-line running commentary along the bottom edge, like FM's 2D match
+## view: who has the ball, shots, saves, set pieces, goals. Driven entirely
+## by GameEvents, so the match itself doesn't know it exists.
+func _build_commentary() -> void:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = PANEL_BG
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	style.set_corner_radius_all(3)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_top = 1.0
+	panel.anchor_bottom = 1.0
+	panel.offset_left = -260.0
+	panel.offset_right = 260.0
+	panel.offset_top = -34.0
+	panel.offset_bottom = -8.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_container.add_child(panel)
+	_commentary = Label.new()
+	_commentary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_commentary.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	panel.add_child(_commentary)
+
+	GameEvents.ball_possessed.connect(func(player_name: String) -> void:
+		_say(tr("%s tiene la pelota") % player_name, Color.WHITE))
+	GameEvents.shot_taken.connect(func(shooter: Player, _origin: Vector2) -> void:
+		_say(tr("¡Remate de %s!") % shooter.full_name, HubPalette.HIGHLIGHT))
+	GameEvents.keeper_decision.connect(func(keeper: Player, _p: float, save: bool) -> void:
+		if save:
+			_say(tr("¡Atajada de %s!") % keeper.full_name, HubPalette.WIN))
+	GameEvents.restart_awarded.connect(func(kind: int, team: String, _spot: Vector2) -> void:
+		_say("%s  —  %s" % [tr(Restart.LABELS.get(kind, "")), _club_name(team)], HubPalette.MUTED))
+	GameEvents.score_changed.connect(func() -> void:
+		_say(tr("¡GOOOL de %s!") % _last_ball_carrier, HubPalette.HIGHLIGHT))
+	GameEvents.half_time.connect(func() -> void: _say(tr("Entretiempo"), HubPalette.MUTED))
+
+func _say(text: String, color: Color) -> void:
+	if _commentary == null:
+		return
+	_commentary.text = text
+	_commentary.add_theme_color_override("font_color", color)
+
+func _club_name(team_key: String) -> String:
+	return home_name_label.text if team_key == _actors_container.team_left else away_name_label.text
 
 # ── stats panel ───────────────────────────────────────────────────────────────
 
