@@ -16,7 +16,25 @@ static func apply(effect_id: String, club: ClubResource, params: Dictionary) -> 
 			return _remove_random_player(club, params)
 		"apply_stat_debuff":
 			return _apply_stat_debuff(club, params)
+		"morale_delta":
+			return _morale_delta(club, params)
 	return {}
+
+## Moves morale (PlayerMorale.adjust) by a random amount within params'
+## min/max, logged under params' "reason": for the whole squad when
+## params.scope is "squad", otherwise for one random player.
+static func _morale_delta(club: ClubResource, params: Dictionary) -> Dictionary:
+	if club.players.is_empty():
+		return {"player": "Alguien", "amount": "0"}
+	var amount := randi_range(int(params.get("min", 0)), int(params.get("max", 0)))
+	var reason : String = params.get("reason", "Evento")
+	if params.get("scope", "one") == "squad":
+		for p : PlayerResource in club.players:
+			PlayerMorale.adjust(p, amount, reason)
+		return {"player": "El plantel", "amount": str(absi(amount))}
+	var p : PlayerResource = club.players[randi() % club.players.size()]
+	PlayerMorale.adjust(p, amount, reason)
+	return {"player": p.full_name, "amount": str(absi(amount))}
 
 static func _budget_delta(club: ClubResource, params: Dictionary) -> Dictionary:
 	var amount := randi_range(int(params.get("min", 0)), int(params.get("max", 0)))
@@ -44,10 +62,11 @@ static func _suspend_random_player(club: ClubResource, params: Dictionary) -> Di
 ## random number of matches — unlike _suspend_random_player(), the player
 ## stays fielded/in their tactic slot the whole time. See
 ## PlayerResource.add_temporary_modifier()/tick_temporary_modifiers().
+## Unhappy players are likelier to be the one (PlayerMorale.pick_unhappy()).
 static func _apply_stat_debuff(club: ClubResource, params: Dictionary) -> Dictionary:
 	if club.players.is_empty():
 		return {"player": "Alguien", "pct": "0", "matches": "1"}
-	var p : PlayerResource = club.players[randi() % club.players.size()]
+	var p : PlayerResource = PlayerMorale.pick_unhappy(club.players)
 	var pct := randi_range(int(params.get("min_pct", 5)), int(params.get("max_pct", 15)))
 	var matches := randi_range(int(params.get("min_matches", 1)), int(params.get("max_matches", 1)))
 	p.add_temporary_modifier("event_wild_night_out", "Resaca", "all", -float(pct), matches)

@@ -277,6 +277,9 @@ func resolve_day() -> void:
 		return  # player still owes a match — don't advance further
 
 	_recover_stamina()
+	if GameState.player_club != null:
+		for p : PlayerResource in GameState.player_club.players:
+			PlayerMorale.drift(p)
 
 	phase_day += 1
 
@@ -516,14 +519,22 @@ func _apply_result(home: ClubResource, away: ClubResource, home_score: int, away
 ## fan/revenue deltas for that match ({fans_delta, ticket_revenue, attendance})
 ## so world.gd can show them on the game-over summary screen — empty
 ## Dictionary if there was no pending player fixture (e.g. a dev test match).
-func report_player_match_result(home_score: int, away_score: int) -> Dictionary:
+## [param appearances]: the player club's PlayerResources who took part —
+## empty means the active tactic's XI (the simulated flow). [param scorers]:
+## the {player, team} goal log both flows already build. Both feed
+## PlayerMorale.apply_match().
+func report_player_match_result(home_score: int, away_score: int,
+		appearances: Array = [], scorers: Array = []) -> Dictionary:
 	if pending_player_fixture.is_empty():
 		return {}
 	# A suspension (PlayerResource.unavailable_matches, set by random events)
 	# counts down once per played match, regardless of league/friendly type.
+	# Whoever was suspended for this one isn't "left out" for morale.
+	var suspended : Array = []
 	if GameState.player_club != null:
 		for p : PlayerResource in GameState.player_club.players:
 			if p.unavailable_matches > 0:
+				suspended.append(p)
 				p.unavailable_matches -= 1
 			p.tick_temporary_modifiers()
 	var f := pending_player_fixture
@@ -568,12 +579,40 @@ func report_player_match_result(home_score: int, away_score: int) -> Dictionary:
 			result["ticket_revenue"] = revenue
 			result["attendance"] = attendance
 
+		_apply_match_morale(player_club, away if is_home else home, outcome, appearances, scorers, suspended)
+
 		GameState.budget_changed.emit()
 		_post_result_news(f, home, away, own_score, opp_score, result)
 
 	pending_player_fixture = {}
 	_check_phase_transition()
 	return result
+
+
+## The morale half of report_player_match_result(): who played, who scored,
+## and the inbox note for anyone who's been furious long enough to ask out.
+func _apply_match_morale(club: ClubResource, opponent: ClubResource, outcome: String,
+		appearances: Array, scorers: Array, suspended: Array) -> void:
+	if appearances.is_empty():
+		appearances = starting_xi(club)
+	var goals := {}
+	for s : Dictionary in scorers:
+		if s.get("team", "") in [club.team_key, club.display_name]:
+			goals[s["player"]] = int(goals.get(s["player"], 0)) + 1
+	for p : PlayerResource in PlayerMorale.apply_match(club, appearances, goals, outcome,
+			opponent.display_name, suspended):
+		GameState.post_news("%s pide salir" % p.full_name,
+			"%s está furioso hace %d partidos y le pidió al club que lo venda.\n\n%s" % [
+				p.full_name, PlayerMorale.FURIOUS_MATCHES_TO_ASK_OUT, PlayerMorale.tooltip(p)],
+			"event")
+
+
+## The player club's XI in its active tactic — who a simulated match fields.
+func starting_xi(club: ClubResource) -> Array:
+	if GameState.tactics.is_empty():
+		return []
+	return GameState.get_active_tactic().get_assigned_players().filter(
+		func(p: PlayerResource) -> bool: return p in club.players)
 
 
 ## "Home 2 - 1 Away" for every other fixture of [param f]'s division played on
@@ -666,8 +705,22 @@ func get_pending_match_preview() -> Dictionary:
 	}
 
 
+## Squad-overall difference (home − away) for the player's own fixture, with
+## each side's morale on top (PlayerMorale.overall_bonus()) — the human club
+## counts its active XI, an AI club its whole roster (always at baseline
+## today, so 0). The match preview and the simulate flow both use it, so the
+## odds shown are the odds rolled.
+func _overall_diff_with_morale(home: ClubResource, away: ClubResource) -> float:
+	return _overall_with_morale(home) - _overall_with_morale(away)
+
+func _overall_with_morale(club: ClubResource) -> float:
+	var xi : Array = club.players
+	if GameState.player_club != null and club.id == GameState.player_club.id:
+		xi = starting_xi(club)
+	return club.get_squad_overall() + PlayerMorale.overall_bonus(xi, club.get_squad_overall())
+
 func _home_win_draw_loss(home: ClubResource, away: ClubResource) -> Dictionary:
-	var diff := home.get_squad_overall() - away.get_squad_overall()
+	var diff := _overall_diff_with_morale(home, away)
 	var home_expected := MatchOdds.expected_goals(diff, true)
 	var away_expected := MatchOdds.expected_goals(-diff, false)
 	return MatchOdds.win_draw_loss(home_expected, away_expected)
@@ -690,7 +743,7 @@ func simulate_pending_player_match() -> Dictionary:
 	if home == null or away == null:
 		return {}
 
-	var diff := home.get_squad_overall() - away.get_squad_overall()
+	var diff := _overall_diff_with_morale(home, away)
 	var home_expected := MatchOdds.expected_goals(diff, true)
 	var away_expected := MatchOdds.expected_goals(-diff, false)
 	var home_odds := MatchOdds.win_draw_loss(home_expected, away_expected)
@@ -715,7 +768,7 @@ func simulate_pending_player_match() -> Dictionary:
 	for s in scorers:
 		s.erase("_seconds")
 
-	var result := report_player_match_result(home_score, away_score)
+	var result := report_player_match_result(home_score, away_score, [], scorers)
 	result["home_score"] = home_score
 	result["away_score"] = away_score
 	result["scorers"] = scorers

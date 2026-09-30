@@ -43,6 +43,22 @@ const HUB_EVENTS := [
 		"effect_id": "budget_delta",
 		"effect_params": {"min": 4000, "max": 12000},
 	},
+	{
+		"id": "squad_asado",
+		"polarity": "positive",
+		"weight": 0.7,
+		"line_template": "El utilero armó un asado para todo el plantel. Hubo guitarreada y todo. Ánimo del plantel +{amount}.",
+		"effect_id": "morale_delta",
+		"effect_params": {"min": 5, "max": 10, "scope": "squad", "reason": "Asado del plantel"},
+	},
+	{
+		"id": "dressing_room_fight",
+		"polarity": "negative",
+		"weight": 0.7,
+		"line_template": "{player} se agarró a las piñas con un compañero en el vestuario por la última porción de pizza. Ánimo -{amount}.",
+		"effect_id": "morale_delta",
+		"effect_params": {"min": -15, "max": -8, "scope": "one", "reason": "Pelea en el vestuario"},
+	},
 ]
 
 const MATCH_EVENTS := [

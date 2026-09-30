@@ -440,4 +440,13 @@ const MESSAGES := {
 	"TV: $%s por semana (División %s)": "TV: $%s per week (Division %s)",
 	"Premio de liga: $%s al 1° … $%s al 8°": "League prize: $%s for 1st … $%s for 8th",
 	"Bono de ascenso: $%s": "Promotion bonus: $%s",
+	# PlayerMorale bands and labels
+	"Ánimo": "Morale",
+	"Ánimo: %s": "Morale: %s",
+	"Ánimo: %s (%d)": "Morale: %s (%d)",
+	"Furioso": "Furious",
+	"Molesto": "Upset",
+	"Normal": "Okay",
+	"Contento": "Happy",
+	"Enchufado": "Buzzing",
 }

@@ -511,7 +511,8 @@ func _transition(new_state: MatchState) -> void:
 			_write_back_stamina()
 			var match_result := {}
 			if not SeasonManager.pending_player_fixture.is_empty():
-				match_result = SeasonManager.report_player_match_result(score_left, score_right)
+				match_result = SeasonManager.report_player_match_result(score_left, score_right,
+					_player_club_appearances(), _scorers)
 				GameState.save_career()
 			_show_game_over(match_result)
 
@@ -541,6 +542,16 @@ func _write_back_stamina() -> void:
 	for p in actors_container.left_team + actors_container.right_team:
 		if p.player_data != null:
 			p.player_data.stamina = p.stamina
+
+## Every PlayerResource the human club fielded this match — for morale (see
+## SeasonManager.report_player_match_result()).
+func _player_club_appearances() -> Array:
+	var side := actors_container.left_team if actors_container.is_player_team_left else actors_container.right_team
+	var out : Array = []
+	for p in side:
+		if p.player_data != null:
+			out.append(p.player_data)
+	return out
 
 func _on_back_to_hub_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub/hub.tscn")

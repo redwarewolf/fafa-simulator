@@ -302,7 +302,10 @@ func initialize(context_position : Vector2, context_ball : Ball, context_own_goa
 		is_left_team = own_goal.position.x < target_goal.position.x
 		anchor_position = context_position
 		role = context_slot_role
-		var apt_pct := Positions.aptitude_stat_pct(Positions.aptitude(context_player_data.role, role))
+		# Morale rides along with positional aptitude as one more per-match
+		# percent — see PlayerMorale.stat_pct().
+		var apt_pct := Positions.aptitude_stat_pct(Positions.aptitude(context_player_data.role, role)) \
+			+ PlayerMorale.stat_pct(context_player_data)
 		power = context_player_data.get_effective_stat_for_role("sho", apt_pct)
 		speed = context_player_data.get_effective_stat_for_role("pac", apt_pct)
 		pace = speed

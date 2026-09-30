@@ -754,6 +754,12 @@ func _run_payday() -> void:
 	# Income lands first, so the week's earnings can cover Tapir's instalment.
 	ledger["debt_payment"] = ClubDebt.collect(player_club, tapir_lines)
 	last_payday_ledger = ledger
+	# Wages the budget couldn't cover are "late" as far as the squad knows.
+	if player_club.budget < 0 and ledger["wage_cost"] > 0:
+		PlayerMorale.unpaid_wages(player_club)
+		post_news("Sueldos atrasados",
+			"El club cerró la semana en rojo y los jugadores cobraron tarde. El plantel está molesto (ánimo %d)." % roundi(PlayerMorale.UNPAID_WAGES),
+			"event")
 	budget_changed.emit()
 	save_upgrades()
 	save_staff()

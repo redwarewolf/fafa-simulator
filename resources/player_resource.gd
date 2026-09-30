@@ -32,7 +32,16 @@ var portrait_frame : int = -1
 
 # Hidden runtime attributes (not saved to JSON, managed at runtime)
 var stamina : float = 100.0
-var morale : float = 100.0
+
+## 0-100, see PlayerMorale (starts at its BASELINE). Unlike stamina this IS
+## persisted — see to_dict/from_dict — along with the bookkeeping behind it:
+## morale_log, the last few reasons it moved ({"text", "delta"}, newest
+## first); benched_streak, matches in a row left out; furious_streak,
+## matches in a row spent in PlayerMorale.Band.FURIOSO.
+var morale : float = 60.0
+var morale_log : Array[Dictionary] = []
+var benched_streak : int = 0
+var furious_streak : int = 0
 ## Personality trait, not a scoutable stat: how willing this player is to pass
 ## to a better-placed teammate rather than shoot/dribble themselves. 1-100,
 ## rolled once per instance so otherwise-identical players still vary. Feeds
@@ -41,7 +50,7 @@ var teamplay : int = randi_range(20, 80)
 
 ## Matches left before this player can be fielded again — set by random
 ## events (e.g. a suspension), decremented once per played match in
-## SeasonManager.report_player_match_result(). Unlike stamina/morale, this
+## SeasonManager.report_player_match_result(). Unlike stamina, this
 ## IS persisted (see to_dict/from_dict) since a suspension must survive a
 ## save/reload. Enforced in field_overlay.gd/squad_section.gd, which refuse
 ## to field a player while this is > 0.
@@ -237,6 +246,10 @@ func to_dict() -> Dictionary:
 		"training_sessions_used": training_sessions_used,
 		"reserved": reserved,
 		"is_youth_prospect": is_youth_prospect,
+		"morale": morale,
+		"morale_log": morale_log,
+		"benched_streak": benched_streak,
+		"furious_streak": furious_streak,
 	}
 
 static func from_dict(d: Dictionary) -> PlayerResource:
@@ -259,4 +272,9 @@ static func from_dict(d: Dictionary) -> PlayerResource:
 	p.training_sessions_used = int(d.get("training_sessions_used", 0))
 	p.reserved = bool(d.get("reserved", false))
 	p.is_youth_prospect = bool(d.get("is_youth_prospect", false))
+	p.morale = float(d.get("morale", p.morale))
+	for e : Dictionary in d.get("morale_log", []) as Array:
+		p.morale_log.append(e)
+	p.benched_streak = int(d.get("benched_streak", 0))
+	p.furious_streak = int(d.get("furious_streak", 0))
 	return p

@@ -4,6 +4,7 @@ const COL_NAME := 0
 const COL_POS  := 1
 const COL_AGE  := 2
 const COL_OVR  := 3
+const COL_MOOD := 4
 
 ## Column layout, shared by the header setup and the per-row alignment.
 const ROSTER_COLUMNS : Array = [
@@ -11,6 +12,7 @@ const ROSTER_COLUMNS : Array = [
 	{"title": "Pos",  "expand": false, "min_width": 46, "align": HORIZONTAL_ALIGNMENT_CENTER},
 	{"title": "Edad", "expand": false, "min_width": 40, "align": HORIZONTAL_ALIGNMENT_CENTER},
 	{"title": "OVR",  "expand": false, "min_width": 44, "align": HORIZONTAL_ALIGNMENT_CENTER},
+	{"title": "Ánimo", "expand": false, "min_width": 54, "align": HORIZONTAL_ALIGNMENT_CENTER},
 ]
 
 ## Starting-XI fit colours, shared with the pitch rings (field_overlay.gd).
@@ -81,6 +83,9 @@ func _populate_tree() -> void:
 		COL_AGE:
 			sorted.sort_custom(func(a, b):
 				return a.age < b.age if _sort_asc else a.age > b.age)
+		COL_MOOD:
+			sorted.sort_custom(func(a, b):
+				return a.morale < b.morale if _sort_asc else a.morale > b.morale)
 		COL_POS:
 			# Same position → best first, so each line reads strongest down.
 			sorted.sort_custom(func(a, b):
@@ -105,6 +110,10 @@ func _populate_tree() -> void:
 		var qcolor : Color = QualityStyle.COLORS[p.quality]
 		item.set_custom_color(COL_NAME, qcolor)
 		item.set_custom_color(COL_OVR,  qcolor)
+		if PlayerMorale.has_morale(p):
+			item.set_text(COL_MOOD, "●")
+			item.set_custom_color(COL_MOOD, PlayerMorale.color(p))
+			item.set_tooltip_text(COL_MOOD, PlayerMorale.tooltip(p))
 		# The badge carries the line colour so the list and the pitch discs can
 		# be scanned against each other without reading a single word.
 		item.set_custom_bg_color(COL_POS, Positions.color(p.role))
@@ -126,7 +135,7 @@ func _on_roster_tree_column_title_clicked(column: int, _mouse_button_index: int)
 	else:
 		_sort_col = column
 		# Names and positions read best ascending, ratings best descending.
-		_sort_asc = (column != COL_OVR)
+		_sort_asc = column != COL_OVR and column != COL_MOOD
 	_populate_tree()
 	var first := roster_tree.get_root().get_first_child()
 	if first:

@@ -71,6 +71,8 @@ func setup(p: PlayerResource, team_key: String = "") -> void:
 		MoneyFormat.format(PlayerValue.estimate(p)), MoneyFormat.format(PlayerWage.estimate(p))]
 	value_wage_label.add_theme_color_override("font_color", HubPalette.MUTED)
 
+	_set_morale(p)
+
 	if layout == Layout.RADAR:
 		var bases := [p.pac, p.sho, p.pas, p.dri, p.def, p.phy]
 		var effs := [
@@ -131,6 +133,8 @@ func clear() -> void:
 
 	overall_label.text = "OVR  --"
 	value_wage_label.text = ""
+	if _morale_label != null:
+		_morale_label.visible = false
 
 	_clear_modifier_badges()
 
@@ -218,7 +222,31 @@ func _format_modifier_tooltip(m: Dictionary) -> String:
 		text += (tr(" (queda %d partido)") % left) if left == 1 else (tr(" (quedan %d partidos)") % left)
 	return text
 
-func _on_badge_hover(badge: ColorRect, text: String) -> void:
+## "Ánimo: Contento" under the value/wage line — only for the player's own
+## squad (a scouted or market player's mood isn't ours to know). Hover shows
+## PlayerMorale.tooltip(): the number and the last few reasons it moved.
+var _morale_label : Label = null
+
+func _set_morale(p: PlayerResource) -> void:
+	if _morale_label == null:
+		_morale_label = Label.new()
+		_morale_label.add_theme_font_size_override("font_size", value_wage_label.get_theme_font_size("font_size"))
+		_morale_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		_morale_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED  # text is tr()'d already
+		_morale_label.mouse_entered.connect(func() -> void: _on_badge_hover(_morale_label, String(_morale_label.get_meta("tip", ""))))
+		_morale_label.mouse_exited.connect(_hide_modifier_tooltip)
+		value_wage_label.add_sibling(_morale_label)
+	var own := GameState.player_club != null and p in GameState.player_club.players
+	_morale_label.visible = own and PlayerMorale.has_morale(p)
+	if not _morale_label.visible:
+		return
+	_morale_label.text = tr("Ánimo: %s") % PlayerMorale.label(p)
+	_morale_label.add_theme_color_override("font_color", PlayerMorale.color(p))
+	# Kept as meta, not tooltip_text, so Godot doesn't pop its own tooltip
+	# over the card's floating one.
+	_morale_label.set_meta("tip", PlayerMorale.tooltip(p))
+
+func _on_badge_hover(badge: Control, text: String) -> void:
 	_modifier_tooltip_label.text = text
 	_modifier_tooltip.visible = true
 	_modifier_tooltip.reset_size()
