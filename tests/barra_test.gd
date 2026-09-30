@@ -66,6 +66,65 @@ func test_puesto_demand_adds_a_weekly_cost() -> void:
 	assert_eq(club.budget, 10000, "no one-off charge")
 	assert_eq(BarraBrava.weekly_cost(s, "E"), BarraBrava.PUESTO_COST_E)
 
+func _state(relacion: float, poder: float, micros: bool = false) -> Dictionary:
+	var s := BarraBrava.new_state()
+	s["relacion"] = relacion
+	s["poder"] = poder
+	s["micros"] = micros
+	return s
+
+func test_aguante_signs_and_power() -> void:
+	assert_near(BarraBrava.aguante(_state(50, 80)), 0.0, 0.001, "neutral")
+	assert_true(BarraBrava.aguante(_state(100, 100)) > BarraBrava.aguante(_state(100, 10)), "power")
+	assert_near(BarraBrava.aguante(_state(100, 100)), 1.0, 0.001)
+	assert_near(BarraBrava.aguante(_state(0, 100)), -1.0, 0.001)
+
+func test_away_needs_micros() -> void:
+	var fx := BarraBrava.match_effect(_state(100, 100), false)
+	assert_near(fx["own_pct"], 0.0, 0.001, "no micros")
+	fx = BarraBrava.match_effect(_state(100, 100, true), false)
+	assert_near(fx["own_pct"], BarraBrava.CROWD_STAT_PCT * BarraBrava.AWAY_PRESENCE, 0.001, "micros")
+
+func test_happy_barra_helps_and_angry_one_whistles_its_own() -> void:
+	var happy := BarraBrava.match_effect(_state(100, 100), true)
+	assert_true(happy["own_pct"] > 0.0 and happy["rival_pct"] < 0.0 and happy["own_foul_scale"] < 1.0)
+	assert_eq(happy["mood"], 2)
+	var angry := BarraBrava.match_effect(_state(0, 100), true)
+	assert_true(angry["own_pct"] < 0.0)
+	assert_near(angry["rival_pct"], 0.0, 0.001, "an angry barra doesn't scare the rival")
+	assert_near(angry["own_foul_scale"], 1.0, 0.001)
+	assert_eq(angry["mood"], 1)
+
+func test_incidents_follow_the_mood() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var angry_ids := BarraBrava.ANGRY_INCIDENTS.map(func(i): return i["id"])
+	var angry := 0
+	var happy := 0
+	for i in 200:
+		var inc := BarraBrava.roll_incident(_state(0, 100), true, rng)
+		if not inc.is_empty():
+			assert_true(inc["id"] in angry_ids)
+			angry += 1
+		inc = BarraBrava.roll_incident(_state(100, 100), true, rng)
+		if not inc.is_empty():
+			assert_eq(inc["id"], "recibimiento")
+			happy += 1
+		assert_true(BarraBrava.roll_incident(_state(50, 100), true, rng).is_empty(), "neutral: nothing")
+	assert_between(angry / 200.0, 0.7, 0.9, "angry rate ~cap")
+	assert_between(happy / 200.0, 0.7, 0.9, "happy rate ~cap")
+
+func test_fine_and_fans_scale_with_division() -> void:
+	var club := _club("A", 5000)
+	var rng := RandomNumberGenerator.new()
+	var invasion : Dictionary = BarraBrava.ANGRY_INCIDENTS.filter(func(i): return i["id"] == "invasion")[0]
+	var saved_inbox := GameState.inbox.duplicate()
+	var text := BarraBrava.apply_incident(invasion, club, [], rng)
+	GameState.inbox = saved_inbox
+	assert_true(club.budget <= 10000 - roundi(1500 * 4.5), "fine scaled")
+	assert_true(club.fans < 5000)
+	assert_true(not "{" in text, "placeholders filled")
+
 func test_save_round_trip_restores_types() -> void:
 	var s := BarraBrava.new_state()
 	s["entradas"] = 2

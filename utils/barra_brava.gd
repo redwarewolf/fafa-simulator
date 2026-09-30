@@ -200,6 +200,132 @@ static func resolve_demand(s: Dictionary, club: ClubResource, demand: Dictionary
 	s["relacion"] = clampf(s["relacion"] + demand["accept"], 0.0, 100.0)
 	s["poder"] = clampf(s["poder"] + demand["poder"], 0.0, 100.0)
 
+# ── At matches ────────────────────────────────────────────────────────────────
+#
+# Aguante: how hard the barra pushes, −1 (furious and strong) to +1 (devoted
+# and strong). They're at every home match, and away only with the micros —
+# at half the weight. match_effect() turns that into what the match reads:
+# a per-match stat percent for each side (Player.crowd_pct), how often your
+# players' fouls get called (Player.foul_call_scale), the crowd's mood in the
+# stands, and whether something happens (roll_incident()).
+
+## Poder always counts for something — a weak barra still makes noise.
+const AGUANTE_POWER_FLOOR := 0.3
+const AWAY_PRESENCE := 0.5
+## Your players' stat percent at aguante ±1 (negative: they whistle their own).
+const CROWD_STAT_PCT := 5.0
+## The rival's stat percent at aguante +1 (only a happy barra intimidates).
+const RIVAL_STAT_PCT := -3.0
+## At aguante +1 the referee calls this share fewer of your fouls.
+const REFEREE_LENIENCY := 0.4
+## Crowd mood shows from this |aguante| up.
+const MOOD_THRESHOLD := 0.1
+
+## Incidents: chance per match = |aguante| × this, for an angry barra (the
+## bad ones) or a happy one (the good one), capped at INCIDENT_CHANCE_MAX.
+const ANGRY_INCIDENT_SCALE := 1.5
+const HAPPY_INCIDENT_SCALE := 0.8
+const INCIDENT_CHANCE_MAX := 0.8
+
+## Pepito narrates. {player}/{amount}/{fans} filled by apply_incident(); money
+## and fans are at División E and scale by division (cost()).
+const ANGRY_INCIDENTS := [
+	{
+		"id": "banderazo",
+		"line": "La barra colgó un trapo gigante: \"COMISIÓN DIRECTIVA: SE VAN TODOS\". Se armó un escándalo y perdimos {fans} hinchas.",
+		"fans_e": [10, 30],
+	},
+	{
+		"id": "insultos",
+		"line": "La barra la agarró con {player} y lo insultó los noventa minutos. El pibe está destruido.",
+		"morale": -12.0,
+	},
+	{
+		"id": "bengalas",
+		"line": "Volaron bengalas desde la tribuna y el árbitro paró el partido un rato. La liga nos multó con ${amount}.",
+		"fine_e": [2000, 5000],
+	},
+	{
+		"id": "invasion",
+		"line": "Un barra saltó el alambrado para increpar a los jugadores. Multa de ${amount} y {fans} hinchas que no vuelven.",
+		"fine_e": [1500, 3500], "fans_e": [5, 20],
+	},
+]
+const HAPPY_INCIDENT := {
+	"id": "recibimiento",
+	"line": "¡Recibimiento de locura! Papelitos, bombos y humo por todos lados. El plantel salió a la cancha enchufado.",
+	"team_morale": 4.0,
+}
+
+static func aguante(s: Dictionary) -> float:
+	var mood := clampf((float(s["relacion"]) - 50.0) / 50.0, -1.0, 1.0)
+	return mood * lerpf(AGUANTE_POWER_FLOOR, 1.0, float(s["poder"]) / 100.0)
+
+## 1 at home, AWAY_PRESENCE away with the micros, 0 otherwise.
+static func presence(s: Dictionary, is_home: bool) -> float:
+	if is_home:
+		return 1.0
+	return AWAY_PRESENCE if s["micros"] else 0.0
+
+## {"own_pct", "rival_pct", "own_foul_scale", "mood": Tribune row (0 neutral,
+## 1 angry, 2 happy), "mood_share": 0-1 of the crowd showing it}. All neutral
+## when the barra isn't there.
+static func match_effect(s: Dictionary, is_home: bool) -> Dictionary:
+	var a := aguante(s) * presence(s, is_home)
+	var fx := {
+		"own_pct": a * CROWD_STAT_PCT,
+		"rival_pct": maxf(a, 0.0) * RIVAL_STAT_PCT,
+		"own_foul_scale": 1.0 - maxf(a, 0.0) * REFEREE_LENIENCY,
+		"mood": 0, "mood_share": 0.0,
+	}
+	if a >= MOOD_THRESHOLD:
+		fx["mood"] = 2
+	elif a <= -MOOD_THRESHOLD:
+		fx["mood"] = 1
+	fx["mood_share"] = clampf(absf(a) * 1.5, 0.0, 1.0) if fx["mood"] != 0 else 0.0
+	return fx
+
+## Squad-overall points the crowd is worth to each side of a simulated match
+## (see SeasonManager._overall_diff_with_morale()): [own, rival].
+static func overall_bonus(s: Dictionary, is_home: bool, own_overall: int, rival_overall: int) -> Array:
+	var fx := match_effect(s, is_home)
+	return [fx["own_pct"] / 100.0 * own_overall, fx["rival_pct"] / 100.0 * rival_overall]
+
+## The incident for this match, or {} — rolled once per match.
+static func roll_incident(s: Dictionary, is_home: bool, rng: RandomNumberGenerator) -> Dictionary:
+	var a := aguante(s) * presence(s, is_home)
+	if a < 0.0 and rng.randf() < minf(-a * ANGRY_INCIDENT_SCALE, INCIDENT_CHANCE_MAX):
+		return ANGRY_INCIDENTS[rng.randi() % ANGRY_INCIDENTS.size()]
+	if a > 0.0 and rng.randf() < minf(a * HAPPY_INCIDENT_SCALE, INCIDENT_CHANCE_MAX):
+		return HAPPY_INCIDENT
+	return {}
+
+## Applies [param incident] to [param club] ([param xi]: its players in this
+## match, for the targeted ones) and returns Pepito's line. Also posts it to
+## the Inbox.
+static func apply_incident(incident: Dictionary, club: ClubResource, xi: Array, rng: RandomNumberGenerator) -> String:
+	var text : String = incident["line"]
+	if incident.has("fans_e"):
+		var r : Array = incident["fans_e"]
+		var lost := cost(rng.randi_range(r[0], r[1]), club.division)
+		club.fans = maxi(FanEconomy.MIN_FANS, club.fans - lost)
+		text = text.replace("{fans}", str(lost))
+	if incident.has("fine_e"):
+		var r : Array = incident["fine_e"]
+		var fine := cost(rng.randi_range(r[0], r[1]), club.division)
+		club.budget -= fine
+		text = text.replace("{amount}", MoneyFormat.format(fine))
+	if incident.has("morale") and not xi.is_empty():
+		var target : PlayerResource = xi[rng.randi() % xi.size()]
+		PlayerMorale.adjust(target, incident["morale"], "La barra lo insultó")
+		text = text.replace("{player}", target.full_name)
+	if incident.has("team_morale"):
+		for p : PlayerResource in xi:
+			PlayerMorale.adjust(p, incident["team_morale"], "Recibimiento de la barra")
+	GameState.post_news("La barra", text, "barra")
+	GameState.budget_changed.emit()
+	return text
+
 ## A DialogueLine spoken by Barroni.
 static func line(text: String) -> DialogueLine:
 	var atlas := AtlasTexture.new()

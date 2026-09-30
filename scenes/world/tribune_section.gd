@@ -3,12 +3,14 @@ extends Sprite2D
 
 ## One tribune stand: a base sprite plus 35 fixed seat slots. Seats start
 ## hidden; fill_seats() randomly occupies a fraction of them per match with a
-## random fan variation, all in the neutral mood for now.
+## random fan variation, in the neutral mood; set_mood() swaps some to angry/happy.
 
 const FAN_IDLE_SHADER := preload("res://shaders/fan_idle_sway.gdshader")
 const FRAME_SIZE := Vector2(164, 197) # one fan cell in tribune-fans.png
 const FAN_VARIATIONS := 8             # columns = fan look
-const MOOD_NEUTRAL := 0               # row 0; angry=1, happy=2 reserved for later
+const MOOD_NEUTRAL := 0               # row 0; see set_mood()
+const MOOD_ANGRY := 1
+const MOOD_HAPPY := 2
 
 # Only these two columns have hair colorimetrically separable from skin in
 # this art (see fan_idle_sway.gdshader) — brown/black-haired columns are left
@@ -57,9 +59,21 @@ func _ready() -> void:
 		seat.material = mat
 
 
+## Seat index → the fan variation (column) it got in fill_seats(), so
+## set_mood() can swap the row without changing who's sitting there.
+var _columns := {}
+
+## Shows [param share] of the occupied seats in mood row [param mood]
+## (MOOD_NEUTRAL/ANGRY/HAPPY), the rest neutral. Re-rolled per call.
+func set_mood(mood: int, share: float) -> void:
+	for i in _columns:
+		var row := mood if randf() < share else MOOD_NEUTRAL
+		seats[i].region_rect = Rect2(_columns[i] * FRAME_SIZE.x, row * FRAME_SIZE.y, FRAME_SIZE.x, FRAME_SIZE.y)
+
 ## rate in [0,1]; randomly occupies round(rate * seats.size()) seats with a
 ## random fan variation. Not idempotent by design — call once per match.
 func fill_seats(rate: float) -> void:
+	_columns.clear()
 	rate = clampf(rate, 0.0, 1.0)
 	var target := int(round(rate * seats.size()))
 	var order := range(seats.size())
@@ -73,6 +87,7 @@ func fill_seats(rate: float) -> void:
 		seat.visible = occupied.has(i)
 		if seat.visible:
 			var column := randi() % FAN_VARIATIONS
+			_columns[i] = column
 			seat.region_rect = Rect2(
 				column * FRAME_SIZE.x, MOOD_NEUTRAL * FRAME_SIZE.y,
 				FRAME_SIZE.x, FRAME_SIZE.y)

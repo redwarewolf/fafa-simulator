@@ -315,12 +315,18 @@ func initialize(context_position : Vector2, context_ball : Ball, context_own_goa
 		team = context_team
 		return self
 
+## What the barra in the stands is worth to this player this match, as a
+## stat percent, and the share of his fouls the referee still calls — see
+## BarraBrava.match_effect(), applied by ActorsContainer._apply_crowd().
+var crowd_pct := 0.0
+var foul_call_scale := 1.0
+
 ## Match stats from player_data for the slot [member role]: effective stats
-## plus positional aptitude and morale, as one per-match percent (see
-## Positions.aptitude_stat_pct(), PlayerMorale.stat_pct()).
+## plus positional aptitude, morale and the crowd, as one per-match percent
+## (see Positions.aptitude_stat_pct(), PlayerMorale.stat_pct(), crowd_pct).
 func _apply_stats() -> void:
 	var pct := Positions.aptitude_stat_pct(Positions.aptitude(player_data.role, role)) \
-		+ PlayerMorale.stat_pct(player_data)
+		+ PlayerMorale.stat_pct(player_data) + crowd_pct
 	power = player_data.get_effective_stat_for_role("sho", pct)
 	speed = player_data.get_effective_stat_for_role("pac", pct)
 	pace = speed
@@ -547,9 +553,10 @@ func _behind_factor(carrier: Player) -> float:
 
 func _foul_chance(carrier: Player) -> float:
 	if brain == null:
-		return FOUL_CHANCE_ON_TACKLE_WIN
+		return FOUL_CHANCE_ON_TACKLE_WIN * foul_call_scale
 	var aggression := brain.mental.aggression / 100.0
-	return clampf(FOUL_BASE + FOUL_FROM_BEHIND * _behind_factor(carrier) + FOUL_AGGRESSION * aggression, 0.02, 0.6)
+	return clampf(FOUL_BASE + FOUL_FROM_BEHIND * _behind_factor(carrier) + FOUL_AGGRESSION * aggression, 0.02, 0.6) \
+		* foul_call_scale
 
 ## Shared with the v2 AI's tackle decision (PlayerBrain) so it judges the
 ## duel by the exact odds the engine will roll.

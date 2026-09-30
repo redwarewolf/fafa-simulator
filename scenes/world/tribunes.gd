@@ -26,6 +26,32 @@ func fill_active_sections(rate: float) -> void:
 			section.fill_seats(rate)
 
 
+## The match's standing mood (the home barra's — see BarraBrava.match_effect()),
+## which react() returns to.
+var _base_mood := TribuneSection.MOOD_NEUTRAL
+var _base_share := 0.0
+var _reaction_id := 0
+
+func set_base_mood(mood: int, share: float) -> void:
+	_base_mood = mood
+	_base_share = share
+	_show_mood(mood, share)
+
+## A burst of [param mood] from [param share] of the crowd (a goal), for
+## [param seconds] of match time, then back to the base mood.
+func react(mood: int, share: float, seconds: float) -> void:
+	_reaction_id += 1
+	var id := _reaction_id
+	_show_mood(mood, share)
+	await get_tree().create_timer(seconds).timeout
+	if id == _reaction_id:  # a later goal's reaction owns the stands now
+		_show_mood(_base_mood, _base_share)
+
+func _show_mood(mood: int, share: float) -> void:
+	for section in sections:
+		if section.visible:
+			section.set_mood(mood, share)
+
 func set_fan_colors(primary: Color, secondary: Color) -> void:
 	for section in sections:
 		section.set_fan_colors(primary, secondary)

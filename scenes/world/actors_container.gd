@@ -65,6 +65,7 @@ func _ready() -> void:
 
 	if GameState != null and GameState.player_club != null:
 		is_player_team_left = GameState.player_club.team_key == team_left
+	_apply_crowd()
 
 	GameEvents.team_scored.connect(_on_team_scored)
 	GameEvents.team_reset.connect(_on_team_reset)
@@ -75,6 +76,29 @@ func _ready() -> void:
 	add_child(match_context)
 	team_brain_left = _make_team_brain(true, left_team)
 	team_brain_right = _make_team_brain(false, right_team)
+
+## The human club's barra (BarraBrava.match_effect()): a stat percent for
+## each side and a lenient referee for ours. Home is always the left side;
+## away, the barra only comes with the micros. Nothing in the headless
+## harness or when the player's club isn't playing.
+var crowd_effect := {}
+
+func _apply_crowd() -> void:
+	crowd_effect = {}
+	if MatchConfig.headless or GameState == null or GameState.player_club == null:
+		return
+	if GameState.player_club.team_key not in [team_left, team_right]:
+		return
+	crowd_effect = BarraBrava.match_effect(GameState.barra, is_player_team_left)
+	var own := left_team if is_player_team_left else right_team
+	var rival := right_team if is_player_team_left else left_team
+	for p in own:
+		p.crowd_pct = crowd_effect["own_pct"]
+		p.foul_call_scale = crowd_effect["own_foul_scale"]
+		p.refresh_stats()
+	for p in rival:
+		p.crowd_pct = crowd_effect["rival_pct"]
+		p.refresh_stats()
 
 ## True when both sides have their set-piece posts manned (see
 ## TeamBrain.set_piece_ready).
@@ -228,6 +252,10 @@ func substitute(outgoing: Player, incoming: PlayerResource) -> Player:
 		return null
 	var p := spawn_player(outgoing.position, outgoing.own_goal, outgoing.target_goal, incoming, outgoing.team, outgoing.role)
 	p.anchor_position = outgoing.anchor_position
+	# Same stands, same referee.
+	p.crowd_pct = outgoing.crowd_pct
+	p.foul_call_scale = outgoing.foul_call_scale
+	p.refresh_stats()
 	add_child(p)
 	p.spawn_position = outgoing.spawn_position  # _ready() set it to where he came on
 	p.teammates = side

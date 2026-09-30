@@ -37,6 +37,12 @@ const RESTART_TAKER_OFFSET := 26.0
 const PENALTY_AREA_DEPTH := 0.16
 ## How often (in match seconds) to roll for a random mid-match event.
 const EVENT_CHECK_INTERVAL := 60.0
+## How long the stands celebrate / seethe after a goal (match seconds).
+const GOAL_REACTION_S := 6.0
+## A barra incident (BarraBrava.roll_incident()) happens somewhere in this
+## span of the match; the happy one (the welcome) right after kickoff.
+const BARRA_INCIDENT_SPAN := Vector2(0.1, 0.85)
+const BARRA_WELCOME_AT := 0.01
 ## Roles eligible to take a kickoff — forwards, same as the real game.
 const KICKOFF_TAKER_ROLES := [Positions.Role.ST, Positions.Role.LW, Positions.Role.RW]
 ## The kickoff taker starts this far behind the ball (opposite their attacking
@@ -132,6 +138,7 @@ func _ready() -> void:
 	match_stats.setup(self, actors_container.team_left, actors_container.team_right)
 	if not MatchConfig.headless:
 		_setup_stadium()
+		_schedule_barra_incident()
 	# Opening kickoff: a proper restart, same as after a goal, just with a
 	# randomly chosen team instead of the conceding one.
 	_kickoff_team = MatchRng.pick([actors_container.team_left, actors_container.team_right])
@@ -194,6 +201,10 @@ func _setup_stadium() -> void:
 	tribunes.configure_for_tribune_level(home_club.upgrades.get("tribune", 0))
 	tribunes.fill_active_sections(float(attendance) / float(home_club.get_stadium_capacity()))
 	tribunes.set_fan_colors(home_club.primary_color, home_club.secondary_color)
+	# The stands are the home club's: they show our barra's mood at home.
+	var crowd := actors_container.crowd_effect
+	if actors_container.is_player_team_left and not crowd.is_empty():
+		tribunes.set_base_mood(crowd["mood"], crowd["mood_share"])
 
 ## Home always plays on the left (see actors_container.gd's fixture-team
 ## setup, which does the same DataLoader.get_club(f["home_id"]) lookup). The
@@ -224,6 +235,9 @@ func _process(delta: float) -> void:
 				_maybe_trigger_match_event()
 				if state != MatchState.IN_PLAY:
 					return
+			if not _barra_incident.is_empty() and match_time >= _barra_incident_at:
+				_trigger_barra_incident()
+				return
 			substitutions.process_ai(match_time / match_duration())
 			_check_out_of_play()
 		MatchState.SCORED:
@@ -277,6 +291,12 @@ func _on_team_scored(team: String) -> void:
 		"time_str": minute_label(match_time, match_duration()),
 	})
 	GameEvents.score_changed.emit()
+	if not MatchConfig.headless:
+		# The stands (always the home side's, on the left) celebrate or seethe.
+		if scoring_team == actors_container.team_left:
+			tribunes.react(TribuneSection.MOOD_HAPPY, 0.85, GOAL_REACTION_S)
+		else:
+			tribunes.react(TribuneSection.MOOD_ANGRY, 0.5, GOAL_REACTION_S)
 	_transition(MatchState.SCORED)
 
 func _on_ball_possessed(player_name: String) -> void:
@@ -560,6 +580,40 @@ func _write_back_stamina() -> void:
 	for p in actors_container.left_team + actors_container.right_team:
 		if p.player_data != null:
 			p.player_data.stamina = p.stamina
+
+## This match's barra incident (BarraBrava.roll_incident()), rolled at
+## kickoff for career matches only — a dev test match never fines the club —
+## and when it happens (match seconds). Its own RNG, not MatchRng, so the
+## engine's determinism doesn't depend on the barra.
+var _barra_incident := {}
+var _barra_incident_at := 0.0
+var _barra_rng := RandomNumberGenerator.new()
+
+func _schedule_barra_incident() -> void:
+	if SeasonManager.pending_player_fixture.is_empty() or _player_side_players().is_empty():
+		return
+	_barra_rng.randomize()
+	_barra_incident = BarraBrava.roll_incident(GameState.barra, actors_container.is_player_team_left, _barra_rng)
+	var at := BARRA_WELCOME_AT if _barra_incident.get("id", "") == "recibimiento" \
+		else _barra_rng.randf_range(BARRA_INCIDENT_SPAN.x, BARRA_INCIDENT_SPAN.y)
+	_barra_incident_at = at * match_duration()
+
+## Play stops while Pepito tells what the barra did (same freeze as a random
+## event); the stands react, and a welcome lifts our players' stats now.
+func _trigger_barra_incident() -> void:
+	var incident := _barra_incident
+	_barra_incident = {}
+	_transition(MatchState.EVENT)
+	var players := _player_side_players()
+	var data : Array = players.map(func(p: Player) -> PlayerResource: return p.player_data)
+	var line := BarraBrava.apply_incident(incident, GameState.player_club, data, _barra_rng)
+	for p in players:
+		p.refresh_stats()
+	var happy : bool = incident.get("id", "") == "recibimiento"
+	tribunes.react(TribuneSection.MOOD_HAPPY if happy else TribuneSection.MOOD_ANGRY, 0.9, GOAL_REACTION_S)
+	ClubTrainer.say(line)
+	await ClubTrainer.finished
+	_transition(MatchState.IN_PLAY)
 
 ## True from the half-time whistle until the team talk is over (see
 ## deliver_team_talk()/end_team_talk()) — HALFTIME doesn't end before that.

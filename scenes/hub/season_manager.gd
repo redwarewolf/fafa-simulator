@@ -714,8 +714,20 @@ func get_pending_match_preview() -> Dictionary:
 ## counts its active XI, an AI club its whole roster (always at baseline
 ## today, so 0). The match preview and the simulate flow both use it, so the
 ## odds shown are the odds rolled.
+##
+## The player's barra counts too (BarraBrava.overall_bonus()): a push for
+## their side, and a happy barra rattles the rival.
 func _overall_diff_with_morale(home: ClubResource, away: ClubResource) -> float:
-	return _overall_with_morale(home) - _overall_with_morale(away)
+	var diff := _overall_with_morale(home) - _overall_with_morale(away)
+	var player_club := GameState.player_club
+	if player_club != null and player_club.id in [home.id, away.id]:
+		var is_home := player_club.id == home.id
+		var rival := away if is_home else home
+		var bonus := BarraBrava.overall_bonus(GameState.barra, is_home,
+			player_club.get_squad_overall(), rival.get_squad_overall())
+		var own_edge : float = bonus[0] - bonus[1]
+		diff += own_edge if is_home else -own_edge
+	return diff
 
 func _overall_with_morale(club: ClubResource) -> float:
 	var xi : Array = club.players
@@ -771,6 +783,13 @@ func simulate_pending_player_match() -> Dictionary:
 	scorers.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["_seconds"] < b["_seconds"])
 	for s in scorers:
 		s.erase("_seconds")
+
+	# The barra's incident, if any — a watched match rolls its own (world.gd).
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var incident := BarraBrava.roll_incident(GameState.barra, is_own_home, rng)
+	if not incident.is_empty():
+		BarraBrava.apply_incident(incident, player_club, starting_xi(player_club), rng)
 
 	var result := report_player_match_result(home_score, away_score, [], scorers)
 	result["home_score"] = home_score

@@ -514,4 +514,5 @@ const MESSAGES := {
 	" por semana": " per week",
 	"Si aceptás: relación +%d": "If you accept: relationship +%d",
 	"Si rechazás: relación %d": "If you decline: relationship %d",
+	"BARRA": "ULTRAS",
 }
