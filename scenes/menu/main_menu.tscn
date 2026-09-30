@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scenes/menu/main_menu.gd" id="1"]
 [ext_resource type="Theme" path="res://assets/themes/main_theme.tres" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ui_frame.tscn" id="3"]
+[ext_resource type="Texture2D" path="res://assets/art/club/club.png" id="4"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -21,6 +22,28 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("4")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Shade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.03, 0.08, 0.1, 0.62)
 
 [node name="Center" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -46,11 +69,6 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 
-[node name="NewGameButton" type="Button" parent="Center/VBox"]
-custom_minimum_size = Vector2(220, 0)
-layout_mode = 2
-text = "Nueva Partida"
-
 [node name="LoadGameButton" type="Button" parent="Center/VBox"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
@@ -62,6 +80,11 @@ text = "Todavía no hay un club guardado"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 11
 visible = false
+
+[node name="NewGameButton" type="Button" parent="Center/VBox"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+text = "Nueva Partida"
 
 [node name="SettingsButton" type="Button" parent="Center/VBox"]
 custom_minimum_size = Vector2(220, 0)
