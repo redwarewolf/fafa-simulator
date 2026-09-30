@@ -352,6 +352,9 @@ const MESSAGES := {
 	"GOL": "GOAL",
 	"Entretiempo": "Half time",
 	"Forma": "Form",
+	"Más hinchas = más entradas, comida y merchandising": "More fans = more tickets, food and merchandise sales",
+	"Máximo de hinchas por partido de local — ampliá la Tribuna en Club > Estadio": "Max fans per home match — expand the Tribune in Club > Stadium",
+	"Salí 1° de la tabla para ascender": "Finish 1st in the table to get promoted",
 	# Staff cards / locked screens
 	"Ir a Club > Personal": "Go to Club > Staff",
 	"Desbloquea Entrenamiento: sesiones que suben un stat de un jugador +6% para siempre.": "Unlocks Training: sessions that raise one player stat +6% for good.",

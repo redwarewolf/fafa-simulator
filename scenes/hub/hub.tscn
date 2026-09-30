@@ -147,6 +147,11 @@ theme_override_constants/separation = 12
 layout_mode = 2
 text = "$50,000"
 
+[node name="BudgetDelta" type="Label" parent="Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision"]
+layout_mode = 2
+mouse_filter = 1
+text = ""
+
 [node name="Fans" type="Label" parent="Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision" unique_id=1859985026]
 layout_mode = 2
 text = "500 hinchas"

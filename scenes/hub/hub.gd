@@ -5,6 +5,7 @@ extends Control
 @onready var date_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/Date
 @onready var budget_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Budget
 @onready var fans_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Fans
+@onready var budget_delta_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/BudgetDelta
 @onready var capacity_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Capacity
 @onready var division_label : Label = $Header/HeaderLayout/InfoSection/InfoLabels/MoneyDivision/Division
 @onready var content : Control = $Content
@@ -223,7 +224,24 @@ func _update_header() -> void:
 	capacity_label.text = tr("Capacidad: %s") % MoneyFormat.format(GameState.player_club.get_stadium_capacity())
 	date_label.text = SeasonManager.current_phase_date_string()
 	_apply_club_logo(club_portrait, GameState.player_club)
+	_update_budget_delta()
 	_update_next_day_button()
+	for pair in [[fans_label, "Más hinchas = más entradas, comida y merchandising"],
+			[capacity_label, "Máximo de hinchas por partido de local — ampliá la Tribuna en Club > Estadio"],
+			[division_label, "Salí 1° de la tabla para ascender"]]:
+		pair[0].mouse_filter = Control.MOUSE_FILTER_PASS
+		pair[0].tooltip_text = tr(pair[1])
+
+## "+$847" / "-$743" next to the budget — today's movement vs yesterday's
+## close (GameState.budget_history), the header's answer to FM's finance ticker.
+func _update_budget_delta() -> void:
+	if GameState.budget_history.is_empty():
+		budget_delta_label.text = ""
+		return
+	var delta : int = GameState.player_club.budget - int(GameState.budget_history.back())
+	budget_delta_label.text = "%s$%s" % ["+" if delta >= 0 else "-", MoneyFormat.format(absi(delta))]
+	budget_delta_label.add_theme_color_override("font_color", HubPalette.WIN if delta >= 0 else HubPalette.LOSS)
+	budget_delta_label.tooltip_text = tr("Cambio desde ayer")
 
 ## The one primary action on the Hub (FM's "Continue"): labelled for what it
 ## will actually do next — open today's match, or advance to the next day.
