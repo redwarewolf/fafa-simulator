@@ -745,7 +745,7 @@ var last_payday_ledger : Dictionary = _empty_ledger()
 
 static func _empty_ledger() -> Dictionary:
 	return {"wage_cost": 0, "staff_upkeep_cost": 0, "merchandise_revenue": 0, "food_revenue": 0,
-		"sponsor_revenue": 0, "tv_revenue": 0, "debt_payment": 0, "barra_cost": 0, "afa_fine": 0}
+		"sponsor_revenue": 0, "tv_revenue": 0, "debt_payment": 0, "barra_cost": 0, "afa_fine": 0, "barra_income": 0}
 
 ## "Next Date" presses until the next payday (1-7).
 func days_until_payday() -> int:
@@ -761,10 +761,13 @@ func _run_payday() -> void:
 	ledger["tv_revenue"] = FanEconomy.tv_revenue(player_club)
 	ledger["wage_cost"] = player_club.get_wage_cost()
 	ledger["staff_upkeep_cost"] = player_club.get_staff_upkeep_cost()
+	# The barra's businesses take the food stalls and part of the merch.
+	var business := BarraBrava.adjust_payday(barra, ledger, player_club.division)
+	ledger["barra_income"] = business["income"]
 	player_club.budget += ledger["merchandise_revenue"] + ledger["food_revenue"] \
-		+ ledger["sponsor_revenue"] + ledger["tv_revenue"] \
-		- ledger["wage_cost"] - ledger["staff_upkeep_cost"]
-	ledger["barra_cost"] = BarraBrava.weekly(barra, player_club)
+		+ ledger["sponsor_revenue"] + ledger["tv_revenue"] + ledger["barra_income"] \
+		- ledger["wage_cost"] - ledger["staff_upkeep_cost"] - business["cost"]
+	ledger["barra_cost"] = BarraBrava.weekly(barra, player_club) + business["cost"]
 	ledger["afa_fine"] = ClubHeat.weekly(afa, player_club, barra)
 	# Income lands first, so the week's earnings can cover Tapir's instalment.
 	ledger["debt_payment"] = ClubDebt.collect(player_club, tapir_lines)

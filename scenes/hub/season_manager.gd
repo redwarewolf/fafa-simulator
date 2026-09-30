@@ -584,6 +584,14 @@ func report_player_match_result(home_score: int, away_score: int,
 			player_club.budget += revenue
 			result["ticket_revenue"] = revenue
 			result["attendance"] = attendance
+			# The barra's trapitos and reventa work the crowd too.
+			var business := BarraBrava.match_business(GameState.barra, attendance, revenue, player_club.division)
+			if business["income"] > 0:
+				player_club.budget += business["income"]
+				player_club.fans = maxi(FanEconomy.MIN_FANS, player_club.fans - business["fans_lost"])
+				result["fans_delta"] -= business["fans_lost"]
+				result["barra_business"] = business["income"]
+				ClubHeat.add(GameState.afa, business["heat"], player_club)
 
 		_apply_match_morale(player_club, away if is_home else home, outcome, appearances, scorers, suspended)
 		if f["type"] == "league":

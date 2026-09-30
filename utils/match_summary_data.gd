@@ -28,6 +28,8 @@ static func build(own_name: String, opp_name: String, own_score: int, opp_score:
 	data["attendance"] = match_result.get("attendance", 0)
 	data["bribe_cost"] = match_result.get("bribe_cost", 0)
 	data["scandal_fine"] = match_result.get("scandal_fine", 0)
+	# Trapitos/reventa money from this match, plus the payday cut below.
+	data["barra_income"] = match_result.get("barra_business", 0)
 	if GameState.payday_today:
 		var ledger := GameState.last_payday_ledger
 		data["merch_revenue"] = ledger.get("merchandise_revenue", 0)
@@ -39,4 +41,5 @@ static func build(own_name: String, opp_name: String, own_score: int, opp_score:
 		data["debt_payment"] = ledger.get("debt_payment", 0)
 		data["barra_cost"] = ledger.get("barra_cost", 0)
 		data["afa_fine"] = ledger.get("afa_fine", 0)
+		data["barra_income"] += ledger.get("barra_income", 0)
 	return data

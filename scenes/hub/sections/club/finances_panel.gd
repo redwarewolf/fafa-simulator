@@ -50,7 +50,7 @@ func _build_ledger() -> void:
 	var days := GameState.days_until_payday()
 	_ledger_line(tr("ÚLTIMO PAGO SEMANAL"), "", HubPalette.MUTED)
 	for row in [["merchandise_revenue", "Merchandising"], ["food_revenue", "Comida y Bebida"],
-			["sponsor_revenue", "Sponsor"], ["tv_revenue", "Derechos de TV"]]:
+			["sponsor_revenue", "Sponsor"], ["tv_revenue", "Derechos de TV"], ["barra_income", "Negocios de la barra"]]:
 		_ledger_line(tr(row[1]), "+$%s" % MoneyFormat.format(week.get(row[0], 0)), HubPalette.WIN)
 	for row in [["wage_cost", "Sueldos del plantel"], ["staff_upkeep_cost", "Personal contratado"],
 			["debt_payment", "Cuota de la deuda"], ["barra_cost", "La barra"], ["afa_fine", "Multas de la AFA"]]:

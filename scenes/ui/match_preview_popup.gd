@@ -52,8 +52,8 @@ func _build_bribes() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", HubPalette.MUTED)
 	box.add_child(title)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
 	box.add_child(row)
 	for key in ClubHeat.BRIBES:
 		var btn := Button.new()
@@ -78,6 +78,12 @@ func _refresh_bribes(preview: Dictionary) -> void:
 	for key in _bribe_buttons:
 		var btn : Button = _bribe_buttons[key]
 		btn.text = "%s  $%s" % [tr(ClubHeat.BRIBES[key]["label"]), MoneyFormat.format(ClubHeat.bribe_cost(key, division))]
+		var available := ClubHeat.bribe_available(key, GameState.barra)
+		if not available:
+			afa["bribes"][key] = false
+		btn.disabled = not available
+		btn.tooltip_text = tr(ClubHeat.BRIBES[key]["tip"]) if available \
+			else tr("La barra todavía no tiene poder para esto.")
 		btn.set_pressed_no_signal(afa["bribes"][key])
 	if ClubHeat.any_bribe(afa):
 		_risk_label.text = tr("Riesgo de que se sepa: %d%% por arreglo") % roundi(ClubHeat.scandal_chance(afa) * 100.0)

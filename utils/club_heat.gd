@@ -46,6 +46,12 @@ const BRIBES := {
 		"cost_e": 5000, "heat": 20.0, "edge": 4.0,
 		"scandal": "El arquero rival se fue de boca en un bar y contó cuánto le pagamos.",
 	},
+	"visita": {
+		"label": "Que la barra visite a su figura",
+		"tip": "Unos muchachos pasan por la casa de su mejor jugador la noche anterior. Juega con miedo.",
+		"cost_e": 1500, "heat": 18.0, "edge": 2.5, "min_power": 25.0,
+		"scandal": "La figura de ellos contó en la tele que lo fueron a apretar a la casa.",
+	},
 }
 ## Referee bribe in a watched match: share of our fouls still called, and of
 ## theirs (more free kicks for us).
@@ -53,6 +59,8 @@ const REFEREE_OWN_FOULS := 0.5
 const REFEREE_RIVAL_FOULS := 1.5
 ## Keeper bribe: the rival keeper's stat percent this match.
 const KEEPER_STAT_PCT := -25.0
+## Barra visit: the rival's best outfield player's stat percent this match.
+const VISITA_STAT_PCT := -20.0
 
 ## After the match, per bribe: chance it blows up = BASE + heat × PER_HEAT.
 const SCANDAL_BASE := 0.15
@@ -64,7 +72,7 @@ const SCANDAL_HEAT := 15.0
 static func new_state() -> Dictionary:
 	return {
 		"heat": 0.0, "investigation": false, "closed_doors": false,
-		"bribes": {"referee": false, "keeper": false}, "bribes_paid": false, "bribes_spent": 0,
+		"bribes": {"referee": false, "keeper": false, "visita": false}, "bribes_paid": false, "bribes_spent": 0,
 	}
 
 static func from_save(saved: Dictionary) -> Dictionary:
@@ -108,7 +116,8 @@ static func _check_lines(s: Dictionary, club: ClubResource) -> void:
 ## Payday: cooling, the barra's cost in heat, the fine above FINES_AT.
 ## Returns the fine charged (for the ledger).
 static func weekly(s: Dictionary, club: ClubResource, barra: Dictionary) -> int:
-	var fed := int(barra["colaboracion"]) * HEAT_PER_COLAB_TIER + int(barra["puestos"]) * HEAT_PER_PUESTO
+	var fed := int(barra["colaboracion"]) * HEAT_PER_COLAB_TIER + int(barra["puestos"]) * HEAT_PER_PUESTO \
+		+ BarraBrava.negocios_heat_week(barra)
 	add(s, fed - WEEKLY_COOLING, club)
 	var fine := 0
 	if float(s["heat"]) >= FINES_AT:
@@ -122,6 +131,11 @@ static func weekly(s: Dictionary, club: ClubResource, barra: Dictionary) -> int:
 
 static func bribe_cost(key: String, division: String) -> int:
 	return BarraBrava.cost(BRIBES[key]["cost_e"], division)
+
+## Whether [param key] is on offer: the barra's visit needs a barra with
+## enough poder to pull it off.
+static func bribe_available(key: String, barra: Dictionary) -> bool:
+	return float(barra["poder"]) >= float(BRIBES[key].get("min_power", 0.0))
 
 static func any_bribe(s: Dictionary) -> bool:
 	return s["bribes"].values().has(true)
@@ -170,12 +184,18 @@ static func after_match(s: Dictionary, club: ClubResource, rng: RandomNumberGene
 
 ## Returns the fine.
 static func _scandal(s: Dictionary, club: ClubResource, key: String, rng: RandomNumberGenerator) -> int:
-	var fine := roundi(bribe_cost(key, club.division) * SCANDAL_FINE_MULT)
+	return scandal(s, club, BRIBES[key]["scandal"], bribe_cost(key, club.division), rng)
+
+## Something shady got out: a fine of SCANDAL_FINE_MULT × [param price],
+## lost fans, more heat, and the headline ([param text]) in the Inbox.
+## Returns the fine. Also used by BarraBrava.apriete().
+static func scandal(s: Dictionary, club: ClubResource, text: String, price: int, rng: RandomNumberGenerator) -> int:
+	var fine := roundi(price * SCANDAL_FINE_MULT)
 	var fans := BarraBrava.cost(rng.randi_range(SCANDAL_FANS_E[0], SCANDAL_FANS_E[1]), club.division)
 	club.budget -= fine
 	club.fans = maxi(FanEconomy.MIN_FANS, club.fans - fans)
 	GameState.post_news("Escándalo", "%s Multa de $%s, %d hinchas menos, y la AFA toma nota." % [
-		BRIBES[key]["scandal"], MoneyFormat.format(fine), fans], "afa")
+		text, MoneyFormat.format(fine), fans], "afa")
 	add(s, SCANDAL_HEAT, club)
 	GameState.budget_changed.emit()
 	return fine

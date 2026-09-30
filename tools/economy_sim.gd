@@ -63,7 +63,9 @@ const SEIZED_PLAYER_WIN_DROP := 0.03
 
 ## Overrides merged over the game's own rules for an A/B comparison — same
 ## keys as _game_rules() (money per payday unless named otherwise). Leave
-## empty to report only the game as it is; e.g. {"debt_weekly": 4000}.
+## empty to report only the game as it is; e.g. {"debt_weekly": 4000}, or
+## {"negocios": ["trapitos", "reventa", "choripaneros"]} for the barra's
+## businesses.
 const EXPERIMENT := {}
 
 var _rng := RandomNumberGenerator.new()
@@ -107,7 +109,7 @@ func _ready() -> void:
 ## Season-1 money flows (per-career means) for a mid-table team, per strategy.
 func _print_breakdown(rules: Dictionary, base_seed: int) -> void:
 	print("\n  season 1 money flows, mid team (mean per career):")
-	var keys := ["gate", "merch", "food", "sponsor", "tv", "prize", "events", "wages", "staff", "debt", "upgrades", "seized", "severance"]
+	var keys := ["gate", "merch", "food", "sponsor", "tv", "prize", "events", "barra_biz", "wages", "staff", "debt", "upgrades", "seized", "severance", "barra_biz_cost"]
 	var header := "    %-9s" % "strategy"
 	for k in keys:
 		header += " %9s" % k
@@ -234,8 +236,17 @@ func _run_career(rules: Dictionary, strength: String, strategy: String, seasons:
 							if arrears <= 0.0:
 								arrears = 0.0
 								strikes = 0
-				cash += _add(f, "merch", _passive(rules, "merch", levels.get("merchandise_sales", 0), fans))
-				cash += _add(f, "food", _passive(rules, "food", levels.get("food_sales", 0), fans))
+				var negocios : Array = rules.get("negocios", [])
+				var merch := _passive(rules, "merch", levels.get("merchandise_sales", 0), fans)
+				if "merch_trucho" in negocios:
+					merch *= BarraBrava.NEGOCIOS["merch_trucho"]["merch_share"]
+				cash += _add(f, "merch", merch)
+				if "choripaneros" in negocios:
+					cash += _add(f, "barra_biz", BarraBrava.cost(BarraBrava.NEGOCIOS["choripaneros"]["weekly_cut_e"], div))
+				else:
+					cash += _add(f, "food", _passive(rules, "food", levels.get("food_sales", 0), fans))
+				if "seguridad" in negocios:
+					cash -= _add(f, "barra_biz_cost", BarraBrava.cost(BarraBrava.NEGOCIOS["seguridad"]["weekly_cost_e"], div))
 				if rules.has("sponsor_base"):
 					cash += _add(f, "sponsor", rules["sponsor_base"][div] + rules["sponsor_per_fan"] * fans)
 					cash += _add(f, "tv", rules["tv"][div])
@@ -254,7 +265,15 @@ func _run_career(rules: Dictionary, strength: String, strategy: String, seasons:
 				if entry.ends_with("home"):
 					var attendance := mini(int(round(fans * _rng.randf_range(FanEconomy.ATTENDANCE_RATE_MIN, FanEconomy.ATTENDANCE_RATE_MAX))),
 						(levels.get("tribune", 0) + 1) * ClubResource.TRIBUNE_CAPACITY_PER_LEVEL)
-					cash += _add(f, "gate", attendance * rules["ticket_price"][div])
+					var gate : int = attendance * rules["ticket_price"][div]
+					cash += _add(f, "gate", gate)
+					# Trapitos/reventa: BarraBrava.match_business(), same numbers.
+					var biz_state := BarraBrava.new_state()
+					for k in rules.get("negocios", []):
+						biz_state["negocios"][k] = 0
+					var biz := BarraBrava.match_business(biz_state, attendance, gate, div)
+					cash += _add(f, "barra_biz", biz["income"])
+					fans = maxi(FanEconomy.MIN_FANS, fans - int(biz["fans_lost"]))
 				# Match event (10%): half pitch invader (fans), half crowd surge (money).
 				if _rng.randf() < RandomEvents.MATCH_TRIGGER_CHANCE:
 					if _rng.randf() < 0.5:
@@ -479,6 +498,10 @@ func _game_rules() -> Dictionary:
 		"hub_event_chance": RandomEvents.HUB_TRIGGER_CHANCE,
 		"hub_money_events": hub_money,
 		"hub_other_weight": other,
+		# La barra's businesses switched on (BarraBrava.NEGOCIOS keys) — none in
+		# the game's own run; set in EXPERIMENT to see what they do to the money.
+		# Money only: their heat (AFA fines, sanctions) isn't modelled here.
+		"negocios": [],
 	}
 
 func _add(flows: Dictionary, key: String, amount: float) -> float:

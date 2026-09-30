@@ -127,12 +127,98 @@ func test_fine_and_fans_scale_with_division() -> void:
 	assert_true(club.fans < 5000)
 	assert_true(not "{" in text, "placeholders filled")
 
+func test_cutting_a_business_costs_by_weeks_running() -> void:
+	var s := BarraBrava.new_state()
+	BarraBrava.set_negocio(s, "trapitos", true)
+	for i in 4:
+		BarraBrava.adjust_payday(s, GameState._empty_ledger(), "E")
+	assert_eq(s["negocios"]["trapitos"], 4)
+	var lost := BarraBrava.set_negocio(s, "trapitos", false)
+	assert_near(lost, 4 * BarraBrava.DEPENDENCE_PER_WEEK, 0.001)
+	assert_near(s["relacion"], 50.0 - lost, 0.001)
+	assert_true(not BarraBrava.negocio_active(s, "trapitos"))
+	s["negocios"]["reventa"] = 1000
+	assert_near(BarraBrava.set_negocio(s, "reventa", false), BarraBrava.DEPENDENCE_MAX, 0.001, "capped")
+
+func test_businesses_feed_relacion_and_power() -> void:
+	var s := BarraBrava.new_state()
+	var base_rel := BarraBrava.weekly_relacion(s)
+	var base_pow := BarraBrava.power_target(s, 100)
+	BarraBrava.set_negocio(s, "seguridad", true)
+	assert_near(BarraBrava.weekly_relacion(s), base_rel + BarraBrava.NEGOCIOS["seguridad"]["relacion"], 0.001)
+	assert_near(BarraBrava.power_target(s, 100), base_pow + BarraBrava.NEGOCIOS["seguridad"]["power"], 0.001)
+
+func test_payday_food_and_merch() -> void:
+	var s := BarraBrava.new_state()
+	BarraBrava.set_negocio(s, "choripaneros", true)
+	BarraBrava.set_negocio(s, "merch_trucho", true)
+	BarraBrava.set_negocio(s, "seguridad", true)
+	var ledger := GameState._empty_ledger()
+	ledger["food_revenue"] = 900
+	ledger["merchandise_revenue"] = 1000
+	var out := BarraBrava.adjust_payday(s, ledger, "E")
+	assert_eq(ledger["food_revenue"], 0)
+	assert_eq(ledger["merchandise_revenue"], roundi(1000 * BarraBrava.NEGOCIOS["merch_trucho"]["merch_share"]))
+	assert_eq(out["income"], BarraBrava.NEGOCIOS["choripaneros"]["weekly_cut_e"])
+	assert_eq(out["cost"], BarraBrava.NEGOCIOS["seguridad"]["weekly_cost_e"])
+
+func test_match_business_money_and_fans() -> void:
+	var s := BarraBrava.new_state()
+	assert_eq(BarraBrava.match_business(s, 100, 4000, "E")["income"], 0, "nothing running")
+	BarraBrava.set_negocio(s, "trapitos", true)
+	BarraBrava.set_negocio(s, "reventa", true)
+	var out := BarraBrava.match_business(s, 100, 4000, "E")
+	assert_eq(out["income"], 100 * BarraBrava.NEGOCIOS["trapitos"]["per_fan_e"] + roundi(4000 * BarraBrava.NEGOCIOS["reventa"]["gate_bonus"]))
+	assert_true(out["fans_lost"] > 0 and out["heat"] > 0.0)
+	assert_eq(BarraBrava.match_business(s, 0, 0, "E")["income"], 0, "closed doors: nothing")
+
+func test_seguridad_cuts_home_trouble() -> void:
+	var angry := _state(0, 100)
+	var guarded := _state(0, 100)
+	BarraBrava.set_negocio(guarded, "seguridad", true)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var n_angry := 0
+	var n_guarded := 0
+	for i in 300:
+		n_angry += 0 if BarraBrava.roll_incident(angry, true, rng).is_empty() else 1
+		n_guarded += 0 if BarraBrava.roll_incident(guarded, true, rng).is_empty() else 1
+	assert_true(n_guarded < n_angry * 0.6, "%d vs %d" % [n_guarded, n_angry])
+
+func test_apriete_calms_and_scares() -> void:
+	var saved_inbox := GameState.inbox.duplicate()
+	var saved_afa := GameState.afa.duplicate(true)
+	var club := _club()
+	var p := PlayerResource.new("Quejoso", 0 as Player.SkinColor, 0 as Player.HairColor, Positions.Role.ST, 25,
+		PlayerResource.Quality.COMMON, 50, 50, 50, 50, 50, 50)
+	p.morale = 5.0
+	p.furious_streak = 2
+	club.players.append(p)
+	assert_eq(BarraBrava.apriete_targets(club), [p])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	BarraBrava.apriete(BarraBrava.new_state(), club, p, rng)
+	assert_near(p.morale, PlayerMorale.BASELINE, 0.001)
+	assert_eq(p.furious_streak, 0)
+	assert_true(p.get_modifier_pct("pac") < 0.0, "scared")
+	assert_true(GameState.afa["heat"] >= saved_afa["heat"] + BarraBrava.APRIETE_HEAT - 0.001)
+	GameState.inbox = saved_inbox
+	GameState.afa = saved_afa
+
+func test_rival_visit_needs_power() -> void:
+	assert_true(not ClubHeat.bribe_available("visita", _state(50, 10)))
+	assert_true(ClubHeat.bribe_available("visita", _state(50, 40)))
+	assert_true(ClubHeat.bribe_available("referee", _state(50, 0)))
+
 func test_save_round_trip_restores_types() -> void:
 	var s := BarraBrava.new_state()
 	s["entradas"] = 2
 	s["micros"] = true
+	s["negocios"]["trapitos"] = 7
 	var json : Dictionary = JSON.parse_string(JSON.stringify(s))
+	json["negocios"]["no_such_business"] = 3
 	var back := BarraBrava.from_save(json)
 	assert_eq(back["entradas"], 2)
 	assert_true(back["entradas"] is int)
 	assert_eq(back["micros"], true)
+	assert_eq(back["negocios"], {"trapitos": 7}, "weeks kept, unknown keys dropped")

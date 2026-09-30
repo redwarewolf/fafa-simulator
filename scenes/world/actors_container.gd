@@ -117,6 +117,16 @@ func _apply_bribes(own: Array[Player], rival: Array[Player]) -> void:
 			if p.role == Positions.Role.GK:
 				p.crowd_pct += ClubHeat.KEEPER_STAT_PCT
 				p.refresh_stats()
+	if afa["bribes"]["visita"]:
+		# The barra's visit last night: their best outfield player plays scared.
+		var best : Player = null
+		for p in rival:
+			if p.role != Positions.Role.GK and p.player_data != null \
+					and (best == null or p.player_data.overall() > best.player_data.overall()):
+				best = p
+		if best != null:
+			best.crowd_pct += ClubHeat.VISITA_STAT_PCT
+			best.refresh_stats()
 
 ## True when both sides have their set-piece posts manned (see
 ## TeamBrain.set_piece_ready).
@@ -270,8 +280,11 @@ func substitute(outgoing: Player, incoming: PlayerResource) -> Player:
 		return null
 	var p := spawn_player(outgoing.position, outgoing.own_goal, outgoing.target_goal, incoming, outgoing.team, outgoing.role)
 	p.anchor_position = outgoing.anchor_position
-	# Same stands, same referee.
-	p.crowd_pct = outgoing.crowd_pct
+	# Same stands, same referee — but not the bribe or the visit aimed at the
+	# player he replaces, so the side's crowd value, not outgoing's own.
+	if not crowd_effect.is_empty():
+		var own_side := outgoing.is_left_team == is_player_team_left
+		p.crowd_pct = crowd_effect["own_pct"] if own_side else crowd_effect["rival_pct"]
 	p.foul_call_scale = outgoing.foul_call_scale
 	p.refresh_stats()
 	add_child(p)

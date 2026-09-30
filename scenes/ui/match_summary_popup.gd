@@ -105,7 +105,7 @@ func _build_finance_rows(data: Dictionary) -> void:
 		income += ticket_revenue
 	# The weekly payday's lines, only when payday landed on this match day.
 	for row in [["merch_revenue", "Merchandising"], ["food_revenue", "Comida y Bebida"],
-			["sponsor_revenue", "Sponsor"], ["tv_revenue", "Derechos de TV"]]:
+			["sponsor_revenue", "Sponsor"], ["tv_revenue", "Derechos de TV"], ["barra_income", "Negocios de la barra"]]:
 		var amount : int = data.get(row[0], 0)
 		if amount > 0:
 			_add_row(tr(row[1]), "+$%s" % MoneyFormat.format(amount))
