@@ -119,8 +119,10 @@ func test_fine_and_fans_scale_with_division() -> void:
 	var rng := RandomNumberGenerator.new()
 	var invasion : Dictionary = BarraBrava.ANGRY_INCIDENTS.filter(func(i): return i["id"] == "invasion")[0]
 	var saved_inbox := GameState.inbox.duplicate()
+	var saved_afa := GameState.afa.duplicate(true)
 	var text := BarraBrava.apply_incident(invasion, club, [], rng)
 	GameState.inbox = saved_inbox
+	GameState.afa = saved_afa
 	assert_true(club.budget <= 10000 - roundi(1500 * 4.5), "fine scaled")
 	assert_true(club.fans < 5000)
 	assert_true(not "{" in text, "placeholders filled")

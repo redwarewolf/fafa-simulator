@@ -99,6 +99,24 @@ func _apply_crowd() -> void:
 	for p in rival:
 		p.crowd_pct = crowd_effect["rival_pct"]
 		p.refresh_stats()
+	_apply_bribes(own, rival)
+
+## This match's paid bribes (ClubHeat): a referee who looks the other way for
+## us and not for them, and a rival keeper having a strange afternoon.
+func _apply_bribes(own: Array[Player], rival: Array[Player]) -> void:
+	var afa := GameState.afa
+	if not afa["bribes_paid"]:
+		return
+	if afa["bribes"]["referee"]:
+		for p in own:
+			p.foul_call_scale *= ClubHeat.REFEREE_OWN_FOULS
+		for p in rival:
+			p.foul_call_scale *= ClubHeat.REFEREE_RIVAL_FOULS
+	if afa["bribes"]["keeper"]:
+		for p in rival:
+			if p.role == Positions.Role.GK:
+				p.crowd_pct += ClubHeat.KEEPER_STAT_PCT
+				p.refresh_stats()
 
 ## True when both sides have their set-piece posts manned (see
 ## TeamBrain.set_piece_ready).

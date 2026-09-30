@@ -574,6 +574,10 @@ func report_player_match_result(home_score: int, away_score: int,
 			var attendance : int = f.get("attendance", -1)
 			if attendance < 0:
 				attendance = FanEconomy.roll_attendance(player_club)  # fallback; shouldn't normally trigger
+			# The AFA's closed-doors sanction: served with this match.
+			if ClubHeat.closed_doors_now(GameState.afa, true):
+				attendance = 0
+				GameState.afa["closed_doors"] = false
 			# La barra's entradas de favor get in without paying.
 			var paying := attendance - roundi(attendance * BarraBrava.free_ticket_share(GameState.barra))
 			var revenue := FanEconomy.ticket_revenue_for(player_club, paying)
@@ -584,6 +588,9 @@ func report_player_match_result(home_score: int, away_score: int,
 		_apply_match_morale(player_club, away if is_home else home, outcome, appearances, scorers, suspended)
 		if f["type"] == "league":
 			BarraBrava.on_match_result(GameState.barra, outcome)
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		result.merge(ClubHeat.after_match(GameState.afa, player_club, rng))
 
 		GameState.budget_changed.emit()
 		_post_result_news(f, home, away, own_score, opp_score, result)
@@ -725,7 +732,8 @@ func _overall_diff_with_morale(home: ClubResource, away: ClubResource) -> float:
 		var rival := away if is_home else home
 		var bonus := BarraBrava.overall_bonus(GameState.barra, is_home,
 			player_club.get_squad_overall(), rival.get_squad_overall())
-		var own_edge : float = bonus[0] - bonus[1]
+		# ...and so do this match's bribes (ClubHeat), paid or just picked.
+		var own_edge : float = bonus[0] - bonus[1] + ClubHeat.bribe_edge(GameState.afa)
 		diff += own_edge if is_home else -own_edge
 	return diff
 

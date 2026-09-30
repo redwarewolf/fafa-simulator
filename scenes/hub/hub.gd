@@ -375,6 +375,9 @@ func _show_match_preview() -> void:
 	match_preview_popup.show_for_fixture(preview)
 
 func _on_match_preview_play() -> void:
+	# Bribes picked in the preview are paid now, at kickoff (ClubHeat).
+	ClubHeat.commit_bribes(GameState.afa, GameState.player_club)
+	GameState.save_career()
 	get_tree().change_scene_to_file("res://scenes/world/world.tscn")
 
 ## Resolves the pending match instantly (SeasonManager.simulate_pending_player_match())
@@ -383,6 +386,7 @@ func _on_match_preview_play() -> void:
 ## simulate_pending_player_match() clears pending_player_fixture as part of
 ## resolving it, same as a played match does.
 func _on_match_preview_simulate() -> void:
+	ClubHeat.commit_bribes(GameState.afa, GameState.player_club)
 	var preview := SeasonManager.get_pending_match_preview()
 	var result := SeasonManager.simulate_pending_player_match()
 	GameState.save_career()

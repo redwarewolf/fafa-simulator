@@ -26,10 +26,79 @@ signal simulate_pressed
 @onready var odds_bar            : Control = $PanelRoot/Margin/Main/OddsBar
 @onready var simulate_odds_bar   : Control = $PanelRoot/Margin/Main/SimulateOddsBar
 
+@onready var main : VBoxContainer = $PanelRoot/Margin/Main
+@onready var button_row : Control = $PanelRoot/Margin/Main/ButtonRow
+
+## "Por debajo de la mesa": one toggle per ClubHeat.BRIBES entry. Ticking one
+## only picks it (the odds above update); it's paid at kickoff (hub.gd).
+var _bribe_buttons := {}
+var _risk_label : Label = null
+var _warning_label : Label = null
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 	simulate_odds_label.add_theme_color_override("font_color", HubPalette.MUTED)
+	_build_bribes()
+
+func _build_bribes() -> void:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	main.add_child(box)
+	main.move_child(box, button_row.get_index())
+	box.add_child(HSeparator.new())
+	var title := Label.new()
+	title.text = tr("POR DEBAJO DE LA MESA")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", HubPalette.MUTED)
+	box.add_child(title)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	box.add_child(row)
+	for key in ClubHeat.BRIBES:
+		var btn := Button.new()
+		btn.toggle_mode = true
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.tooltip_text = tr(ClubHeat.BRIBES[key]["tip"])
+		btn.toggled.connect(_on_bribe_toggled.bind(key))
+		row.add_child(btn)
+		_bribe_buttons[key] = btn
+	_risk_label = Label.new()
+	_risk_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_risk_label)
+	_warning_label = Label.new()
+	_warning_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warning_label.add_theme_color_override("font_color", HubPalette.LOSS)
+	box.add_child(_warning_label)
+
+func _refresh_bribes(preview: Dictionary) -> void:
+	var afa := GameState.afa
+	var division := GameState.player_club.division
+	for key in _bribe_buttons:
+		var btn : Button = _bribe_buttons[key]
+		btn.text = "%s  $%s" % [tr(ClubHeat.BRIBES[key]["label"]), MoneyFormat.format(ClubHeat.bribe_cost(key, division))]
+		btn.set_pressed_no_signal(afa["bribes"][key])
+	if ClubHeat.any_bribe(afa):
+		_risk_label.text = tr("Riesgo de que se sepa: %d%% por arreglo") % roundi(ClubHeat.scandal_chance(afa) * 100.0)
+		_risk_label.add_theme_color_override("font_color", HubPalette.HIGHLIGHT)
+	else:
+		_risk_label.text = tr("Nadie se tiene que enterar.")
+		_risk_label.add_theme_color_override("font_color", HubPalette.MUTED)
+	var warnings : Array[String] = []
+	if preview.get("is_own_home", false) and ClubHeat.closed_doors_now(afa, true):
+		warnings.append(tr("Sanción de la AFA: este partido se juega sin público."))
+	var heat_warning := ClubHeat.warning(afa)
+	if heat_warning != "":
+		warnings.append(heat_warning)
+	_warning_label.text = "\n".join(warnings)
+	_warning_label.visible = not warnings.is_empty()
+
+func _on_bribe_toggled(pressed: bool, key: String) -> void:
+	GameState.afa["bribes"][key] = pressed
+	var preview := SeasonManager.get_pending_match_preview()
+	_set_odds(preview)
+	_refresh_bribes(preview)
 
 ## [param preview] is SeasonManager.get_pending_match_preview()'s return value.
 func show_for_fixture(preview: Dictionary) -> void:
@@ -48,15 +117,19 @@ func show_for_fixture(preview: Dictionary) -> void:
 	home_tag.visible = is_own_home
 	away_tag.visible = not is_own_home
 
+	_set_odds(preview)
+	_refresh_bribes(preview)
+
+	visible = true
+	get_tree().paused = true
+
+func _set_odds(preview: Dictionary) -> void:
 	var own_odds : Dictionary = preview["own_odds"]
 	var sim_odds : Dictionary = preview["simulate_odds"]
 	odds_label.text = tr("Si jugás  —  victoria / empate / derrota")
 	odds_bar.set_odds(own_odds["win"], own_odds["draw"], own_odds["loss"])
 	simulate_odds_label.text = tr("Si simulás  —  victoria –10%")
 	simulate_odds_bar.set_odds(sim_odds["win"], sim_odds["draw"], sim_odds["loss"])
-
-	visible = true
-	get_tree().paused = true
 
 func _hide_popup() -> void:
 	visible = false

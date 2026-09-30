@@ -195,6 +195,10 @@ func _setup_stadium() -> void:
 		return
 
 	var attendance := FanEconomy.roll_attendance(home_club)
+	# The AFA closed our stadium for this one (ClubHeat): empty stands.
+	if GameState.player_club != null and home_club.id == GameState.player_club.id \
+			and ClubHeat.closed_doors_now(GameState.afa, true):
+		attendance = 0
 	if not SeasonManager.pending_player_fixture.is_empty():
 		SeasonManager.pending_player_fixture["attendance"] = attendance
 

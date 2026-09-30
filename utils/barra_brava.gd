@@ -233,22 +233,22 @@ const ANGRY_INCIDENTS := [
 	{
 		"id": "banderazo",
 		"line": "La barra colgó un trapo gigante: \"COMISIÓN DIRECTIVA: SE VAN TODOS\". Se armó un escándalo y perdimos {fans} hinchas.",
-		"fans_e": [10, 30],
+		"fans_e": [10, 30], "heat": 4.0,
 	},
 	{
 		"id": "insultos",
 		"line": "La barra la agarró con {player} y lo insultó los noventa minutos. El pibe está destruido.",
-		"morale": -12.0,
+		"morale": -12.0, "heat": 2.0,
 	},
 	{
 		"id": "bengalas",
 		"line": "Volaron bengalas desde la tribuna y el árbitro paró el partido un rato. La liga nos multó con ${amount}.",
-		"fine_e": [2000, 5000],
+		"fine_e": [2000, 5000], "heat": 8.0,
 	},
 	{
 		"id": "invasion",
 		"line": "Un barra saltó el alambrado para increpar a los jugadores. Multa de ${amount} y {fans} hinchas que no vuelven.",
-		"fine_e": [1500, 3500], "fans_e": [5, 20],
+		"fine_e": [1500, 3500], "fans_e": [5, 20], "heat": 10.0,
 	},
 ]
 const HAPPY_INCIDENT := {
@@ -261,10 +261,11 @@ static func aguante(s: Dictionary) -> float:
 	var mood := clampf((float(s["relacion"]) - 50.0) / 50.0, -1.0, 1.0)
 	return mood * lerpf(AGUANTE_POWER_FLOOR, 1.0, float(s["poder"]) / 100.0)
 
-## 1 at home, AWAY_PRESENCE away with the micros, 0 otherwise.
+## 1 at home, AWAY_PRESENCE away with the micros, 0 otherwise — and 0 at a
+## home match the AFA closed to the public (ClubHeat).
 static func presence(s: Dictionary, is_home: bool) -> float:
 	if is_home:
-		return 1.0
+		return 0.0 if ClubHeat.closed_doors_now(GameState.afa, true) else 1.0
 	return AWAY_PRESENCE if s["micros"] else 0.0
 
 ## {"own_pct", "rival_pct", "own_foul_scale", "mood": Tribune row (0 neutral,
@@ -323,6 +324,8 @@ static func apply_incident(incident: Dictionary, club: ClubResource, xi: Array, 
 		for p : PlayerResource in xi:
 			PlayerMorale.adjust(p, incident["team_morale"], "Recibimiento de la barra")
 	GameState.post_news("La barra", text, "barra")
+	if incident.has("heat"):
+		ClubHeat.add(GameState.afa, incident["heat"], club)
 	GameState.budget_changed.emit()
 	return text
 

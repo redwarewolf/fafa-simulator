@@ -53,7 +53,7 @@ func _build_ledger() -> void:
 			["sponsor_revenue", "Sponsor"], ["tv_revenue", "Derechos de TV"]]:
 		_ledger_line(tr(row[1]), "+$%s" % MoneyFormat.format(week.get(row[0], 0)), HubPalette.WIN)
 	for row in [["wage_cost", "Sueldos del plantel"], ["staff_upkeep_cost", "Personal contratado"],
-			["debt_payment", "Cuota de la deuda"], ["barra_cost", "La barra"]]:
+			["debt_payment", "Cuota de la deuda"], ["barra_cost", "La barra"], ["afa_fine", "Multas de la AFA"]]:
 		_ledger_line(tr(row[1]), "-$%s" % MoneyFormat.format(week.get(row[0], 0)), HubPalette.LOSS)
 	_ledger_line(tr("Próximo pago: mañana") if days == 1 else tr("Próximo pago en %d días") % days, "", HubPalette.MUTED)
 	_build_debt()

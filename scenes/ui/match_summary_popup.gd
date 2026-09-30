@@ -26,7 +26,8 @@ func _ready() -> void:
 ## when false, only the score/scorers show, e.g. the Hub's dev Test Match with
 ## no season fixture behind it), fans_delta, fans_now, ticket_revenue,
 ## attendance, merch_revenue, food_revenue, sponsor_revenue, tv_revenue,
-## wage_cost, staff_cost, debt_payment, barra_cost.
+## wage_cost, staff_cost, debt_payment, barra_cost, afa_fine, bribe_cost,
+## scandal_fine.
 func show_result(data: Dictionary) -> void:
 	_clear_rows()
 
@@ -112,7 +113,8 @@ func _build_finance_rows(data: Dictionary) -> void:
 
 	var costs := 0
 	var cost_rows : Array = [["wage_cost", "Sueldos del plantel"], ["staff_cost", "Personal contratado"],
-		["debt_payment", "Cuota de la deuda"], ["barra_cost", "La barra"]]
+		["debt_payment", "Cuota de la deuda"], ["barra_cost", "La barra"], ["afa_fine", "Multas de la AFA"],
+		["bribe_cost", "Arreglos"], ["scandal_fine", "Multa por escándalo"]]
 	for row in cost_rows:
 		costs += int(data.get(row[0], 0))
 	if costs > 0:

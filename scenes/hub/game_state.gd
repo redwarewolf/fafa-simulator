@@ -307,6 +307,7 @@ func start_new_career(club: ClubResource, ai_clubs: Array[ClubResource]) -> void
 	debt_arrears = 0
 	debt_strikes = 0
 	barra = BarraBrava.new_state()
+	afa = ClubHeat.new_state()
 	tapir_lines.clear()
 	_init_default_tactics()
 	SeasonManager.start_pre_season()
@@ -392,6 +393,7 @@ func load_career() -> bool:
 	debt_arrears = int(data.get("debt_arrears", 0))
 	debt_strikes = int(data.get("debt_strikes", 0))
 	barra = BarraBrava.from_save(data.get("barra", {}))
+	afa = ClubHeat.from_save(data.get("afa", {}))
 	tapir_lines.clear()
 
 	var fixtures_data : Array[Dictionary] = []
@@ -437,6 +439,7 @@ func save_career() -> void:
 		"debt_arrears": debt_arrears,
 		"debt_strikes": debt_strikes,
 		"barra": barra,
+		"afa": afa,
 	}
 	var file := FileAccess.open(CAREER_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -727,6 +730,9 @@ var debt_strikes : int = 0
 ## See BarraBrava for the keys and rules. Saved in career.json.
 var barra : Dictionary = BarraBrava.new_state()
 
+## Heat, AFA sanctions and this match's bribes — see ClubHeat. Saved in career.json.
+var afa : Dictionary = ClubHeat.new_state()
+
 ## Tapir's lines from the latest payday, waiting for the Hub to narrate them
 ## (transient — every one is also posted to the Inbox).
 var tapir_lines : Array[String] = []
@@ -739,7 +745,7 @@ var last_payday_ledger : Dictionary = _empty_ledger()
 
 static func _empty_ledger() -> Dictionary:
 	return {"wage_cost": 0, "staff_upkeep_cost": 0, "merchandise_revenue": 0, "food_revenue": 0,
-		"sponsor_revenue": 0, "tv_revenue": 0, "debt_payment": 0, "barra_cost": 0}
+		"sponsor_revenue": 0, "tv_revenue": 0, "debt_payment": 0, "barra_cost": 0, "afa_fine": 0}
 
 ## "Next Date" presses until the next payday (1-7).
 func days_until_payday() -> int:
@@ -759,6 +765,7 @@ func _run_payday() -> void:
 		+ ledger["sponsor_revenue"] + ledger["tv_revenue"] \
 		- ledger["wage_cost"] - ledger["staff_upkeep_cost"]
 	ledger["barra_cost"] = BarraBrava.weekly(barra, player_club)
+	ledger["afa_fine"] = ClubHeat.weekly(afa, player_club, barra)
 	# Income lands first, so the week's earnings can cover Tapir's instalment.
 	ledger["debt_payment"] = ClubDebt.collect(player_club, tapir_lines)
 	last_payday_ledger = ledger

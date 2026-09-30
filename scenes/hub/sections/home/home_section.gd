@@ -35,6 +35,7 @@ const KIND_TAGS := {
 	"info":   ["CLUB",    Color(0.62, 0.72, 0.78)],
 	"debt":   ["DEUDA",   Color(0.9, 0.4, 0.4)],
 	"barra":  ["BARRA",   Color(0.85, 0.45, 0.95)],
+	"afa":    ["AFA",     Color(0.95, 0.75, 0.3)],
 }
 
 @onready var unread_label : Label       = $HBox/InboxPanel/VBox/TitleRow/UnreadLabel

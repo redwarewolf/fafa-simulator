@@ -26,6 +26,8 @@ static func build(own_name: String, opp_name: String, own_score: int, opp_score:
 	data["fans_now"] = GameState.player_club.fans if GameState.player_club != null else 0
 	data["ticket_revenue"] = match_result.get("ticket_revenue", 0)
 	data["attendance"] = match_result.get("attendance", 0)
+	data["bribe_cost"] = match_result.get("bribe_cost", 0)
+	data["scandal_fine"] = match_result.get("scandal_fine", 0)
 	if GameState.payday_today:
 		var ledger := GameState.last_payday_ledger
 		data["merch_revenue"] = ledger.get("merchandise_revenue", 0)
@@ -36,4 +38,5 @@ static func build(own_name: String, opp_name: String, own_score: int, opp_score:
 		data["staff_cost"] = ledger.get("staff_upkeep_cost", 0)
 		data["debt_payment"] = ledger.get("debt_payment", 0)
 		data["barra_cost"] = ledger.get("barra_cost", 0)
+		data["afa_fine"] = ledger.get("afa_fine", 0)
 	return data
